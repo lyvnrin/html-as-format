@@ -1,0 +1,19 @@
+.heading {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: #5a6270;
+  margin: 0 0 16px;
+}
+
+.grid {
+  columns: 3 220px;
+  column-gap: 20px;
+}
+
+@media (max-width: 720px) {
+  .grid {
+    columns: 1;
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "name": "html-as-format",
+  "private": true,
+  "version": "0.0.0",
+  "scripts": {
+    "dev": "concurrently -n server,frontend -c blue,magenta \"npm run dev --prefix server\" \"npm run dev --prefix frontend\""
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.0"
+  }
+}

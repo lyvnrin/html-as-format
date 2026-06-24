@@ -1,0 +1,61 @@
+.page {
+  max-width: 980px;
+  margin: 0 auto;
+  padding: 40px 24px 80px;
+}
+
+.header {
+  margin-bottom: 36px;
+}
+
+.logo {
+  font-size: 22px;
+  font-weight: 800;
+  color: #1c2024;
+}
+
+.tagline {
+  font-size: 13.5px;
+  color: #5a6270;
+  margin-top: 4px;
+}
+
+.main {
+  display: flex;
+  flex-direction: column;
+  gap: 36px;
+}
+
+.generateRow {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding-top: 8px;
+  border-top: 1px solid #e3e6ea;
+}
+
+.generateButton {
+  background: #2b5be0;
+  color: #ffffff;
+  border: none;
+  border-radius: 999px;
+  font-size: 14px;
+  font-weight: 700;
+  padding: 12px 28px;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.generateButton:hover:not(:disabled) {
+  background: #1a3fa0;
+}
+
+.generateButton:disabled {
+  background: #cbd5e1;
+  cursor: not-allowed;
+}
+
+.error {
+  font-size: 13px;
+  color: #b3261e;
+}

@@ -1,0 +1,72 @@
+.card {
+  display: block;
+  width: 100%;
+  break-inside: avoid;
+  margin-bottom: 20px;
+  background: #ffffff;
+  border: 1.5px solid #e3e6ea;
+  border-radius: 12px;
+  padding: 0;
+  overflow: hidden;
+  text-align: left;
+  cursor: pointer;
+  font-family: inherit;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.1s ease;
+}
+
+.card:hover:not(.disabled) {
+  border-color: #2b5be0;
+  box-shadow: 0 4px 16px rgba(43, 91, 224, 0.12);
+}
+
+.card.selected {
+  border-color: #2b5be0;
+  box-shadow: 0 0 0 3px rgba(43, 91, 224, 0.18);
+}
+
+.card.disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.coverWrap {
+  position: relative;
+  line-height: 0;
+}
+
+.coverWrap :global(.cover-svg) {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.badge {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background: rgba(28, 32, 36, 0.72);
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  padding: 3px 9px;
+  border-radius: 999px;
+}
+
+.body {
+  padding: 14px 16px 16px;
+  border-top: 1px solid #e3e6ea;
+}
+
+.label {
+  font-size: 14px;
+  font-weight: 700;
+  color: #1c2024;
+  margin-bottom: 4px;
+}
+
+.description {
+  font-size: 12.5px;
+  color: #5a6270;
+  line-height: 1.4;
+}
