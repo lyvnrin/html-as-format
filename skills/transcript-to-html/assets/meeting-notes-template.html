@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{{MEETING_TITLE}}</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<style>
+  :root {
+    --bg: #f7f8fa;
+    --surface: #ffffff;
+    --surface-alt: #f1f3f6;
+    --border: #e3e6ea;
+    --text: #1c2024;
+    --text-soft: #5a6270;
+    --text-faint: #8a90a0;
+    --accent: #2b5be0;
+    --accent-soft: #e8edfc;
+    --accent-dark: #1a3fa0;
+    --accent-dark-soft: #142d73;
+    --radius: 14px;
+    --shadow: 0 1px 2px rgba(20,20,30,0.04), 0 4px 16px rgba(20,20,30,0.06);
+  }
+
+  [data-theme="blue"]   { --accent: #2b5be0; --accent-soft: #e8edfc; --accent-dark: #1a3fa0; --accent-dark-soft: #142d73; }
+  [data-theme="green"]  { --accent: #1a7a4a; --accent-soft: #e3f5ea; --accent-dark: #11532f; --accent-dark-soft: #0c3a21; }
+  [data-theme="purple"] { --accent: #7c5cbf; --accent-soft: #efe9fb; --accent-dark: #56408a; --accent-dark-soft: #3c2d62; }
+  [data-theme="orange"] { --accent: #b5650a; --accent-soft: #fbeede; --accent-dark: #804608; --accent-dark-soft: #5c3306; }
+  [data-theme="pink"]   { --accent: #c2447a; --accent-soft: #fbe7ef; --accent-dark: #8a3057; --accent-dark-soft: #61213d; }
+
+  body[data-mode="dark"] {
+    --bg: #15171c;
+    --surface: #1d2026;
+    --surface-alt: #242832;
+    --border: #2d313b;
+    --text: #eceef2;
+    --text-soft: #aab0bc;
+    --text-faint: #777e8c;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    transition: background .2s ease, color .2s ease;
+  }
+
+  .toolbar {
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 10px;
+    padding: 12px 20px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+  }
+  .theme-dots { display: flex; gap: 6px; margin-right: 8px; }
+  .theme-dot {
+    width: 20px; height: 20px; border-radius: 50%;
+    border: 2px solid transparent; cursor: pointer; padding: 0;
+  }
+  .theme-dot[data-t="blue"]   { background: #2b5be0; }
+  .theme-dot[data-t="green"]  { background: #1a7a4a; }
+  .theme-dot[data-t="purple"] { background: #7c5cbf; }
+  .theme-dot[data-t="orange"] { background: #b5650a; }
+  .theme-dot[data-t="pink"]   { background: #c2447a; }
+  .theme-dot.active { border-color: var(--text); }
+
+  .toolbar button.tool-btn {
+    display: flex; align-items: center; gap: 6px;
+    font-size: 13px; font-weight: 600;
+    padding: 7px 14px; border-radius: 999px;
+    border: 1px solid var(--border);
+    background: var(--surface-alt);
+    color: var(--text);
+    cursor: pointer;
+  }
+  .toolbar button.tool-btn:hover { background: var(--accent-soft); }
+  .toolbar button.tool-btn.primary {
+    background: var(--accent); color: #fff; border-color: var(--accent);
+  }
+  .toolbar button.tool-btn.primary:hover { background: var(--accent-dark); }
+
+  #pdf-root {
+    max-width: 880px;
+    margin: 0 auto;
+    padding: 40px 24px 80px;
+  }
+
+  .doc-header { margin-bottom: 32px; }
+  .doc-eyebrow {
+    font-size: 12px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase;
+    color: var(--accent);
+  }
+  .doc-title { font-size: 30px; font-weight: 800; margin: 6px 0 8px; line-height: 1.2; }
+  .doc-meta { display: flex; flex-wrap: wrap; gap: 16px; font-size: 13px; color: var(--text-soft); }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 24px;
+    margin-bottom: 24px;
+  }
+  .card h2 {
+    font-size: 16px; font-weight: 700; margin: 0 0 16px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .card h2::before {
+    content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--accent);
+  }
+
+  .attendee-list { display: flex; flex-wrap: wrap; gap: 14px; }
+  .attendee {
+    display: flex; align-items: center; gap: 8px;
+    background: var(--surface-alt);
+    border-radius: 999px; padding: 6px 12px 6px 6px;
+  }
+  .avatar {
+    width: 28px; height: 28px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    color: #fff; font-size: 12px; font-weight: 700;
+    flex-shrink: 0;
+  }
+  .attendee-name { font-size: 13px; font-weight: 600; }
+  .attendee-role { font-size: 12px; color: var(--text-faint); }
+
+  .discussion-point { padding: 16px 0; border-bottom: 1px solid var(--border); }
+  .discussion-point:last-child { border-bottom: none; padding-bottom: 0; }
+  .dp-head { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+  .dp-avatar {
+    width: 24px; height: 24px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    color: #fff; font-size: 11px; font-weight: 700; flex-shrink: 0;
+  }
+  .dp-speaker { font-size: 13px; font-weight: 700; }
+  .dp-topic { font-size: 12px; color: var(--text-faint); }
+  .dp-body { font-size: 14px; line-height: 1.6; color: var(--text-soft); margin: 0; }
+
+  .action-item {
+    display: flex; align-items: flex-start; gap: 12px;
+    padding: 14px 0; border-bottom: 1px solid var(--border);
+  }
+  .action-item:last-child { border-bottom: none; padding-bottom: 0; }
+  .action-check {
+    width: 18px; height: 18px; border-radius: 5px;
+    border: 2px solid var(--accent); flex-shrink: 0; margin-top: 2px;
+  }
+  .action-title { font-size: 14px; font-weight: 700; margin: 0 0 3px; }
+  .action-detail { font-size: 13px; color: var(--text-soft); margin: 0 0 6px; line-height: 1.5; }
+  .action-meta { display: flex; gap: 10px; font-size: 12px; color: var(--text-faint); }
+  .action-owner {
+    background: var(--accent-soft); color: var(--accent-dark);
+    border-radius: 999px; padding: 2px 9px; font-weight: 600;
+  }
+
+  @media print, (max-width: 640px) {
+    .toolbar { padding: 10px 14px; }
+    #pdf-root { padding: 24px 16px 60px; }
+    .doc-title { font-size: 24px; }
+  }
+  .toolbar, .toolbar * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  @media print { .toolbar { display: none; } }
+</style>
+</head>
+<body data-theme="blue" data-mode="light">
+
+  <div class="toolbar">
+    <div class="theme-dots" id="theme-dots">
+      <button class="theme-dot active" data-t="blue" title="Blue"></button>
+      <button class="theme-dot" data-t="green" title="Green"></button>
+      <button class="theme-dot" data-t="purple" title="Purple"></button>
+      <button class="theme-dot" data-t="orange" title="Orange"></button>
+      <button class="theme-dot" data-t="pink" title="Pink"></button>
+    </div>
+    <button class="tool-btn" id="mode-toggle">🌙 Dark</button>
+    <button class="tool-btn primary" id="pdf-btn">⬇ Download PDF</button>
+  </div>
+
+  <div id="pdf-root">
+
+    <div class="doc-header">
+      <div class="doc-eyebrow">Meeting Notes</div>
+      <h1 class="doc-title">{{MEETING_TITLE}}</h1>
+      <div class="doc-meta">
+        <span>{{MEETING_DATE}}</span>
+        <span>{{MEETING_TIME}}</span>
+        <span>{{MEETING_DURATION}}</span>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Summary</h2>
+      <p class="dp-body">{{MEETING_SUMMARY}}</p>
+    </div>
+
+    <div class="card">
+      <h2>Attendees</h2>
+      <div class="attendee-list">
+        <!-- ATTENDEE BLOCK: duplicate this .attendee div for each additional attendee -->
+        <div class="attendee">
+          <div class="avatar" style="background:{{ATTENDEE_1_COLOR}}">{{ATTENDEE_1_INITIALS}}</div>
+          <div>
+            <div class="attendee-name">{{ATTENDEE_1_NAME}}</div>
+            <div class="attendee-role">{{ATTENDEE_1_ROLE}}</div>
+          </div>
+        </div>
+        <!-- END ATTENDEE BLOCK -->
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Discussion</h2>
+      <!-- DISCUSSION POINT BLOCK: duplicate this .discussion-point div for each point -->
+      <div class="discussion-point">
+        <div class="dp-head">
+          <div class="dp-avatar" style="background:{{DP_1_COLOR}}">{{DP_1_INITIALS}}</div>
+          <span class="dp-speaker">{{DP_1_SPEAKER}}</span>
+          <span class="dp-topic">— {{DP_1_TOPIC}}</span>
+        </div>
+        <p class="dp-body">{{DP_1_BODY}}</p>
+      </div>
+      <!-- END DISCUSSION POINT BLOCK -->
+    </div>
+
+    <div class="card">
+      <h2>Action Items</h2>
+      <!-- ACTION ITEM BLOCK: duplicate this .action-item div for each action item -->
+      <div class="action-item">
+        <div class="action-check"></div>
+        <div>
+          <p class="action-title">{{ACTION_1_TITLE}}</p>
+          <p class="action-detail">{{ACTION_1_DETAIL}}</p>
+          <div class="action-meta">
+            <span class="action-owner">{{ACTION_1_OWNER}}</span>
+            <span>Due {{ACTION_1_DUE}}</span>
+          </div>
+        </div>
+      </div>
+      <!-- END ACTION ITEM BLOCK -->
+    </div>
+
+  </div>
+
+<script>
+  (function () {
+    var body = document.body;
+    var dots = document.querySelectorAll('.theme-dot');
+    dots.forEach(function (dot) {
+      dot.addEventListener('click', function () {
+        body.setAttribute('data-theme', dot.getAttribute('data-t'));
+        dots.forEach(function (d) { d.classList.remove('active'); });
+        dot.classList.add('active');
+      });
+    });
+
+    var modeBtn = document.getElementById('mode-toggle');
+    modeBtn.addEventListener('click', function () {
+      var isDark = body.getAttribute('data-mode') === 'dark';
+      body.setAttribute('data-mode', isDark ? 'light' : 'dark');
+      modeBtn.textContent = isDark ? '🌙 Dark' : '☀️ Light';
+    });
+
+    var pdfBtn = document.getElementById('pdf-btn');
+    pdfBtn.addEventListener('click', function () {
+      var el = document.getElementById('pdf-root');
+      var opt = {
+        margin: 0.4,
+        filename: '{{MEETING_TITLE}}.pdf',
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 2, useCORS: true },
+        jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' }
+      };
+      html2pdf().set(opt).from(el).save();
+    });
+  })();
+</script>
+
+</body>
+</html>

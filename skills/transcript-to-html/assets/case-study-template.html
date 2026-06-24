@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{{CASE_TITLE}}</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<style>
+  :root {
+    --bg: #f7f8fa;
+    --surface: #ffffff;
+    --surface-alt: #f1f3f6;
+    --border: #e3e6ea;
+    --text: #1c2024;
+    --text-soft: #5a6270;
+    --text-faint: #8a90a0;
+    --accent: #2b5be0;
+    --accent-soft: #e8edfc;
+    --accent-dark: #1a3fa0;
+    --accent-dark-soft: #142d73;
+    --radius: 14px;
+    --shadow: 0 1px 2px rgba(20,20,30,0.04), 0 4px 16px rgba(20,20,30,0.06);
+  }
+
+  [data-theme="blue"]   { --accent: #2b5be0; --accent-soft: #e8edfc; --accent-dark: #1a3fa0; --accent-dark-soft: #142d73; }
+  [data-theme="green"]  { --accent: #1a7a4a; --accent-soft: #e3f5ea; --accent-dark: #11532f; --accent-dark-soft: #0c3a21; }
+  [data-theme="purple"] { --accent: #7c5cbf; --accent-soft: #efe9fb; --accent-dark: #56408a; --accent-dark-soft: #3c2d62; }
+  [data-theme="orange"] { --accent: #b5650a; --accent-soft: #fbeede; --accent-dark: #804608; --accent-dark-soft: #5c3306; }
+  [data-theme="pink"]   { --accent: #c2447a; --accent-soft: #fbe7ef; --accent-dark: #8a3057; --accent-dark-soft: #61213d; }
+
+  body[data-mode="dark"] {
+    --bg: #15171c;
+    --surface: #1d2026;
+    --surface-alt: #242832;
+    --border: #2d313b;
+    --text: #eceef2;
+    --text-soft: #aab0bc;
+    --text-faint: #777e8c;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    transition: background .2s ease, color .2s ease;
+  }
+
+  .toolbar {
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 10px;
+    padding: 12px 20px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+  }
+  .theme-dots { display: flex; gap: 6px; margin-right: 8px; }
+  .theme-dot {
+    width: 20px; height: 20px; border-radius: 50%;
+    border: 2px solid transparent; cursor: pointer; padding: 0;
+  }
+  .theme-dot[data-t="blue"]   { background: #2b5be0; }
+  .theme-dot[data-t="green"]  { background: #1a7a4a; }
+  .theme-dot[data-t="purple"] { background: #7c5cbf; }
+  .theme-dot[data-t="orange"] { background: #b5650a; }
+  .theme-dot[data-t="pink"]   { background: #c2447a; }
+  .theme-dot.active { border-color: var(--text); }
+
+  .toolbar button.tool-btn {
+    display: flex; align-items: center; gap: 6px;
+    font-size: 13px; font-weight: 600;
+    padding: 7px 14px; border-radius: 999px;
+    border: 1px solid var(--border);
+    background: var(--surface-alt);
+    color: var(--text);
+    cursor: pointer;
+  }
+  .toolbar button.tool-btn:hover { background: var(--accent-soft); }
+  .toolbar button.tool-btn.primary {
+    background: var(--accent); color: #fff; border-color: var(--accent);
+  }
+  .toolbar button.tool-btn.primary:hover { background: var(--accent-dark); }
+
+  #pdf-root {
+    max-width: 880px;
+    margin: 0 auto;
+    padding: 40px 24px 80px;
+  }
+
+  .doc-header { margin-bottom: 36px; }
+  .doc-eyebrow {
+    font-size: 12px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase;
+    color: var(--accent);
+  }
+  .doc-title { font-size: 32px; font-weight: 800; margin: 6px 0 10px; line-height: 1.2; }
+  .doc-subtitle { font-size: 16px; color: var(--text-soft); margin: 0 0 12px; line-height: 1.5; }
+  .doc-meta { display: flex; flex-wrap: wrap; gap: 16px; font-size: 13px; color: var(--text-faint); }
+
+  .section-title {
+    font-size: 16px; font-weight: 700; margin: 0 0 18px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .section-title::before {
+    content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--accent);
+  }
+
+  .pull-quote {
+    border-left: 4px solid var(--accent);
+    background: var(--accent-soft);
+    border-radius: 0 var(--radius) var(--radius) 0;
+    padding: 20px 24px;
+    margin: 28px 0;
+  }
+  .pull-quote p {
+    font-size: 19px; font-weight: 600; line-height: 1.45; margin: 0 0 8px;
+    color: var(--accent-dark);
+  }
+  .pull-quote cite { font-size: 13px; color: var(--text-faint); font-style: normal; }
+
+  .timeline { position: relative; margin: 0 0 36px; padding-left: 28px; }
+  .timeline::before {
+    content: ""; position: absolute; left: 5px; top: 6px; bottom: 6px;
+    width: 2px; background: var(--border);
+  }
+  .timeline-entry { position: relative; padding-bottom: 26px; }
+  .timeline-entry:last-child { padding-bottom: 0; }
+  .timeline-dot {
+    position: absolute; left: -28px; top: 4px;
+    width: 12px; height: 12px; border-radius: 50%;
+    background: var(--accent); border: 2px solid var(--surface);
+    box-shadow: 0 0 0 2px var(--accent);
+  }
+  .timeline-when { font-size: 12px; font-weight: 700; color: var(--accent); margin-bottom: 4px; }
+  .timeline-title { font-size: 15px; font-weight: 700; margin: 0 0 4px; }
+  .timeline-body { font-size: 14px; color: var(--text-soft); line-height: 1.6; margin: 0; }
+
+  .moments-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 16px;
+    margin-bottom: 36px;
+  }
+  .moment-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 18px;
+  }
+  .moment-icon { font-size: 22px; margin-bottom: 8px; display: block; }
+  .moment-title { font-size: 14px; font-weight: 700; margin: 0 0 6px; }
+  .moment-body { font-size: 13px; color: var(--text-soft); line-height: 1.55; margin: 0; }
+
+  .narrative { font-size: 15px; line-height: 1.7; color: var(--text-soft); margin-bottom: 36px; }
+  .narrative p { margin: 0 0 16px; }
+
+  @media print, (max-width: 640px) {
+    .toolbar { padding: 10px 14px; }
+    #pdf-root { padding: 24px 16px 60px; }
+    .doc-title { font-size: 24px; }
+    .pull-quote p { font-size: 16px; }
+  }
+  .toolbar, .toolbar * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  @media print { .toolbar { display: none; } }
+</style>
+</head>
+<body data-theme="blue" data-mode="light">
+
+  <div class="toolbar">
+    <div class="theme-dots" id="theme-dots">
+      <button class="theme-dot active" data-t="blue" title="Blue"></button>
+      <button class="theme-dot" data-t="green" title="Green"></button>
+      <button class="theme-dot" data-t="purple" title="Purple"></button>
+      <button class="theme-dot" data-t="orange" title="Orange"></button>
+      <button class="theme-dot" data-t="pink" title="Pink"></button>
+    </div>
+    <button class="tool-btn" id="mode-toggle">🌙 Dark</button>
+    <button class="tool-btn primary" id="pdf-btn">⬇ Download PDF</button>
+  </div>
+
+  <div id="pdf-root">
+
+    <div class="doc-header">
+      <div class="doc-eyebrow">Case Study</div>
+      <h1 class="doc-title">{{CASE_TITLE}}</h1>
+      <p class="doc-subtitle">{{CASE_SUBTITLE}}</p>
+      <div class="doc-meta">
+        <span>{{CASE_DATE}}</span>
+        <span>{{CASE_SOURCE}}</span>
+      </div>
+    </div>
+
+    <div class="pull-quote">
+      <p>"{{OPENING_QUOTE_TEXT}}"</p>
+      <cite>— {{OPENING_QUOTE_ATTRIBUTION}}</cite>
+    </div>
+
+    <div class="narrative">
+      <h2 class="section-title">Overview</h2>
+      <p>{{NARRATIVE_PARAGRAPH_1}}</p>
+      <p>{{NARRATIVE_PARAGRAPH_2}}</p>
+    </div>
+
+    <h2 class="section-title">Key Moments</h2>
+    <div class="moments-grid">
+      <!-- MOMENT CARD BLOCK: duplicate this .moment-card div for each key moment -->
+      <div class="moment-card">
+        <span class="moment-icon">{{MOMENT_1_ICON}}</span>
+        <p class="moment-title">{{MOMENT_1_TITLE}}</p>
+        <p class="moment-body">{{MOMENT_1_BODY}}</p>
+      </div>
+      <!-- END MOMENT CARD BLOCK -->
+    </div>
+
+    <h2 class="section-title">Timeline</h2>
+    <div class="timeline">
+      <!-- TIMELINE ENTRY BLOCK: duplicate this .timeline-entry div for each event -->
+      <div class="timeline-entry">
+        <div class="timeline-dot"></div>
+        <div class="timeline-when">{{TIMELINE_1_WHEN}}</div>
+        <p class="timeline-title">{{TIMELINE_1_TITLE}}</p>
+        <p class="timeline-body">{{TIMELINE_1_BODY}}</p>
+      </div>
+      <!-- END TIMELINE ENTRY BLOCK -->
+    </div>
+
+    <div class="pull-quote">
+      <p>"{{CLOSING_QUOTE_TEXT}}"</p>
+      <cite>— {{CLOSING_QUOTE_ATTRIBUTION}}</cite>
+    </div>
+
+  </div>
+
+<script>
+  (function () {
+    var body = document.body;
+    var dots = document.querySelectorAll('.theme-dot');
+    dots.forEach(function (dot) {
+      dot.addEventListener('click', function () {
+        body.setAttribute('data-theme', dot.getAttribute('data-t'));
+        dots.forEach(function (d) { d.classList.remove('active'); });
+        dot.classList.add('active');
+      });
+    });
+
+    var modeBtn = document.getElementById('mode-toggle');
+    modeBtn.addEventListener('click', function () {
+      var isDark = body.getAttribute('data-mode') === 'dark';
+      body.setAttribute('data-mode', isDark ? 'light' : 'dark');
+      modeBtn.textContent = isDark ? '🌙 Dark' : '☀️ Light';
+    });
+
+    var pdfBtn = document.getElementById('pdf-btn');
+    pdfBtn.addEventListener('click', function () {
+      var el = document.getElementById('pdf-root');
+      var opt = {
+        margin: 0.4,
+        filename: '{{CASE_TITLE}}.pdf',
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 2, useCORS: true },
+        jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' }
+      };
+      html2pdf().set(opt).from(el).save();
+    });
+  })();
+</script>
+
+</body>
+</html>
