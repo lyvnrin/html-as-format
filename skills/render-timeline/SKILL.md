@@ -23,22 +23,28 @@ Shares the same interactive chrome as all other renderers: 5-colour theme picker
 
 Use `assets/timeline-template.html`. Copy it to your working directory and fill all `{{PLACEHOLDER}}` blocks.
 
-**Node structure (per slide):**
-- At rest: node dot + slide index number + `heading` as label (+ `key_stat` if present, shown beneath heading in muted type)
-- Expanded (on tap/click): `subheading`, `body` paragraphs, `bullets` list, `image_description` shown as an italicised caption
-- `key_moments` slides: render with a distinct highlight ring on the node dot — these are the standout slides
+The template ships as a cinematic dark-glass design by default (`data-mode="dark"` on `<body>`) — keep it that way unless the user asks for a light default. Don't flatten it back to a plain light document.
+
+**Node structure (per slide) — single `.node` block, no separate panel list:**
+- Each `.node` contains the dot button, a `.node-content` wrapper with `.node-panel` (hidden until expanded) and `.node-summary` (always visible: `heading` as the short label + `key_stat` if present).
+- Alternate `class="above"` / `class="below"` on successive `.node` divs (first node = `above`, second = `below`, etc.) — this is what makes nodes pop alternately above and below the centre line.
+- `key_moments` slides: add `highlight` as an extra class (e.g. `class="node above highlight"`) — renders a glowing ring on the dot.
+- Expanded panel content: `subheading`, `body` paragraphs, `bullets` list, `image_description` as an italicised caption.
 
 **Layout rules:**
-- Horizontal scrolling timeline as the base. On small screens (< 640px) fall back to vertical stacked layout.
-- Connector line runs through all nodes. Nodes sit above the line.
-- Active/expanded node shifts upward slightly and shows an accent-coloured ring.
+- The timeline rail breaks out to full viewport width (`100vw`) regardless of the centred `#doc` column the header/title sit in — this is built for presenting on a big screen, not a narrow article layout. Don't wrap it back inside the centred column.
+- The connector line sits at the vertical centre of the timeline rail; nodes alternate popping up above it and down below it as you move along the rail.
+- Horizontal scroll-snap is `mandatory` — swiping/scrolling moves decisively one node at a time, like stepping through slides. Only the centred node is at full scale/opacity; neighbours are dimmed and slightly scaled down. Don't remove `scroll-snap-type`/`scroll-snap-align`/the centred-tracking JS.
+- Nodes fade/scale/rise into view via `IntersectionObserver` as they enter the visible rail — don't pre-render them fully visible; the reveal-on-scroll is part of the intended feel.
+- On small screens (< 640px) it falls back to a single-column vertical stacked layout (no alternating).
+- Expanded node's dot scales up and glows; its panel renders inline right next to the dot, not in a separate page section.
 - Max one node expanded at a time — clicking a second node closes the first.
 - Keyboard nav: Left/Right arrows move between nodes; Enter/Space expands/collapses.
 - Touch: swipe horizontally to scroll, tap node to expand.
 
 **Pace Port considerations:**
 - Node dots should be generously sized (min 44px tap target).
-- Expanded content panel should be large enough to read from a few feet away — body text min 17px.
+- Expanded content panel should be large enough to read from a few feet away — body text min 17px when adapting for a kiosk; the bundled defaults are sized for desktop/laptop reading distance.
 - Avoid hover-only interactions; everything must work on tap.
 
 ## Step 3: Chrome

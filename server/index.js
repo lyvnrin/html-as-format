@@ -80,7 +80,7 @@ Follow the SKILL.md instructions above to fill the template with this content. O
 
   const response = await anthropic.messages.create({
     model: MODEL,
-    max_tokens: 4000,
+    max_tokens: 16000,
     messages: [{ role: 'user', content: prompt }],
   })
 
