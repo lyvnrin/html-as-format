@@ -3,15 +3,6 @@ import DropZone from './components/DropZone'
 import FormatPicker from './components/FormatPicker'
 import styles from './App.module.css'
 
-function readFileAsText(file) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader()
-    reader.onload = () => resolve(reader.result)
-    reader.onerror = () => reject(reader.error)
-    reader.readAsText(file)
-  })
-}
-
 function downloadHtml(html, filename) {
   const blob = new Blob([html], { type: 'text/html' })
   const url = URL.createObjectURL(blob)
@@ -36,11 +27,13 @@ export default function App() {
     setError(null)
     setIsGenerating(true)
     try {
-      const fileContent = await readFileAsText(file)
+      const formData = new FormData()
+      formData.append('file', file)
+      formData.append('format', selectedFormat)
+
       const response = await fetch('/api/generate', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ fileContent, format: selectedFormat }),
+        body: formData,
       })
 
       if (!response.ok) {

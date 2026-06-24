@@ -4,7 +4,9 @@ import dotenv from 'dotenv'
 import fs from 'fs'
 import path from 'path'
 import { fileURLToPath } from 'url'
+import multer from 'multer'
 import Anthropic from '@anthropic-ai/sdk'
+import { parseFile } from './lib/parseFile.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const ROOT = path.resolve(__dirname, '..')
@@ -86,15 +88,17 @@ Follow the SKILL.md instructions above to fill the template with this content. O
   return stripCodeFence(text)
 }
 
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 25 * 1024 * 1024 } })
+
 const app = express()
 app.use(cors())
-app.use(express.json({ limit: '25mb' }))
 
-app.post('/api/generate', async (req, res) => {
-  const { fileContent, format } = req.body || {}
+app.post('/api/generate', upload.single('file'), async (req, res) => {
+  const { file } = req
+  const { format } = req.body || {}
 
-  if (!fileContent || !format) {
-    return res.status(400).json({ error: 'fileContent and format are required.' })
+  if (!file || !format) {
+    return res.status(400).json({ error: 'file and format are required.' })
   }
 
   if (format !== 'timeline') {
@@ -102,6 +106,7 @@ app.post('/api/generate', async (req, res) => {
   }
 
   try {
+    const fileContent = await parseFile(file.buffer, file.originalname)
     const extractedJson = await extractToJson(fileContent)
     const html = await renderTimeline(extractedJson)
     res.json({ html })
