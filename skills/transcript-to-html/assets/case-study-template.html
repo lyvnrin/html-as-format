@@ -7,7 +7,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 <style>
   :root {
-    --bg: #f7f8fa;
+    --bg: #f6f1e8;
     --surface: #ffffff;
     --surface-alt: #f1f3f6;
     --border: #e3e6ea;
@@ -29,7 +29,7 @@
   [data-theme="pink"]   { --accent: #c2447a; --accent-soft: #fbe7ef; --accent-dark: #8a3057; --accent-dark-soft: #61213d; }
 
   body[data-mode="dark"] {
-    --bg: #15171c;
+    --bg: #1c1c1f;
     --surface: #1d2026;
     --surface-alt: #242832;
     --border: #2d313b;
@@ -53,21 +53,56 @@
     transition: background .2s ease, color .2s ease;
   }
 
-  .toolbar {
-    position: sticky;
-    top: 0;
-    z-index: 50;
+  .settings-toggle {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 100;
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text);
     display: flex;
     align-items: center;
-    justify-content: flex-end;
-    gap: 10px;
-    padding: 12px 20px;
-    background: var(--surface);
-    border-bottom: 1px solid var(--border);
+    justify-content: center;
+    cursor: pointer;
+    box-shadow: var(--shadow);
+    transition: border-color .15s ease, transform .15s ease, background .15s ease;
   }
-  .theme-dots { display: flex; gap: 6px; margin-right: 8px; }
+  .settings-toggle:hover { border-color: var(--accent); transform: translateY(-1px); }
+  .settings-toggle svg { width: 18px; height: 18px; }
+
+  .settings-panel {
+    position: fixed;
+    top: 70px;
+    right: 20px;
+    z-index: 100;
+    width: 224px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  .settings-panel[hidden] { display: none; }
+
+  .settings-label {
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: var(--text-faint);
+    margin-bottom: 10px;
+  }
+
+  .theme-dots { display: flex; gap: 8px; }
   .theme-dot {
-    width: 20px; height: 20px; border-radius: 50%;
+    width: 22px; height: 22px; border-radius: 50%;
     border: 2px solid transparent; cursor: pointer; padding: 0;
   }
   .theme-dot[data-t="blue"]   { background: #2b5be0; }
@@ -77,20 +112,21 @@
   .theme-dot[data-t="pink"]   { background: #c2447a; }
   .theme-dot.active { border-color: var(--text); }
 
-  .toolbar button.tool-btn {
-    display: flex; align-items: center; gap: 6px;
+  .settings-panel button.tool-btn {
+    display: flex; align-items: center; justify-content: center; gap: 6px;
+    width: 100%;
     font-size: 13px; font-weight: 600;
-    padding: 7px 14px; border-radius: 999px;
+    padding: 9px 14px; border-radius: 10px;
     border: 1px solid var(--border);
     background: var(--surface-alt);
     color: var(--text);
     cursor: pointer;
   }
-  .toolbar button.tool-btn:hover { background: var(--accent-soft); }
-  .toolbar button.tool-btn.primary {
+  .settings-panel button.tool-btn:hover { background: var(--accent-soft); }
+  .settings-panel button.tool-btn.primary {
     background: var(--accent); color: #fff; border-color: var(--accent);
   }
-  .toolbar button.tool-btn.primary:hover { background: var(--accent-dark); }
+  .settings-panel button.tool-btn.primary:hover { background: var(--accent-dark); }
 
   #pdf-root {
     max-width: 880px;
@@ -166,24 +202,32 @@
   .narrative p { margin: 0 0 16px; }
 
   @media print, (max-width: 640px) {
-    .toolbar { padding: 10px 14px; }
     #pdf-root { padding: 24px 16px 60px; }
     .doc-title { font-size: 24px; }
     .pull-quote p { font-size: 16px; }
   }
-  .toolbar, .toolbar * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-  @media print { .toolbar { display: none; } }
+  @media print { .settings-toggle, .settings-panel { display: none; } }
 </style>
 </head>
 <body data-theme="blue" data-mode="light">
 
-  <div class="toolbar">
-    <div class="theme-dots" id="theme-dots">
-      <button class="theme-dot active" data-t="blue" title="Blue"></button>
-      <button class="theme-dot" data-t="green" title="Green"></button>
-      <button class="theme-dot" data-t="purple" title="Purple"></button>
-      <button class="theme-dot" data-t="orange" title="Orange"></button>
-      <button class="theme-dot" data-t="pink" title="Pink"></button>
+  <button class="settings-toggle" id="settings-toggle" aria-label="Settings" aria-expanded="false">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <circle cx="12" cy="12" r="3"></circle>
+      <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z"></path>
+    </svg>
+  </button>
+
+  <div class="settings-panel" id="settings-panel" hidden>
+    <div>
+      <div class="settings-label">Theme</div>
+      <div class="theme-dots" id="theme-dots">
+        <button class="theme-dot active" data-t="blue" title="Blue"></button>
+        <button class="theme-dot" data-t="green" title="Green"></button>
+        <button class="theme-dot" data-t="purple" title="Purple"></button>
+        <button class="theme-dot" data-t="orange" title="Orange"></button>
+        <button class="theme-dot" data-t="pink" title="Pink"></button>
+      </div>
     </div>
     <button class="tool-btn" id="mode-toggle">🌙 Dark</button>
     <button class="tool-btn primary" id="pdf-btn">⬇ Download PDF</button>
@@ -245,6 +289,22 @@
 <script>
   (function () {
     var body = document.body;
+
+    var settingsToggle = document.getElementById('settings-toggle');
+    var settingsPanel = document.getElementById('settings-panel');
+    settingsToggle.addEventListener('click', function (e) {
+      e.stopPropagation();
+      var willOpen = settingsPanel.hidden;
+      settingsPanel.hidden = !willOpen;
+      settingsToggle.setAttribute('aria-expanded', String(willOpen));
+    });
+    document.addEventListener('click', function (e) {
+      if (!settingsPanel.hidden && !settingsPanel.contains(e.target) && !settingsToggle.contains(e.target)) {
+        settingsPanel.hidden = true;
+        settingsToggle.setAttribute('aria-expanded', 'false');
+      }
+    });
+
     var dots = document.querySelectorAll('.theme-dot');
     dots.forEach(function (dot) {
       dot.addEventListener('click', function () {

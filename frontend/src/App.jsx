@@ -54,26 +54,30 @@ export default function App() {
   return (
     <div className={styles.page}>
       <header className={styles.header}>
-        <div className={styles.logo}>HTML as a Format</div>
+        <div className={styles.logo}>
+          <span className={styles.tagPunct}>&lt;</span>
+          html-as-a-format
+          <span className={styles.tagPunct}>/&gt;</span>
+        </div>
         <div className={styles.tagline}>Internal tool — source documents to shareable HTML pages</div>
       </header>
 
       <main className={styles.main}>
         <DropZone file={file} onFileSelect={setFile} />
         <FormatPicker selectedFormat={selectedFormat} onSelect={setSelectedFormat} />
-
-        <div className={styles.generateRow}>
-          <button
-            type="button"
-            className={styles.generateButton}
-            disabled={!canGenerate}
-            onClick={handleGenerate}
-          >
-            {isGenerating ? 'Generating…' : 'Generate page'}
-          </button>
-          {error && <div className={styles.error}>{error}</div>}
-        </div>
       </main>
+
+      <div className={styles.footerBar}>
+        {error && <div className={styles.error}>{error}</div>}
+        <button
+          type="button"
+          className={styles.generateButton}
+          disabled={!canGenerate}
+          onClick={handleGenerate}
+        >
+          {isGenerating ? 'Generating…' : 'Generate page'}
+        </button>
+      </div>
     </div>
   )
 }

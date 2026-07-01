@@ -7,11 +7,9 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 <style>
   :root {
-    --bg: #0a0c12;
-    --bg-glow-1: #1a2550;
-    --bg-glow-2: #2d1b4e;
+    --bg: #1c1c1f;
     --surface: rgba(255,255,255,0.05);
-    --surface-solid: #14171f;
+    --surface-solid: #242327;
     --surface-alt: rgba(255,255,255,0.08);
     --border: rgba(255,255,255,0.12);
     --text: #eef1f8;
@@ -33,9 +31,7 @@
   [data-theme="red"]    { --accent: #ef4444; --accent-soft: rgba(239,68,68,0.16); --accent-glow: rgba(239,68,68,0.55); --accent-dark: #c62828; }
 
   body[data-mode="light"] {
-    --bg: #f5f6fa;
-    --bg-glow-1: #e4eaff;
-    --bg-glow-2: #f2e6ff;
+    --bg: #f6f1e8;
     --surface: rgba(255,255,255,0.7);
     --surface-solid: #ffffff;
     --surface-alt: rgba(20,23,31,0.04);
@@ -56,33 +52,62 @@
 
   body {
     background: var(--bg);
-    background-image:
-      radial-gradient(circle at 12% 8%, var(--bg-glow-1), transparent 45%),
-      radial-gradient(circle at 88% 18%, var(--bg-glow-2), transparent 45%);
-    background-attachment: fixed;
     color: var(--text);
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     transition: background-color .25s ease, color .25s ease;
     min-height: 100vh;
   }
 
-  .toolbar {
-    position: sticky;
-    top: 0;
-    z-index: 80;
+  .settings-toggle {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 100;
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    border: 1px solid var(--border);
+    background: var(--surface-solid);
+    color: var(--text);
     display: flex;
     align-items: center;
-    justify-content: flex-end;
-    gap: 10px;
-    padding: 14px 22px;
-    background: var(--surface);
-    backdrop-filter: blur(var(--blur));
-    -webkit-backdrop-filter: blur(var(--blur));
-    border-bottom: 1px solid var(--border);
+    justify-content: center;
+    cursor: pointer;
+    box-shadow: var(--shadow);
+    transition: border-color .15s ease, transform .15s ease, background .15s ease;
   }
-  .theme-dots { display: flex; gap: 7px; margin-right: 8px; }
+  .settings-toggle:hover { border-color: var(--accent-glow); transform: translateY(-1px); }
+  .settings-toggle svg { width: 18px; height: 18px; }
+
+  .settings-panel {
+    position: fixed;
+    top: 70px;
+    right: 20px;
+    z-index: 100;
+    width: 224px;
+    background: var(--surface-solid);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  .settings-panel[hidden] { display: none; }
+
+  .settings-label {
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: var(--text-faint);
+    margin-bottom: 10px;
+  }
+
+  .theme-dots { display: flex; gap: 8px; }
   .theme-dot {
-    width: 20px; height: 20px; border-radius: 50%;
+    width: 22px; height: 22px; border-radius: 50%;
     border: 2px solid transparent; cursor: pointer; padding: 0;
     transition: transform .15s ease, box-shadow .15s ease;
   }
@@ -93,22 +118,23 @@
   .theme-dot[data-t="red"]    { background: #ef4444; }
   .theme-dot.active { border-color: var(--text); transform: scale(1.15); box-shadow: 0 0 10px var(--accent-glow); }
 
-  .toolbar button.tool-btn {
-    display: flex; align-items: center; gap: 6px;
+  .settings-panel button.tool-btn {
+    display: flex; align-items: center; justify-content: center; gap: 6px;
+    width: 100%;
     font-size: 13px; font-weight: 600;
-    padding: 8px 16px; border-radius: 999px;
+    padding: 9px 14px; border-radius: 10px;
     border: 1px solid var(--border);
     background: var(--surface-alt);
     color: var(--text);
     cursor: pointer;
     transition: background .15s ease, transform .1s ease;
   }
-  .toolbar button.tool-btn:hover { background: var(--accent-soft); transform: translateY(-1px); }
-  .toolbar button.tool-btn.primary {
+  .settings-panel button.tool-btn:hover { background: var(--accent-soft); transform: translateY(-1px); }
+  .settings-panel button.tool-btn.primary {
     background: var(--accent); color: #0a0c12; border-color: var(--accent);
     box-shadow: 0 0 18px var(--accent-glow);
   }
-  .toolbar button.tool-btn.primary:hover { background: var(--accent-dark); }
+  .settings-panel button.tool-btn.primary:hover { background: var(--accent-dark); }
 
   #doc {
     max-width: 1400px;
@@ -227,21 +253,30 @@
 
   .doc-footer { text-align: center; font-size: 12px; color: var(--text-faint); margin-top: 50px; }
 
-  .toolbar, .toolbar * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   @media print {
-    .toolbar { display: none; }
+    .settings-toggle, .settings-panel { display: none; }
   }
 </style>
 </head>
 <body data-theme="blue" data-mode="dark">
 
-  <div class="toolbar">
-    <div class="theme-dots" id="theme-dots">
-      <button class="theme-dot active" data-t="blue" title="Blue"></button>
-      <button class="theme-dot" data-t="green" title="Green"></button>
-      <button class="theme-dot" data-t="purple" title="Purple"></button>
-      <button class="theme-dot" data-t="orange" title="Orange"></button>
-      <button class="theme-dot" data-t="red" title="Red"></button>
+  <button class="settings-toggle" id="settings-toggle" aria-label="Settings" aria-expanded="false">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <circle cx="12" cy="12" r="3"></circle>
+      <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z"></path>
+    </svg>
+  </button>
+
+  <div class="settings-panel" id="settings-panel" hidden>
+    <div>
+      <div class="settings-label">Theme</div>
+      <div class="theme-dots" id="theme-dots">
+        <button class="theme-dot active" data-t="blue" title="Blue"></button>
+        <button class="theme-dot" data-t="green" title="Green"></button>
+        <button class="theme-dot" data-t="purple" title="Purple"></button>
+        <button class="theme-dot" data-t="orange" title="Orange"></button>
+        <button class="theme-dot" data-t="red" title="Red"></button>
+      </div>
     </div>
     <button class="tool-btn" id="mode-toggle">☀️ Light</button>
     <button class="tool-btn primary" id="pdf-btn">⬇ Download PDF</button>
@@ -310,6 +345,22 @@
 <script>
   (function () {
     var body = document.body;
+
+    var settingsToggle = document.getElementById('settings-toggle');
+    var settingsPanel = document.getElementById('settings-panel');
+    settingsToggle.addEventListener('click', function (e) {
+      e.stopPropagation();
+      var willOpen = settingsPanel.hidden;
+      settingsPanel.hidden = !willOpen;
+      settingsToggle.setAttribute('aria-expanded', String(willOpen));
+    });
+    document.addEventListener('click', function (e) {
+      if (!settingsPanel.hidden && !settingsPanel.contains(e.target) && !settingsToggle.contains(e.target)) {
+        settingsPanel.hidden = true;
+        settingsToggle.setAttribute('aria-expanded', 'false');
+      }
+    });
+
     var dots = document.querySelectorAll('.theme-dot');
     dots.forEach(function (dot) {
       dot.addEventListener('click', function () {

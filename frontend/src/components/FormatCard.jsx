@@ -1,12 +1,13 @@
 import styles from './FormatCard.module.css'
 
-export default function FormatCard({ format, selected, onSelect }) {
+export default function FormatCard({ format, index, selected, onSelect }) {
   const { label, description, active, Cover } = format
 
   return (
     <button
       type="button"
       className={`${styles.card} ${selected ? styles.selected : ''} ${!active ? styles.disabled : ''}`}
+      style={{ '--card-index': index }}
       onClick={() => active && onSelect(format.id)}
       disabled={!active}
       aria-pressed={selected}

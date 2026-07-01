@@ -1,61 +1,94 @@
 .page {
   max-width: 980px;
   margin: 0 auto;
-  padding: 40px 24px 80px;
+  padding: 48px 24px 120px;
+  min-height: 100vh;
 }
 
 .header {
-  margin-bottom: 36px;
+  margin-bottom: 40px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--rule);
 }
 
 .logo {
+  font-family: var(--font-mono);
   font-size: 22px;
   font-weight: 800;
-  color: #1c2024;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+}
+
+.tagPunct {
+  color: var(--accent);
 }
 
 .tagline {
   font-size: 13.5px;
-  color: #5a6270;
-  margin-top: 4px;
+  color: var(--muted);
+  margin-top: 8px;
 }
 
 .main {
   display: flex;
   flex-direction: column;
-  gap: 36px;
+  gap: 40px;
 }
 
-.generateRow {
+.footerBar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 10;
   display: flex;
   align-items: center;
-  gap: 16px;
-  padding-top: 8px;
-  border-top: 1px solid #e3e6ea;
+  justify-content: center;
+  gap: 20px;
+  padding: 18px 24px;
+  background: rgba(250, 249, 246, 0.9);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border-top: 1px solid var(--rule);
 }
 
 .generateButton {
-  background: #2b5be0;
+  background: var(--accent);
   color: #ffffff;
   border: none;
-  border-radius: 999px;
-  font-size: 14px;
+  border-radius: 10px;
+  font-size: 15px;
   font-weight: 700;
-  padding: 12px 28px;
+  padding: 14px 40px;
   cursor: pointer;
-  transition: background 0.15s ease;
+  transform: scale(1);
+  transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1), background 0.15s ease,
+    box-shadow 0.15s ease;
+  box-shadow: 0 4px 14px rgba(43, 91, 224, 0.25);
 }
 
 .generateButton:hover:not(:disabled) {
-  background: #1a3fa0;
+  background: var(--accent-deep);
+  transform: translateY(-1px) scale(1);
 }
 
 .generateButton:disabled {
-  background: #cbd5e1;
+  background: var(--rule);
+  color: var(--muted);
+  box-shadow: none;
+  transform: scale(0.97);
   cursor: not-allowed;
 }
 
 .error {
   font-size: 13px;
   color: #b3261e;
+  max-width: 360px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .generateButton {
+    transition: background 0.15s ease;
+    transform: none !important;
+  }
 }
