@@ -38,6 +38,8 @@ Use `assets/magazine-template.html`. Copy it to your working directory and fill 
 
 Copy the toolbar HTML/CSS/JS verbatim from the existing templates (`timeline-template.html` or either `transcript-to-html` template) — do not rewrite it. 5-colour theme picker (blue, green, purple, orange, **red** — blue is the default; note this format uses red instead of the pink used elsewhere, that's intentional). Dark mode toggle. Download PDF button targets `#grid`, not the whole page (the toolbar shouldn't appear in the exported PDF).
 
+Scrollbars are hidden everywhere on every renderer (the global `* { scrollbar-width: none; ... } *::-webkit-scrollbar { display: none; }` rule right after the box-sizing reset) — scrolling still works, there's just no visible track/thumb. Keep this rule intact.
+
 ## Step 5: Validate before delivering
 
 1. Grep for any remaining `{{` strings — anything left is a bug.

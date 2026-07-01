@@ -51,6 +51,8 @@ The template ships as a cinematic dark-glass design by default (`data-mode="dark
 
 Copy the toolbar HTML and JS verbatim from the existing templates — do not rewrite it. The toolbar includes the theme picker, dark mode toggle, and PDF export button. It must behave identically to the other renderers.
 
+Scrollbars are hidden everywhere on every renderer (the global `* { scrollbar-width: none; ... } *::-webkit-scrollbar { display: none; }` rule right after the box-sizing reset) — scrolling still works, there's just no visible track/thumb. Keep this rule intact.
+
 The PDF export targets `#doc` (the timeline wrapper div), not the whole page.
 
 ## Step 4: Writing the content

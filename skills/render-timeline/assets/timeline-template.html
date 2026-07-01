@@ -48,6 +48,12 @@
 
   * { box-sizing: border-box; }
   html, body { margin: 0; padding: 0; }
+
+  /* Hide scrollbars everywhere — scrolling still works, just no visible track/thumb.
+     Part of the shared chrome; keep this block in every template. */
+  * { scrollbar-width: none; -ms-overflow-style: none; }
+  *::-webkit-scrollbar { display: none; }
+
   body {
     background: var(--bg);
     background-image:
@@ -141,8 +147,6 @@
     scroll-snap-type: x mandatory;
     -webkit-overflow-scrolling: touch;
   }
-  .timeline-wrap::-webkit-scrollbar { height: 6px; }
-  .timeline-wrap::-webkit-scrollbar-thumb { background: var(--border); border-radius: 6px; }
 
   .timeline-rail {
     position: relative;
@@ -254,8 +258,6 @@
     padding: 28px;
     text-align: left;
   }
-  .node-panel::-webkit-scrollbar { width: 5px; }
-  .node-panel::-webkit-scrollbar-thumb { background: var(--border); border-radius: 6px; }
   .node.expanded .node-panel { display: block; }
 
   .panel-heading { font-size: 22px; font-weight: 800; margin: 0 0 6px; }
