@@ -152,21 +152,12 @@
 
   .card-image-wrap { position: relative; }
   .card-image { display: block; width: 100%; }
-  .card-heading-overlay {
-    position: absolute;
-    left: 0; right: 0; bottom: 0;
-    padding: 22px 16px 12px;
-    background: linear-gradient(to top, rgba(0,0,0,0.75), transparent);
-    color: #fff;
+  .card-title {
+    padding: 12px 16px 16px;
+    font-size: 15px;
     font-weight: 700;
-    font-size: 16px;
-    line-height: 1.3;
-  }
-  .card-caption {
-    padding: 10px 16px 16px;
-    font-size: 12px;
-    color: var(--text-soft);
-    line-height: 1.4;
+    color: var(--text);
+    line-height: 1.35;
   }
 
   .card-solid {
@@ -267,9 +258,8 @@
         <div class="card-face">
           <div class="card-image-wrap">
             <img class="card-image" src="__IMAGE_SLIDE_1__" alt="{{CARD_1_HEADING}}">
-            <div class="card-heading-overlay">{{CARD_1_HEADING}}</div>
           </div>
-          <div class="card-caption">{{CARD_1_CAPTION}}</div>
+          <div class="card-title">{{CARD_1_HEADING}}</div>
         </div>
         <div class="card-detail" hidden>
           <div class="panel-media"><img src="__IMAGE_SLIDE_1__" alt="{{CARD_1_HEADING}}"></div>
@@ -351,10 +341,12 @@
       card.addEventListener('click', function () {
         var detail = card.querySelector('.card-detail');
         if (!detail) return;
-        var clone = detail.cloneNode(true);
-        clone.hidden = false;
         panel.innerHTML = '';
-        panel.appendChild(clone);
+        Array.prototype.slice.call(detail.children).forEach(function (child) {
+          var clone = child.cloneNode(true);
+          clone.hidden = false;
+          panel.appendChild(clone);
+        });
         overlay.hidden = false;
       });
     });
