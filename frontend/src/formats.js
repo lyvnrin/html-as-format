@@ -4,6 +4,7 @@ import CaseStudyCover from './covers/CaseStudyCover'
 import BubbleMapCover from './covers/BubbleMapCover'
 import ResearchBriefCover from './covers/ResearchBriefCover'
 import ProjectUpdateCover from './covers/ProjectUpdateCover'
+import MagazineCover from './covers/MagazineCover'
 
 export const formats = [
   {
@@ -12,6 +13,13 @@ export const formats = [
     description: 'Slides as an interactive horizontal timeline',
     active: true,
     Cover: TimelineCover,
+  },
+  {
+    id: 'magazine',
+    label: 'Magazine',
+    description: 'Slides as a Pinterest-style masonry grid',
+    active: true,
+    Cover: MagazineCover,
   },
   {
     id: 'meeting-notes',

@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{{MAGAZINE_TITLE}}</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<style>
+  :root {
+    --bg: #0a0c12;
+    --bg-glow-1: #1a2550;
+    --bg-glow-2: #2d1b4e;
+    --surface: rgba(255,255,255,0.05);
+    --surface-solid: #14171f;
+    --surface-alt: rgba(255,255,255,0.08);
+    --border: rgba(255,255,255,0.12);
+    --text: #eef1f8;
+    --text-soft: #aab2c5;
+    --text-faint: #6e7690;
+    --accent: #5b8cff;
+    --accent-soft: rgba(91,140,255,0.16);
+    --accent-glow: rgba(91,140,255,0.55);
+    --accent-dark: #3a63d4;
+    --radius: 16px;
+    --shadow: 0 8px 32px rgba(0,0,0,0.45);
+    --blur: 18px;
+  }
+
+  [data-theme="blue"]   { --accent: #5b8cff; --accent-soft: rgba(91,140,255,0.16); --accent-glow: rgba(91,140,255,0.55); --accent-dark: #3a63d4; }
+  [data-theme="green"]  { --accent: #3fd690; --accent-soft: rgba(63,214,144,0.16); --accent-glow: rgba(63,214,144,0.55); --accent-dark: #1f9c64; }
+  [data-theme="purple"] { --accent: #a684ff; --accent-soft: rgba(166,132,255,0.16); --accent-glow: rgba(166,132,255,0.55); --accent-dark: #7c54e0; }
+  [data-theme="orange"] { --accent: #ff9d4d; --accent-soft: rgba(255,157,77,0.16); --accent-glow: rgba(255,157,77,0.55); --accent-dark: #e07820; }
+  [data-theme="red"]    { --accent: #ef4444; --accent-soft: rgba(239,68,68,0.16); --accent-glow: rgba(239,68,68,0.55); --accent-dark: #c62828; }
+
+  body[data-mode="light"] {
+    --bg: #f5f6fa;
+    --bg-glow-1: #e4eaff;
+    --bg-glow-2: #f2e6ff;
+    --surface: rgba(255,255,255,0.7);
+    --surface-solid: #ffffff;
+    --surface-alt: rgba(20,23,31,0.04);
+    --border: rgba(20,23,31,0.1);
+    --text: #181a20;
+    --text-soft: #565d6e;
+    --text-faint: #8990a3;
+    --shadow: 0 8px 28px rgba(20,30,60,0.12);
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    background-image:
+      radial-gradient(circle at 12% 8%, var(--bg-glow-1), transparent 45%),
+      radial-gradient(circle at 88% 18%, var(--bg-glow-2), transparent 45%);
+    background-attachment: fixed;
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    transition: background-color .25s ease, color .25s ease;
+    min-height: 100vh;
+  }
+
+  .toolbar {
+    position: sticky;
+    top: 0;
+    z-index: 80;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 10px;
+    padding: 14px 22px;
+    background: var(--surface);
+    backdrop-filter: blur(var(--blur));
+    -webkit-backdrop-filter: blur(var(--blur));
+    border-bottom: 1px solid var(--border);
+  }
+  .theme-dots { display: flex; gap: 7px; margin-right: 8px; }
+  .theme-dot {
+    width: 20px; height: 20px; border-radius: 50%;
+    border: 2px solid transparent; cursor: pointer; padding: 0;
+    transition: transform .15s ease, box-shadow .15s ease;
+  }
+  .theme-dot[data-t="blue"]   { background: #5b8cff; }
+  .theme-dot[data-t="green"]  { background: #3fd690; }
+  .theme-dot[data-t="purple"] { background: #a684ff; }
+  .theme-dot[data-t="orange"] { background: #ff9d4d; }
+  .theme-dot[data-t="red"]    { background: #ef4444; }
+  .theme-dot.active { border-color: var(--text); transform: scale(1.15); box-shadow: 0 0 10px var(--accent-glow); }
+
+  .toolbar button.tool-btn {
+    display: flex; align-items: center; gap: 6px;
+    font-size: 13px; font-weight: 600;
+    padding: 8px 16px; border-radius: 999px;
+    border: 1px solid var(--border);
+    background: var(--surface-alt);
+    color: var(--text);
+    cursor: pointer;
+    transition: background .15s ease, transform .1s ease;
+  }
+  .toolbar button.tool-btn:hover { background: var(--accent-soft); transform: translateY(-1px); }
+  .toolbar button.tool-btn.primary {
+    background: var(--accent); color: #0a0c12; border-color: var(--accent);
+    box-shadow: 0 0 18px var(--accent-glow);
+  }
+  .toolbar button.tool-btn.primary:hover { background: var(--accent-dark); }
+
+  #doc {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 40px 24px 100px;
+  }
+
+  .doc-header { margin-bottom: 28px; text-align: left; }
+  .doc-eyebrow {
+    display: inline-block;
+    font-size: 11px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase;
+    color: var(--accent);
+    background: var(--accent-soft);
+    border: 1px solid var(--accent-glow);
+    padding: 5px 14px;
+    border-radius: 999px;
+    margin-bottom: 14px;
+  }
+  .doc-title {
+    font-size: clamp(28px, 4vw, 42px); font-weight: 800; margin: 0 0 10px; line-height: 1.15;
+    letter-spacing: -.01em;
+  }
+  .doc-subtitle { font-size: 16px; color: var(--text-soft); margin: 0; line-height: 1.5; max-width: 640px; }
+
+  /* Masonry grid — CSS columns, not CSS grid. Varied card heights are the point. */
+  #grid {
+    column-count: 4;
+    column-gap: 18px;
+  }
+  @media (max-width: 1100px) { #grid { column-count: 3; } }
+  @media (max-width: 780px)  { #grid { column-count: 2; } }
+  @media (max-width: 480px)  { #grid { column-count: 1; } }
+
+  .card {
+    break-inside: avoid;
+    margin-bottom: 18px;
+    border-radius: var(--radius);
+    overflow: hidden;
+    cursor: pointer;
+    position: relative;
+    background: var(--surface-solid);
+    box-shadow: var(--shadow);
+    border: 1px solid var(--border);
+    transition: transform .15s ease, box-shadow .15s ease;
+  }
+  .card:hover { transform: translateY(-2px); box-shadow: var(--shadow), 0 0 0 1px var(--accent-soft); }
+
+  .card-image-wrap { position: relative; }
+  .card-image { display: block; width: 100%; }
+  .card-heading-overlay {
+    position: absolute;
+    left: 0; right: 0; bottom: 0;
+    padding: 22px 16px 12px;
+    background: linear-gradient(to top, rgba(0,0,0,0.75), transparent);
+    color: #fff;
+    font-weight: 700;
+    font-size: 16px;
+    line-height: 1.3;
+  }
+  .card-caption {
+    padding: 10px 16px 16px;
+    font-size: 12px;
+    color: var(--text-soft);
+    line-height: 1.4;
+  }
+
+  .card-solid {
+    aspect-ratio: 4 / 3;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    background: var(--accent);
+  }
+  .card-heading-solid {
+    color: #fff;
+    font-weight: 700;
+    font-size: 19px;
+    text-align: center;
+    line-height: 1.3;
+  }
+
+  /* Detail overlay */
+  .overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 90;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(6,7,10,0.6);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    padding: 24px;
+  }
+  .overlay[hidden] { display: none; }
+
+  .panel {
+    display: flex;
+    max-width: 960px;
+    width: 100%;
+    max-height: calc(100vh - 80px);
+    background: var(--surface-solid);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+    box-shadow: var(--shadow), 0 0 0 1px var(--accent-soft);
+  }
+  .panel-media { flex: 1 1 45%; min-width: 0; background: var(--accent); display: flex; align-items: center; justify-content: center; }
+  .panel-media img { display: block; width: 100%; height: 100%; object-fit: cover; }
+  .panel-content { flex: 1 1 55%; padding: 32px 34px; overflow-y: auto; }
+  .panel-content h2 { margin: 0 0 18px; font-size: 24px; font-weight: 800; }
+  .panel-body-list { margin: 0 0 18px; padding-left: 20px; }
+  .panel-body-list li { font-size: 16px; line-height: 1.6; color: var(--text); margin-bottom: 8px; }
+  .panel-caption {
+    font-size: 13px; font-style: italic; color: var(--text-faint);
+    border-top: 1px solid var(--border);
+    padding-top: 14px;
+  }
+
+  @media (max-width: 680px) {
+    .panel { flex-direction: column; max-height: calc(100vh - 48px); overflow-y: auto; }
+    .panel-media { flex: 0 0 auto; aspect-ratio: 16 / 9; }
+  }
+
+  .doc-footer { text-align: center; font-size: 12px; color: var(--text-faint); margin-top: 50px; }
+
+  .toolbar, .toolbar * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  @media print {
+    .toolbar { display: none; }
+  }
+</style>
+</head>
+<body data-theme="blue" data-mode="dark">
+
+  <div class="toolbar">
+    <div class="theme-dots" id="theme-dots">
+      <button class="theme-dot active" data-t="blue" title="Blue"></button>
+      <button class="theme-dot" data-t="green" title="Green"></button>
+      <button class="theme-dot" data-t="purple" title="Purple"></button>
+      <button class="theme-dot" data-t="orange" title="Orange"></button>
+      <button class="theme-dot" data-t="red" title="Red"></button>
+    </div>
+    <button class="tool-btn" id="mode-toggle">☀️ Light</button>
+    <button class="tool-btn primary" id="pdf-btn">⬇ Download PDF</button>
+  </div>
+
+  <div id="doc">
+
+    <div class="doc-header">
+      <div class="doc-eyebrow">Magazine</div>
+      <h1 class="doc-title">{{MAGAZINE_TITLE}}</h1>
+      <p class="doc-subtitle">{{MAGAZINE_SUBTITLE}}</p>
+    </div>
+
+    <div id="grid">
+
+      <!-- CARD BLOCK: IMAGE VARIANT — duplicate for each slide that has an image.
+           Both <img> src attributes (card face + card-detail) must be the exact
+           token __IMAGE_SLIDE_<n>__ for that slide's number. Do not fill in a real URL. -->
+      <div class="card" data-index="1">
+        <div class="card-face">
+          <div class="card-image-wrap">
+            <img class="card-image" src="__IMAGE_SLIDE_1__" alt="{{CARD_1_HEADING}}">
+            <div class="card-heading-overlay">{{CARD_1_HEADING}}</div>
+          </div>
+          <div class="card-caption">{{CARD_1_CAPTION}}</div>
+        </div>
+        <div class="card-detail" hidden>
+          <div class="panel-media"><img src="__IMAGE_SLIDE_1__" alt="{{CARD_1_HEADING}}"></div>
+          <div class="panel-content">
+            <h2>{{CARD_1_HEADING}}</h2>
+            <ul class="panel-body-list">
+              <li>{{CARD_1_BODY_1}}</li>
+            </ul>
+            <p class="panel-caption">{{CARD_1_CAPTION}}</p>
+          </div>
+        </div>
+      </div>
+      <!-- END CARD BLOCK: IMAGE VARIANT -->
+
+      <!-- CARD BLOCK: SOLID VARIANT — duplicate for each slide with no image. -->
+      <div class="card" data-index="2">
+        <div class="card-face card-solid">
+          <div class="card-heading-solid">{{CARD_2_HEADING}}</div>
+        </div>
+        <div class="card-detail" hidden>
+          <div class="panel-media"><div class="card-heading-solid">{{CARD_2_HEADING}}</div></div>
+          <div class="panel-content">
+            <h2>{{CARD_2_HEADING}}</h2>
+            <ul class="panel-body-list">
+              <li>{{CARD_2_BODY_1}}</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+      <!-- END CARD BLOCK: SOLID VARIANT -->
+
+    </div>
+
+    <div class="doc-footer">{{AUTHOR}}</div>
+
+  </div>
+
+  <div class="overlay" id="overlay" hidden>
+    <div class="panel" id="panel"></div>
+  </div>
+
+<script>
+  (function () {
+    var body = document.body;
+    var dots = document.querySelectorAll('.theme-dot');
+    dots.forEach(function (dot) {
+      dot.addEventListener('click', function () {
+        body.setAttribute('data-theme', dot.getAttribute('data-t'));
+        dots.forEach(function (d) { d.classList.remove('active'); });
+        dot.classList.add('active');
+      });
+    });
+
+    var modeBtn = document.getElementById('mode-toggle');
+    modeBtn.addEventListener('click', function () {
+      var isLight = body.getAttribute('data-mode') === 'light';
+      body.setAttribute('data-mode', isLight ? 'dark' : 'light');
+      modeBtn.textContent = isLight ? '☀️ Light' : '🌙 Dark';
+    });
+
+    var pdfBtn = document.getElementById('pdf-btn');
+    pdfBtn.addEventListener('click', function () {
+      var el = document.getElementById('grid');
+      var opt = {
+        margin: 0.4,
+        filename: '{{MAGAZINE_TITLE}}.pdf',
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 2, useCORS: true },
+        jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' }
+      };
+      html2pdf().set(opt).from(el).save();
+    });
+
+    var overlay = document.getElementById('overlay');
+    var panel = document.getElementById('panel');
+    var cards = Array.prototype.slice.call(document.querySelectorAll('.card'));
+
+    cards.forEach(function (card) {
+      card.addEventListener('click', function () {
+        var detail = card.querySelector('.card-detail');
+        if (!detail) return;
+        var clone = detail.cloneNode(true);
+        clone.hidden = false;
+        panel.innerHTML = '';
+        panel.appendChild(clone);
+        overlay.hidden = false;
+      });
+    });
+
+    overlay.addEventListener('click', function (event) {
+      if (event.target === overlay) {
+        overlay.hidden = true;
+        panel.innerHTML = '';
+      }
+    });
+  })();
+</script>
+
+</body>
+</html>
