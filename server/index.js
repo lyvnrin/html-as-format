@@ -36,6 +36,14 @@ const MAGAZINE_TEMPLATE = fs.readFileSync(
   path.join(ROOT, 'skills/render-magazine/assets/magazine-template.html'),
   'utf-8',
 )
+const BUBBLE_SKILL = fs.readFileSync(
+  path.join(ROOT, 'skills/render-bubble/SKILL.md'),
+  'utf-8',
+)
+const BUBBLE_TEMPLATE = fs.readFileSync(
+  path.join(ROOT, 'skills/render-bubble/assets/bubble-template.html'),
+  'utf-8',
+)
 
 const MODEL = 'claude-sonnet-4-6'
 
@@ -45,9 +53,19 @@ function stripCodeFence(text) {
   return match ? match[1].trim() : trimmed
 }
 
+function stripImageData(slides) {
+  return slides.map((slide) => ({
+    slide: slide.slide,
+    heading: slide.heading,
+    body: slide.body,
+    image_captions: (slide.images || []).map((image) => image.caption).filter(Boolean),
+  }))
+}
+
 async function extractToJson(fileContent) {
-  const sourceText =
-    typeof fileContent === 'string' ? fileContent : JSON.stringify(fileContent, null, 2)
+  const sourceText = Array.isArray(fileContent)
+    ? JSON.stringify(stripImageData(fileContent), null, 2)
+    : fileContent
 
   const prompt = `${TRANSCRIPT_SKILL}
 
@@ -156,6 +174,63 @@ Follow the SKILL.md instructions above to fill the template with this content. O
   return embedMagazineImages(stripCodeFence(text), slides)
 }
 
+function bubbleImagePlaceholder(slideNumber, imageIndex) {
+  return `__IMAGE_SLIDE_${slideNumber}_${imageIndex}__`
+}
+
+function buildBubblePromptSlides(slides) {
+  return slides.map((slide) => ({
+    slide: slide.slide,
+    heading: slide.heading,
+    body: slide.body,
+    images: (slide.images || []).map((image, i) => ({
+      placeholder: bubbleImagePlaceholder(slide.slide, i + 1),
+      caption: image.caption,
+    })),
+  }))
+}
+
+function embedBubbleImages(html, slides) {
+  return slides.reduce((output, slide) => {
+    return (slide.images || []).reduce((out, image, i) => {
+      const token = bubbleImagePlaceholder(slide.slide, i + 1)
+      const dataUri = `data:${image.mime_type};base64,${image.base64}`
+      return out.split(token).join(dataUri)
+    }, output)
+  }, html)
+}
+
+async function renderBubble(slides) {
+  const promptSlides = buildBubblePromptSlides(slides)
+
+  const prompt = `${BUBBLE_SKILL}
+
+---
+
+Here is the HTML template referenced as assets/bubble-template.html:
+
+${BUBBLE_TEMPLATE}
+
+---
+
+Here is the enriched slide content to render (output of parseFile → captionImages, with image data replaced by placeholder tokens):
+
+${JSON.stringify(promptSlides, null, 2)}
+
+---
+
+Follow the SKILL.md instructions above: identify themes for these slides (Step 2), then fill the template's {{BUBBLE_TITLE}}, {{BUBBLE_SUBTITLE}}, {{AUTHOR}}, and {{BUBBLE_DATA}} placeholders (Step 5). Output ONLY the complete, final HTML document — no markdown code fences, no commentary, no surrounding text.`
+
+  const response = await anthropic.messages.create({
+    model: MODEL,
+    max_tokens: 32000,
+    messages: [{ role: 'user', content: prompt }],
+  })
+
+  const text = response.content.map((block) => block.text || '').join('')
+  return embedBubbleImages(stripCodeFence(text), slides)
+}
+
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 25 * 1024 * 1024 } })
 
 const app = express()
@@ -204,6 +279,26 @@ app.post('/api/render-magazine', upload.single('file'), async (req, res) => {
   } catch (err) {
     console.error('Magazine render failed:', err)
     res.status(500).json({ error: err.message || 'Magazine render failed.' })
+  }
+})
+
+app.post('/api/render-bubble', upload.single('file'), async (req, res) => {
+  const { file } = req
+
+  if (!file) {
+    return res.status(400).json({ error: 'file is required.' })
+  }
+
+  try {
+    const fileContent = await parseFile(file.buffer, file.originalname)
+    const captionedContent = Array.isArray(fileContent)
+      ? await captionImages(fileContent)
+      : fileContent
+    const html = await renderBubble(captionedContent)
+    res.json({ html })
+  } catch (err) {
+    console.error('Bubble render failed:', err)
+    res.status(500).json({ error: err.message || 'Bubble render failed.' })
   }
 })
 

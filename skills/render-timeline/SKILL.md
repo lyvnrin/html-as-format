@@ -32,6 +32,8 @@ The template ships as a cinematic dark-glass design by default (`data-mode="dark
 - Expanded panel content: `subheading`, `body` paragraphs, `bullets` list, `image_description` as an italicised caption.
 
 **Layout rules:**
+- The whole page is one `100vh` viewport, and the timeline is the only thing that determines its layout. `#doc` is `position: relative; min-height: 100vh` with no flex/flow-based sizing — the header (`.doc-header`), nav buttons, swipe hint, and footer are all `position: absolute` overlays with no background/box, anchored to `#doc`'s corners (header top-left, controls bottom-centre). `.timeline-wrap` is `position: absolute; top: 0; bottom: 0` so it fills the *entire* `#doc` box and centres the rail in it via `align-items: center`, independent of how tall the header or footer text happens to be. Don't turn this back into a flex column with the header/footer as in-flow siblings — that makes them compete with the timeline for vertical space, which is exactly the bug this structure exists to avoid. Below 640px it reverts to a normal static-flow stacked page (see the mobile media query) since there's no "centre in one viewport" goal on a phone.
+- `.node-panel`'s `max-height` is deliberately bounded to the room between the centre line and the node's own edge (`calc(50% - 34px)`), not an independent viewport-relative value — this is what stops the expanded card from spilling out past the rail and forcing a page scroll. If you resize the rail (`height: min(64vh, 560px)`) or the `34px` stem offset, keep this formula in sync so long expanded content scrolls inside the card instead of overflowing the page.
 - The timeline rail breaks out to full viewport width (`100vw`) regardless of the centred `#doc` column the header/title sit in — this is built for presenting on a big screen, not a narrow article layout. Don't wrap it back inside the centred column.
 - The connector line sits at the vertical centre of the timeline rail; nodes alternate popping up above it and down below it as you move along the rail.
 - Horizontal scroll-snap is `mandatory` — swiping/scrolling moves decisively one node at a time, like stepping through slides. Only the centred node is at full scale/opacity; neighbours are dimmed and slightly scaled down. Don't remove `scroll-snap-type`/`scroll-snap-align`/the centred-tracking JS.
@@ -52,6 +54,8 @@ The template ships as a cinematic dark-glass design by default (`data-mode="dark
 Copy the toolbar HTML and JS verbatim from the existing templates — do not rewrite it. The toolbar includes the theme picker, dark mode toggle, and PDF export button. It must behave identically to the other renderers.
 
 Scrollbars are hidden everywhere on every renderer (the global `* { scrollbar-width: none; ... } *::-webkit-scrollbar { display: none; }` rule right after the box-sizing reset) — scrolling still works, there's just no visible track/thumb. Keep this rule intact.
+
+**Exception: `.node-panel` gets its scrollbar back.** It's the one place where a hidden scrollbar actively misleads — its `max-height` (see Step 2's layout rules) means longer slide content gets cut off with no visual cue that there's more below, which reads as a bug rather than "scroll for more." It has its own scoped override restoring a thin, on-brand scrollbar. Don't remove it to "match" the sitewide hidden-scrollbar convention — that's what caused the bug in the first place.
 
 The PDF export targets `#doc` (the timeline wrapper div), not the whole page.
 

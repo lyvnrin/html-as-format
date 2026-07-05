@@ -237,6 +237,13 @@
   .panel-media { flex: 1 1 45%; min-width: 0; background: var(--accent); display: flex; align-items: center; justify-content: center; }
   .panel-media img { display: block; width: 100%; height: 100%; object-fit: cover; }
   .panel-content { flex: 1 1 55%; padding: 32px 34px; overflow-y: auto; }
+  /* This box can legitimately have more content below the fold — unlike the
+     page-level scroll (hidden everywhere else in the shared chrome), this one
+     needs a visible cue or the truncation reads as a bug. Override the global
+     hide-scrollbar rule just for this element. */
+  .panel-content { scrollbar-width: thin; scrollbar-color: var(--accent-glow) transparent; }
+  .panel-content::-webkit-scrollbar { display: block; width: 5px; }
+  .panel-content::-webkit-scrollbar-thumb { background: var(--accent-glow); border-radius: 6px; }
   .panel-content h2 { margin: 0 0 18px; font-size: 24px; font-weight: 800; }
   .panel-body-list { margin: 0 0 18px; padding-left: 20px; }
   .panel-body-list li { font-size: 16px; line-height: 1.6; color: var(--text); margin-bottom: 8px; }
@@ -249,6 +256,9 @@
   @media (max-width: 680px) {
     .panel { flex-direction: column; max-height: calc(100vh - 48px); overflow-y: auto; }
     .panel-media { flex: 0 0 auto; aspect-ratio: 16 / 9; }
+    .panel { scrollbar-width: thin; scrollbar-color: var(--accent-glow) transparent; }
+    .panel::-webkit-scrollbar { display: block; width: 5px; }
+    .panel::-webkit-scrollbar-thumb { background: var(--accent-glow); border-radius: 6px; }
   }
 
   .doc-footer { text-align: center; font-size: 12px; color: var(--text-faint); margin-top: 50px; }

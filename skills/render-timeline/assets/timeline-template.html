@@ -22,6 +22,7 @@
     --radius: 16px;
     --shadow: 0 8px 32px rgba(0,0,0,0.45);
     --blur: 18px;
+    --rail-h: min(64vh, 560px);
   }
 
   [data-theme="blue"]   { --accent: #5b8cff; --accent-soft: rgba(91,140,255,0.16); --accent-glow: rgba(91,140,255,0.55); --accent-dark: #3a63d4; }
@@ -136,39 +137,57 @@
   }
   .settings-panel button.tool-btn.primary:hover { background: var(--accent-dark); }
 
+  /* #doc no longer lays out header/timeline/footer as flex siblings sharing
+     one height budget — that made them fight each other for space. Header
+     and footer controls are free-floating overlays (position: absolute, no
+     background/box) anchored to #doc's corners; the timeline is the only
+     thing that actually occupies the full #doc box and is the only thing
+     that determines the page's layout. */
   #doc {
+    position: relative;
     max-width: 1200px;
     margin: 0 auto;
-    padding: 56px 24px 100px;
+    min-height: 100vh;
   }
 
-  .doc-header { margin-bottom: 18px; text-align: left; }
+  .doc-header {
+    position: absolute;
+    top: 28px;
+    left: 24px;
+    z-index: 5;
+    max-width: 420px;
+    text-align: left;
+  }
   .doc-eyebrow {
     display: inline-block;
-    font-size: 11px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase;
+    font-size: 10px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase;
     color: var(--accent);
     background: var(--accent-soft);
     border: 1px solid var(--accent-glow);
-    padding: 5px 14px;
+    padding: 4px 12px;
     border-radius: 999px;
-    margin-bottom: 14px;
+    margin-bottom: 8px;
   }
   .doc-title {
-    font-size: clamp(28px, 4vw, 42px); font-weight: 800; margin: 0 0 10px; line-height: 1.15;
+    font-size: clamp(19px, 2.4vw, 25px); font-weight: 800; margin: 0 0 5px; line-height: 1.2;
     letter-spacing: -.01em;
   }
-  .doc-subtitle { font-size: 16px; color: var(--text-soft); margin: 0 0 14px; line-height: 1.5; max-width: 640px; }
-  .doc-meta { display: flex; flex-wrap: wrap; justify-content: flex-start; gap: 18px; font-size: 13px; color: var(--text-faint); }
+  .doc-subtitle { font-size: 13px; color: var(--text-soft); margin: 0 0 8px; line-height: 1.45; max-width: 420px; }
+  .doc-meta { display: flex; flex-wrap: wrap; justify-content: flex-start; gap: 14px; font-size: 11.5px; color: var(--text-faint); }
 
-  /* Timeline rail — breaks out of #doc to run full viewport width */
+  /* Timeline rail — fills #doc's entire box (top to bottom) and breaks out
+     to full viewport width, running behind the free-floating header/footer. */
   .timeline-wrap {
-    position: relative;
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 50%;
     width: 100vw;
-    margin-left: calc(50% - 50vw);
+    margin-left: -50vw;
     overflow-x: auto;
     overflow-y: visible;
-    margin-top: 110px;
-    padding: 10px 0 40px;
+    display: flex;
+    align-items: center;
     scroll-behavior: smooth;
     scroll-snap-type: x mandatory;
     -webkit-overflow-scrolling: touch;
@@ -180,7 +199,7 @@
     align-items: stretch;
     gap: 0;
     min-width: max-content;
-    height: min(64vh, 560px);
+    height: var(--rail-h);
     padding: 0 50vw;
   }
   .timeline-rail::before {
@@ -273,7 +292,18 @@
   .node-panel {
     display: none;
     width: 100%;
-    max-height: 38vh;
+    /* Bounded to the room actually available between the centre line and the
+       node's own edge: half the rail height, minus the 34px stem gap, minus
+       ~76px for the always-visible .node-summary block (label + stat + its
+       padding) that shares the same flex column above/below the centre line.
+       This must be a var()-based calc(), not a percentage — .node-content
+       (the direct parent of .node-panel) is an auto-height flex box, so a
+       plain `%` max-height silently resolves to nothing against it. This is
+       what actually keeps the expanded card from spilling past the rail and
+       overlapping the header or the controls below. Long content scrolls
+       inside the card instead. If .node-summary's font sizes/padding change,
+       keep this reservation in sync. */
+    max-height: calc(var(--rail-h) / 2 - 110px);
     overflow-y: auto;
     background: var(--surface);
     backdrop-filter: blur(var(--blur));
@@ -286,6 +316,14 @@
   }
   .node.expanded .node-panel { display: block; }
 
+  /* This box can legitimately have more content below the fold — unlike the
+     page-level scroll (hidden everywhere else in the shared chrome), this one
+     needs a visible cue or the truncation reads as a bug. Override the global
+     hide-scrollbar rule just for this element. */
+  .node-panel { scrollbar-width: thin; scrollbar-color: var(--accent-glow) transparent; }
+  .node-panel::-webkit-scrollbar { display: block; width: 5px; }
+  .node-panel::-webkit-scrollbar-thumb { background: var(--accent-glow); border-radius: 6px; }
+
   .panel-heading { font-size: 22px; font-weight: 800; margin: 0 0 6px; }
   .panel-subheading { font-size: 15px; color: var(--accent); font-weight: 700; margin: 0 0 14px; }
   .panel-body { font-size: 17px; line-height: 1.6; color: var(--text); margin: 0 0 14px; }
@@ -293,7 +331,18 @@
   .panel-bullets li { font-size: 16px; line-height: 1.55; color: var(--text); margin-bottom: 6px; }
   .panel-caption { font-size: 13px; font-style: italic; color: var(--text-faint); margin: 0; }
 
-  .nav-buttons { display: flex; justify-content: center; gap: 12px; margin-top: 18px; }
+  /* Nav buttons, swipe hint, and footer are also free-floating overlays —
+     not a footer "box" competing with the timeline for vertical room. */
+  .nav-buttons {
+    position: absolute;
+    bottom: 44px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 5;
+    display: flex;
+    justify-content: center;
+    gap: 12px;
+  }
   .nav-buttons button {
     border: 1px solid var(--border);
     background: var(--surface-alt);
@@ -307,17 +356,48 @@
   .nav-buttons button:hover { background: var(--accent-soft); transform: translateY(-1px); }
 
   .swipe-hint {
+    position: absolute;
+    bottom: 86px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 5;
     text-align: center;
     font-size: 12px;
     color: var(--text-faint);
-    margin-top: 4px;
     letter-spacing: .02em;
+    white-space: nowrap;
   }
 
-  .doc-footer { text-align: center; font-size: 12px; color: var(--text-faint); margin-top: 50px; }
+  .doc-footer {
+    position: absolute;
+    bottom: 14px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 5;
+    text-align: center;
+    font-size: 12px;
+    color: var(--text-faint);
+    white-space: nowrap;
+  }
 
   @media (max-width: 640px) {
-    .timeline-wrap { scroll-snap-type: none; }
+    /* Below 640px this reverts to a normal, naturally-flowing stacked page —
+       the absolute-overlay layout above is a desktop/big-screen thing. */
+    #doc { min-height: 0; padding: 24px 20px 32px; }
+    .doc-header { position: static; max-width: none; margin-bottom: 20px; }
+    .timeline-wrap {
+      position: static;
+      width: auto;
+      margin-left: 0;
+      scroll-snap-type: none;
+      align-items: flex-start;
+    }
+    .nav-buttons, .swipe-hint, .doc-footer {
+      position: static;
+      transform: none;
+      margin-top: 18px;
+    }
+    .swipe-hint { display: none; }
     .timeline-rail { height: auto; padding: 0; flex-direction: column; align-items: flex-start; min-width: 0; }
     .timeline-rail::before {
       left: 22px; top: 0; bottom: 0; right: auto;
@@ -338,7 +418,6 @@
     .node-stem { display: none; }
     .node-summary { text-align: left; padding: 0; }
     .node-panel { width: 100%; max-width: 420px; margin-top: 6px; max-height: none; overflow-y: visible; }
-    .swipe-hint { display: none; }
   }
 
   @media print {

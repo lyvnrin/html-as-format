@@ -31,7 +31,11 @@ export default function App() {
       formData.append('file', file)
       formData.append('format', selectedFormat)
 
-      const endpoint = selectedFormat === 'magazine' ? '/api/render-magazine' : '/api/generate'
+      const endpoints = {
+        magazine: '/api/render-magazine',
+        'bubble-map': '/api/render-bubble',
+      }
+      const endpoint = endpoints[selectedFormat] || '/api/generate'
       const response = await fetch(endpoint, {
         method: 'POST',
         body: formData,

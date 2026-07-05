@@ -22,6 +22,13 @@ export const formats = [
     Cover: MagazineCover,
   },
   {
+    id: 'bubble-map',
+    label: 'Bubble map',
+    description: 'Topics as an interactive cluster map',
+    active: true,
+    Cover: BubbleMapCover,
+  },
+  {
     id: 'meeting-notes',
     label: 'Meeting notes',
     description: 'Attendees, actions, decisions',
@@ -34,13 +41,6 @@ export const formats = [
     description: 'Hero, timeline, key moments',
     active: false,
     Cover: CaseStudyCover,
-  },
-  {
-    id: 'bubble-map',
-    label: 'Bubble map',
-    description: 'Topics as an interactive cluster map',
-    active: false,
-    Cover: BubbleMapCover,
   },
   {
     id: 'research-brief',
