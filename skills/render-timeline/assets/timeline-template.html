@@ -8,39 +8,35 @@
 <style>
   :root {
     --bg: #1c1c1f;
-    --surface: rgba(255,255,255,0.05);
     --surface-solid: #242327;
     --surface-alt: rgba(255,255,255,0.08);
-    --border: rgba(255,255,255,0.12);
+    --border: rgba(255,255,255,0.14);
     --text: #eef1f8;
     --text-soft: #aab2c5;
     --text-faint: #6e7690;
     --accent: #5b8cff;
     --accent-soft: rgba(91,140,255,0.16);
-    --accent-glow: rgba(91,140,255,0.55);
     --accent-dark: #3a63d4;
-    --radius: 16px;
+    --radius: 14px;
     --shadow: 0 8px 32px rgba(0,0,0,0.45);
-    --blur: 18px;
-    --rail-h: min(64vh, 560px);
+    --font-serif: Georgia, 'Iowan Old Style', 'Palatino Linotype', 'Times New Roman', serif;
   }
 
-  [data-theme="blue"]   { --accent: #5b8cff; --accent-soft: rgba(91,140,255,0.16); --accent-glow: rgba(91,140,255,0.55); --accent-dark: #3a63d4; }
-  [data-theme="green"]  { --accent: #3fd690; --accent-soft: rgba(63,214,144,0.16); --accent-glow: rgba(63,214,144,0.55); --accent-dark: #1f9c64; }
-  [data-theme="purple"] { --accent: #a684ff; --accent-soft: rgba(166,132,255,0.16); --accent-glow: rgba(166,132,255,0.55); --accent-dark: #7c54e0; }
-  [data-theme="orange"] { --accent: #ff9d4d; --accent-soft: rgba(255,157,77,0.16); --accent-glow: rgba(255,157,77,0.55); --accent-dark: #e07820; }
-  [data-theme="pink"]   { --accent: #ff6fb0; --accent-soft: rgba(255,111,176,0.16); --accent-glow: rgba(255,111,176,0.55); --accent-dark: #e0468a; }
+  [data-theme="blue"]   { --accent: #5b8cff; --accent-soft: rgba(91,140,255,0.16); --accent-dark: #3a63d4; }
+  [data-theme="green"]  { --accent: #3fd690; --accent-soft: rgba(63,214,144,0.16); --accent-dark: #1f9c64; }
+  [data-theme="purple"] { --accent: #a684ff; --accent-soft: rgba(166,132,255,0.16); --accent-dark: #7c54e0; }
+  [data-theme="orange"] { --accent: #ff9d4d; --accent-soft: rgba(255,157,77,0.16); --accent-dark: #e07820; }
+  [data-theme="pink"]   { --accent: #ff6fb0; --accent-soft: rgba(255,111,176,0.16); --accent-dark: #e0468a; }
 
   body[data-mode="light"] {
-    --bg: #f6f1e8;
-    --surface: rgba(255,255,255,0.7);
+    --bg: #f7f3ec;
     --surface-solid: #ffffff;
     --surface-alt: rgba(20,23,31,0.04);
-    --border: rgba(20,23,31,0.1);
-    --text: #181a20;
-    --text-soft: #565d6e;
-    --text-faint: #8990a3;
-    --shadow: 0 8px 28px rgba(20,30,60,0.12);
+    --border: rgba(20,23,31,0.12);
+    --text: #21201c;
+    --text-soft: #5b5750;
+    --text-faint: #8c877d;
+    --shadow: 0 8px 28px rgba(20,30,60,0.1);
   }
 
   * { box-sizing: border-box; }
@@ -77,7 +73,7 @@
     box-shadow: var(--shadow);
     transition: border-color .15s ease, transform .15s ease, background .15s ease;
   }
-  .settings-toggle:hover { border-color: var(--accent-glow); transform: translateY(-1px); }
+  .settings-toggle:hover { border-color: var(--accent); transform: translateY(-1px); }
   .settings-toggle svg { width: 18px; height: 18px; }
 
   .settings-panel {
@@ -117,7 +113,7 @@
   .theme-dot[data-t="purple"] { background: #a684ff; }
   .theme-dot[data-t="orange"] { background: #ff9d4d; }
   .theme-dot[data-t="pink"]   { background: #ff6fb0; }
-  .theme-dot.active { border-color: var(--text); transform: scale(1.15); box-shadow: 0 0 10px var(--accent-glow); }
+  .theme-dot.active { border-color: var(--text); transform: scale(1.15); }
 
   .settings-panel button.tool-btn {
     display: flex; align-items: center; justify-content: center; gap: 6px;
@@ -131,299 +127,157 @@
     transition: background .15s ease, transform .1s ease;
   }
   .settings-panel button.tool-btn:hover { background: var(--accent-soft); transform: translateY(-1px); }
-  .settings-panel button.tool-btn.primary {
-    background: var(--accent); color: #0a0c12; border-color: var(--accent);
-    box-shadow: 0 0 18px var(--accent-glow);
-  }
+  .settings-panel button.tool-btn.primary { background: var(--accent); color: #0a0c12; border-color: var(--accent); }
   .settings-panel button.tool-btn.primary:hover { background: var(--accent-dark); }
 
-  /* #doc no longer lays out header/timeline/footer as flex siblings sharing
-     one height budget — that made them fight each other for space. Header
-     and footer controls are free-floating overlays (position: absolute, no
-     background/box) anchored to #doc's corners; the timeline is the only
-     thing that actually occupies the full #doc box and is the only thing
-     that determines the page's layout. */
-  #doc {
-    position: relative;
-    max-width: 1200px;
-    margin: 0 auto;
-    min-height: 100vh;
-  }
+  /* The header is one small line — an eyebrow and a title, nothing else.
+     Subtitle/date/summary/author all live in the single-line footer instead.
+     This is deliberate: this page's job is the interactive timeline, not a
+     title splash, so the header must never be able to grow past a couple
+     lines no matter how much text a field is filled with. */
+  #doc { max-width: 1180px; margin: 0 auto; padding: 32px 24px 56px; }
 
-  .doc-header {
-    position: absolute;
-    top: 28px;
-    left: 24px;
-    z-index: 5;
-    max-width: 420px;
-    text-align: left;
-  }
-  .doc-eyebrow {
-    display: inline-block;
-    font-size: 10px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase;
+  .tl-header { text-align: center; margin-bottom: 40px; }
+  .tl-eyebrow {
+    display: block;
+    font-size: 10px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase;
     color: var(--accent);
-    background: var(--accent-soft);
-    border: 1px solid var(--accent-glow);
-    padding: 4px 12px;
-    border-radius: 999px;
-    margin-bottom: 8px;
+    margin-bottom: 6px;
   }
-  .doc-title {
-    font-size: clamp(19px, 2.4vw, 25px); font-weight: 800; margin: 0 0 5px; line-height: 1.2;
-    letter-spacing: -.01em;
-  }
-  .doc-subtitle { font-size: 13px; color: var(--text-soft); margin: 0 0 8px; line-height: 1.45; max-width: 420px; }
-  .doc-meta { display: flex; flex-wrap: wrap; justify-content: flex-start; gap: 14px; font-size: 11.5px; color: var(--text-faint); }
-
-  /* Timeline rail — fills #doc's entire box (top to bottom) and breaks out
-     to full viewport width, running behind the free-floating header/footer. */
-  .timeline-wrap {
-    position: absolute;
-    top: 0;
-    bottom: 0;
-    left: 50%;
-    width: 100vw;
-    margin-left: -50vw;
-    overflow-x: auto;
-    overflow-y: visible;
-    display: flex;
-    align-items: center;
-    scroll-behavior: smooth;
-    scroll-snap-type: x mandatory;
-    -webkit-overflow-scrolling: touch;
+  .tl-title {
+    font-family: var(--font-serif);
+    font-size: clamp(20px, 2.6vw, 27px); font-weight: 600; margin: 0; line-height: 1.2;
   }
 
-  .timeline-rail {
-    position: relative;
-    display: flex;
-    align-items: stretch;
-    gap: 0;
-    min-width: max-content;
-    height: var(--rail-h);
-    padding: 0 50vw;
-  }
-  .timeline-rail::before {
+  /* The track runs down the centre of the page — a single vertical line with
+     a dot per node. Each node is its own 3-column grid row (side / dot /
+     side); which side a node's detail content lands in is picked purely by
+     a CSS class (`.side-left` / `.side-right`) setting that content's
+     `grid-column`, so there's no positioning math anywhere — the row's
+     height is just however tall its content naturally is, and opening one
+     node can't affect any other node's layout. */
+  .tl-track { position: relative; max-width: 980px; margin: 0 auto; }
+  .tl-track::before {
     content: "";
     position: absolute;
-    left: 0; right: 0; top: 50%;
-    height: 3px;
-    transform: translateY(-50%);
-    background: linear-gradient(90deg, transparent, var(--accent-glow) 4%, var(--accent-glow) 96%, transparent);
-    box-shadow: 0 0 16px 2px var(--accent-glow);
-    border-radius: 3px;
+    left: 50%; top: 0; bottom: 0;
+    width: 2px;
+    transform: translateX(-1px);
+    background: var(--border);
   }
 
-  .node {
+  .tl-node {
     position: relative;
-    width: clamp(280px, 38vw, 640px);
-    flex-shrink: 0;
-    height: 100%;
-    scroll-snap-align: center;
-    scroll-snap-stop: always;
-    transition: transform .4s cubic-bezier(.2,.8,.2,1), opacity .4s ease;
-    transform: scale(0.86);
-    opacity: 0.45;
-  }
-  .node.centered { transform: scale(1); opacity: 1; }
-
-  .node-dot-btn {
-    position: absolute;
-    top: 50%; left: 50%;
-    transform: translate(-50%, -50%) scale(0.4);
-    width: 56px; height: 56px;
-    border-radius: 50%;
-    background: var(--surface-solid);
-    border: 3px solid var(--accent);
-    color: var(--accent);
-    font-size: 16px; font-weight: 800;
-    display: flex; align-items: center; justify-content: center;
-    cursor: pointer;
-    box-shadow: var(--shadow);
-    transition: transform .45s cubic-bezier(.2,.8,.2,1), background .2s ease, color .2s ease, box-shadow .25s ease;
-    z-index: 3;
-    opacity: 0;
-  }
-  .node.in-view .node-dot-btn { opacity: 1; transform: translate(-50%, -50%) scale(1); }
-  .node.highlight .node-dot-btn {
-    box-shadow: 0 0 0 7px var(--accent-soft), 0 0 28px var(--accent-glow);
-  }
-  .node.expanded .node-dot-btn {
-    background: var(--accent);
-    color: #0a0c12;
-    transform: translate(-50%, -50%) scale(1.15);
+    display: grid;
+    grid-template-columns: 1fr 190px 1fr;
+    column-gap: 36px;
+    align-items: start;
+    padding: 26px 0;
   }
 
-  .node-content {
-    position: absolute;
-    left: 50%;
-    width: min(90%, 460px);
-    transform: translateX(-50%);
+  .tl-node-center {
+    grid-column: 2;
     display: flex;
     flex-direction: column;
     align-items: center;
-    opacity: 0;
-    transition: opacity .5s ease .08s, transform .5s cubic-bezier(.2,.8,.2,1) .08s;
+    gap: 6px;
     z-index: 2;
   }
-  .node.in-view .node-content { opacity: 1; }
-
-  .node.above .node-content { bottom: calc(50% + 34px); flex-direction: column-reverse; transform: translateX(-50%) translateY(14px); }
-  .node.above.in-view .node-content { transform: translateX(-50%) translateY(0); }
-  .node.below .node-content { top: calc(50% + 34px); transform: translateX(-50%) translateY(-14px); }
-  .node.below.in-view .node-content { transform: translateX(-50%) translateY(0); }
-
-  .node-stem {
-    width: 2px;
-    height: 34px;
-    background: linear-gradient(to top, var(--accent-glow), transparent);
+  .tl-dot {
+    all: unset;
+    box-sizing: border-box;
+    cursor: pointer;
+    width: 15px; height: 15px;
+    border-radius: 50%;
+    background: var(--surface-solid);
+    border: 2px solid var(--text-faint);
+    transition: background .2s ease, border-color .2s ease, box-shadow .2s ease, transform .15s ease;
   }
-  .node.below .node-stem { background: linear-gradient(to bottom, var(--accent-glow), transparent); }
+  .tl-node.active .tl-dot { background: var(--accent); border-color: var(--accent); box-shadow: 0 0 0 5px var(--accent-soft); transform: scale(1.1); }
+  .tl-node.highlight .tl-dot { border-color: var(--accent); }
 
-  .node-summary { text-align: center; padding: 12px 4px; cursor: pointer; }
-  .node-label {
-    font-size: 17px; font-weight: 700;
-    line-height: 1.3;
+  .tl-node-index { font-family: var(--font-serif); font-size: 11px; color: var(--text-faint); }
+  .tl-node-label {
+    all: unset;
+    box-sizing: border-box;
+    cursor: pointer;
+    font-family: var(--font-serif);
+    font-size: 15px; font-weight: 600; line-height: 1.3;
+    color: var(--text);
+    text-align: center;
+    max-width: 170px;
   }
-  .node-stat {
-    margin-top: 5px;
-    font-size: 14px; color: var(--text-faint); font-weight: 600;
-  }
+  .tl-node.active .tl-node-label { color: var(--accent); }
+  .tl-node-stat { font-size: 11px; color: var(--text-faint); text-align: center; }
 
-  .node-panel {
-    display: none;
-    width: 100%;
-    /* Bounded to the room actually available between the centre line and the
-       node's own edge: half the rail height, minus the 34px stem gap, minus
-       ~76px for the always-visible .node-summary block (label + stat + its
-       padding) that shares the same flex column above/below the centre line.
-       This must be a var()-based calc(), not a percentage — .node-content
-       (the direct parent of .node-panel) is an auto-height flex box, so a
-       plain `%` max-height silently resolves to nothing against it. This is
-       what actually keeps the expanded card from spilling past the rail and
-       overlapping the header or the controls below. Long content scrolls
-       inside the card instead. If .node-summary's font sizes/padding change,
-       keep this reservation in sync. */
-    max-height: calc(var(--rail-h) / 2 - 110px);
-    overflow-y: auto;
-    background: var(--surface);
-    backdrop-filter: blur(var(--blur));
-    -webkit-backdrop-filter: blur(var(--blur));
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    box-shadow: var(--shadow), 0 0 0 1px var(--accent-soft);
-    padding: 28px;
-    text-align: left;
-  }
-  .node.expanded .node-panel { display: block; }
+  .tl-node-detail { display: none; width: 100%; max-width: 360px; padding: 2px; }
+  .tl-node.side-left .tl-node-detail { grid-column: 1; justify-self: end; }
+  .tl-node.side-right .tl-node-detail { grid-column: 3; justify-self: start; }
+  .tl-node.active .tl-node-detail { display: block; }
 
-  /* This box can legitimately have more content below the fold — unlike the
-     page-level scroll (hidden everywhere else in the shared chrome), this one
-     needs a visible cue or the truncation reads as a bug. Override the global
-     hide-scrollbar rule just for this element. */
-  .node-panel { scrollbar-width: thin; scrollbar-color: var(--accent-glow) transparent; }
-  .node-panel::-webkit-scrollbar { display: block; width: 5px; }
-  .node-panel::-webkit-scrollbar-thumb { background: var(--accent-glow); border-radius: 6px; }
+  .detail-stat { font-size: 12.5px; color: var(--text-faint); font-weight: 600; margin-bottom: 8px; }
+  .detail-heading { font-family: var(--font-serif); font-size: 21px; font-weight: 600; margin: 0 0 6px; line-height: 1.25; }
+  .detail-subheading { font-size: 14px; color: var(--accent); font-weight: 700; margin: 0 0 12px; }
+  .detail-body { font-size: 15.5px; line-height: 1.6; color: var(--text); margin: 0 0 12px; }
+  .detail-bullets { margin: 0; padding-left: 18px; }
+  .detail-bullets li { font-size: 15px; line-height: 1.55; color: var(--text); margin-bottom: 6px; }
 
-  .panel-heading { font-size: 22px; font-weight: 800; margin: 0 0 6px; }
-  .panel-subheading { font-size: 15px; color: var(--accent); font-weight: 700; margin: 0 0 14px; }
-  .panel-body { font-size: 17px; line-height: 1.6; color: var(--text); margin: 0 0 14px; }
-  .panel-bullets { margin: 0 0 14px; padding-left: 20px; }
-  .panel-bullets li { font-size: 16px; line-height: 1.55; color: var(--text); margin-bottom: 6px; }
-  .panel-caption { font-size: 13px; font-style: italic; color: var(--text-faint); margin: 0; }
-
-  /* Nav buttons, swipe hint, and footer are also free-floating overlays —
-     not a footer "box" competing with the timeline for vertical room. */
-  .nav-buttons {
-    position: absolute;
-    bottom: 44px;
-    left: 50%;
-    transform: translateX(-50%);
-    z-index: 5;
+  /* Plain in-flow content, not `position: fixed`. A fixed bar sits at the
+     same screen coordinates no matter how far you've scrolled, so on a long
+     track it inevitably parks itself on top of whatever node happens to be
+     at that point on screen — which is exactly the overlap bug this
+     replaced. This is just a normal centred row after the last node. */
+  .tl-nav {
     display: flex;
     justify-content: center;
-    gap: 12px;
+    gap: 10px;
+    margin-top: 32px;
   }
-  .nav-buttons button {
+  .tl-nav button {
     border: 1px solid var(--border);
-    background: var(--surface-alt);
+    background: var(--surface-solid);
     color: var(--text);
     border-radius: 999px;
     padding: 9px 18px;
     font-size: 13px; font-weight: 600;
     cursor: pointer;
+    box-shadow: var(--shadow);
     transition: background .15s ease, transform .1s ease;
   }
-  .nav-buttons button:hover { background: var(--accent-soft); transform: translateY(-1px); }
-
-  .swipe-hint {
-    position: absolute;
-    bottom: 86px;
-    left: 50%;
-    transform: translateX(-50%);
-    z-index: 5;
-    text-align: center;
-    font-size: 12px;
-    color: var(--text-faint);
-    letter-spacing: .02em;
-    white-space: nowrap;
-  }
+  .tl-nav button:hover:not(:disabled) { background: var(--accent-soft); transform: translateY(-1px); }
+  .tl-nav button:disabled { opacity: .35; cursor: default; }
 
   .doc-footer {
-    position: absolute;
-    bottom: 14px;
-    left: 50%;
-    transform: translateX(-50%);
-    z-index: 5;
+    margin: 56px auto 0;
+    max-width: 760px;
+    padding-top: 18px;
+    padding-bottom: 60px;
+    border-top: 1px solid var(--border);
     text-align: center;
     font-size: 12px;
+    line-height: 1.6;
     color: var(--text-faint);
-    white-space: nowrap;
   }
 
-  @media (max-width: 640px) {
-    /* Below 640px this reverts to a normal, naturally-flowing stacked page —
-       the absolute-overlay layout above is a desktop/big-screen thing. */
-    #doc { min-height: 0; padding: 24px 20px 32px; }
-    .doc-header { position: static; max-width: none; margin-bottom: 20px; }
-    .timeline-wrap {
-      position: static;
-      width: auto;
-      margin-left: 0;
-      scroll-snap-type: none;
-      align-items: flex-start;
+  @media (max-width: 760px) {
+    #doc { padding: 24px 18px 48px; }
+    .tl-track::before { display: none; }
+    .tl-node {
+      display: block;
+      padding: 14px 0;
+      border-bottom: 1px solid var(--border);
     }
-    .nav-buttons, .swipe-hint, .doc-footer {
-      position: static;
-      transform: none;
-      margin-top: 18px;
-    }
-    .swipe-hint { display: none; }
-    .timeline-rail { height: auto; padding: 0; flex-direction: column; align-items: flex-start; min-width: 0; }
-    .timeline-rail::before {
-      left: 22px; top: 0; bottom: 0; right: auto;
-      width: 3px; height: auto; transform: none;
-      background: linear-gradient(180deg, transparent, var(--accent-glow) 6%, var(--accent-glow) 94%, transparent);
-    }
-    .node {
-      position: relative; width: 100%; height: auto; padding: 18px 0 18px 48px;
-      scroll-snap-align: none; transform: none; opacity: 1;
-    }
-    .node-dot-btn { position: absolute; left: -1px; top: 18px; transform: scale(0.4); }
-    .node.in-view .node-dot-btn { transform: scale(1); }
-    .node.expanded .node-dot-btn { transform: scale(1.1); }
-    .node-content, .node.above .node-content, .node.below .node-content {
-      position: static; width: auto; max-width: 420px; transform: none; flex-direction: column; align-items: flex-start; gap: 8px;
-    }
-    .node.above.in-view .node-content, .node.below.in-view .node-content { transform: none; }
-    .node-stem { display: none; }
-    .node-summary { text-align: left; padding: 0; }
-    .node-panel { width: 100%; max-width: 420px; margin-top: 6px; max-height: none; overflow-y: visible; }
+    .tl-node:last-child { border-bottom: none; }
+    .tl-node-center { flex-direction: row; align-items: center; gap: 10px; }
+    .tl-node-label { text-align: left; max-width: none; }
+    .tl-node-stat { text-align: left; }
+    .tl-node-detail { display: none; width: 100%; max-width: none; margin-top: 12px; padding-left: 25px; }
+    .tl-node.active .tl-node-detail { display: block; }
   }
 
   @media print {
-    .settings-toggle, .settings-panel, .swipe-hint { display: none; }
-    .timeline-wrap { overflow: visible; }
-    .node, .node-dot-btn, .node-content { opacity: 1 !important; transform: none !important; }
+    .settings-toggle, .settings-panel, .tl-nav { display: none; }
+    .tl-node-detail { display: block !important; }
   }
 </style>
 </head>
@@ -453,53 +307,52 @@
 
   <div id="doc">
 
-    <div class="doc-header">
-      <div class="doc-eyebrow">Timeline</div>
-      <h1 class="doc-title">{{TIMELINE_TITLE}}</h1>
-      <p class="doc-subtitle">{{TIMELINE_SUBTITLE}}</p>
-      <div class="doc-meta">
-        <span>{{TIMELINE_DATE}}</span>
-        <span>{{TIMELINE_SUMMARY}}</span>
-      </div>
+    <div class="tl-header">
+      <span class="tl-eyebrow">Timeline</span>
+      <h1 class="tl-title">{{TIMELINE_TITLE}}</h1>
     </div>
 
-    <div class="timeline-wrap" id="timeline-wrap">
-      <div class="timeline-rail" id="timeline-rail">
+    <div class="tl-track" id="tl-track">
 
-        <!-- NODE BLOCK: duplicate this .node div for each slide.
-             Alternate class "above" / "below" per node (first node = "above").
-             Add class "highlight" (in addition to above/below) if this slide's index is in key_moments. -->
-        <div class="node above" data-index="1">
-          <button class="node-dot-btn" aria-expanded="false">1</button>
-          <div class="node-content">
-            <div class="node-stem"></div>
-            <div class="node-summary">
-              <div class="node-label">{{NODE_1_LABEL}}</div>
-              <div class="node-stat">{{NODE_1_KEY_STAT}}</div>
-            </div>
-            <div class="node-panel">
-              <h2 class="panel-heading">{{NODE_1_HEADING}}</h2>
-              <p class="panel-subheading">{{NODE_1_SUBHEADING}}</p>
-              <p class="panel-body">{{NODE_1_BODY}}</p>
-              <ul class="panel-bullets">
-                <li>{{NODE_1_BULLET_1}}</li>
-              </ul>
-              <p class="panel-caption">[Visual: {{NODE_1_IMAGE_DESCRIPTION}}]</p>
-            </div>
-          </div>
+      <!-- NODE BLOCK: duplicate this .tl-node div for each slide.
+           Alternate class "side-left" / "side-right" per node (first node =
+           "side-left") — that's what sends this node's detail content to the
+           left or right column; it's picked by CSS grid-column, not by
+           reordering markup, so keep the same internal block order
+           (detail markup, then centre markup) for every node regardless of
+           which side it's on. Add class "highlight" too if this slide's
+           index is in key_moments (outlines the dot in the accent colour).
+           The row itself only ever shows a dot + index + short label + stat;
+           clicking the dot or the label reveals the full content in that
+           node's own detail block — nothing is shared or cloned between
+           nodes, so one node's click can never show another node's data. -->
+      <div class="tl-node side-left" data-index="1">
+        <div class="tl-node-detail">
+          <div class="detail-stat">{{NODE_1_KEY_STAT}}</div>
+          <h2 class="detail-heading">{{NODE_1_HEADING}}</h2>
+          <p class="detail-subheading">{{NODE_1_SUBHEADING}}</p>
+          <p class="detail-body">{{NODE_1_BODY}}</p>
+          <ul class="detail-bullets">
+            <li>{{NODE_1_BULLET_1}}</li>
+          </ul>
         </div>
-        <!-- END NODE BLOCK -->
-
+        <div class="tl-node-center">
+          <button class="tl-dot" aria-label="Open node 1" aria-expanded="false"></button>
+          <span class="tl-node-index">01</span>
+          <button class="tl-node-label">{{NODE_1_LABEL}}</button>
+          <span class="tl-node-stat">{{NODE_1_KEY_STAT}}</span>
+        </div>
       </div>
-    </div>
-    <p class="swipe-hint">← swipe through, one moment at a time · click a node to expand →</p>
+      <!-- END NODE BLOCK -->
 
-    <div class="nav-buttons">
-      <button id="prev-btn">← Previous</button>
-      <button id="next-btn">Next →</button>
     </div>
 
-    <div class="doc-footer">{{AUTHOR}}</div>
+    <div class="tl-nav">
+      <button id="tl-prev">← Previous</button>
+      <button id="tl-next">Next →</button>
+    </div>
+
+    <div class="doc-footer">{{TIMELINE_SUBTITLE}} &middot; {{TIMELINE_DATE}} &middot; {{TIMELINE_SUMMARY}} &middot; {{AUTHOR}}</div>
 
   </div>
 
@@ -551,93 +404,57 @@
       html2pdf().set(opt).from(el).save();
     });
 
-    var wrap = document.getElementById('timeline-wrap');
-    var nodes = Array.prototype.slice.call(document.querySelectorAll('.node'));
+    var tlNodes = Array.prototype.slice.call(document.querySelectorAll('.tl-node'));
     var activeIndex = null;
 
     function nodeFor(index) {
-      return nodes.filter(function (n) { return n.getAttribute('data-index') === index; })[0];
+      return tlNodes.filter(function (n) { return n.getAttribute('data-index') === index; })[0];
     }
+    function indices() { return tlNodes.map(function (n) { return n.getAttribute('data-index'); }); }
 
-    function closeAll() {
-      nodes.forEach(function (n) {
-        n.classList.remove('expanded');
-        n.querySelector('.node-dot-btn').setAttribute('aria-expanded', 'false');
-      });
-      activeIndex = null;
-    }
-
-    function openNode(index) {
+    // Each node's detail block already lives inside that same node, correctly
+    // placed on its own side by CSS — this just toggles display, nothing is
+    // moved or cloned, so there's no path for one node's click to reveal a
+    // different node's content. Clicking an already-open node closes it.
+    function selectNode(index) {
       var node = nodeFor(index);
       if (!node) return;
       var alreadyOpen = activeIndex === index;
-      closeAll();
-      if (alreadyOpen) return;
-      node.classList.add('expanded');
-      node.querySelector('.node-dot-btn').setAttribute('aria-expanded', 'true');
-      activeIndex = index;
-      node.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+      tlNodes.forEach(function (n) {
+        var isActive = !alreadyOpen && n === node;
+        n.classList.toggle('active', isActive);
+        n.querySelector('.tl-dot').setAttribute('aria-expanded', String(isActive));
+      });
+      activeIndex = alreadyOpen ? null : index;
+      if (activeIndex) {
+        node.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
     }
 
-    nodes.forEach(function (node) {
-      var btn = node.querySelector('.node-dot-btn');
-      var summary = node.querySelector('.node-summary');
-      var trigger = function () { openNode(node.getAttribute('data-index')); };
-      btn.addEventListener('click', trigger);
-      if (summary) summary.addEventListener('click', trigger);
+    tlNodes.forEach(function (node) {
+      var dot = node.querySelector('.tl-dot');
+      var label = node.querySelector('.tl-node-label');
+      var trigger = function () { selectNode(node.getAttribute('data-index')); };
+      dot.addEventListener('click', trigger);
+      label.addEventListener('click', trigger);
     });
 
     function step(delta) {
-      var indices = nodes.map(function (n) { return n.getAttribute('data-index'); });
-      var pos = activeIndex ? indices.indexOf(activeIndex) : -1;
+      var idxs = indices();
+      var pos = activeIndex !== null ? idxs.indexOf(activeIndex) : -1;
       var next = pos + delta;
       if (next < 0) next = 0;
-      if (next > indices.length - 1) next = indices.length - 1;
-      openNode(indices[next]);
+      if (next > idxs.length - 1) next = idxs.length - 1;
+      selectNode(idxs[next]);
     }
 
-    document.getElementById('prev-btn').addEventListener('click', function () { step(-1); });
-    document.getElementById('next-btn').addEventListener('click', function () { step(1); });
+    document.getElementById('tl-prev').addEventListener('click', function () { step(-1); });
+    document.getElementById('tl-next').addEventListener('click', function () { step(1); });
 
     document.addEventListener('keydown', function (e) {
-      if (e.key === 'ArrowRight') { step(1); }
-      else if (e.key === 'ArrowLeft') { step(-1); }
-      else if (e.key === 'Enter' || e.key === ' ') {
-        if (document.activeElement && document.activeElement.classList.contains('node-dot-btn')) {
-          e.preventDefault();
-          document.activeElement.click();
-        }
-      }
+      if (e.key === 'ArrowDown') { e.preventDefault(); step(1); }
+      else if (e.key === 'ArrowUp') { e.preventDefault(); step(-1); }
     });
-
-    var isMobile = window.innerWidth <= 640;
-
-    // Scroll-triggered reveal: nodes fade/scale/rise into view as they enter the timeline viewport.
-    if ('IntersectionObserver' in window) {
-      var revealObserver = new IntersectionObserver(function (entries) {
-        entries.forEach(function (entry) {
-          if (entry.isIntersecting) {
-            entry.target.classList.add('in-view');
-          }
-        });
-      }, { root: isMobile ? null : wrap, threshold: 0.45 });
-      nodes.forEach(function (n) { revealObserver.observe(n); });
-
-      // Centred-slide tracking: only the node dominating the middle of the rail
-      // gets full scale/opacity, so swiping through feels like stepping through slides.
-      if (!isMobile) {
-        var centerObserver = new IntersectionObserver(function (entries) {
-          entries.forEach(function (entry) {
-            entry.target.classList.toggle('centered', entry.isIntersecting);
-          });
-        }, { root: wrap, threshold: 0, rootMargin: '0px -42% 0px -42%' });
-        nodes.forEach(function (n) { centerObserver.observe(n); });
-      } else {
-        nodes.forEach(function (n) { n.classList.add('centered'); });
-      }
-    } else {
-      nodes.forEach(function (n) { n.classList.add('in-view'); n.classList.add('centered'); });
-    }
   })();
 </script>
 
