@@ -131,11 +131,10 @@
   .settings-panel button.tool-btn.primary:hover { background: var(--accent-dark); }
 
   /* The header is one small line — an eyebrow and a title, nothing else.
-     Subtitle/date/summary/author all live in the single-line footer instead.
      This is deliberate: this page's job is the interactive timeline, not a
      title splash, so the header must never be able to grow past a couple
      lines no matter how much text a field is filled with. */
-  #doc { max-width: 1180px; margin: 0 auto; padding: 32px 24px 56px; }
+  #doc { max-width: 1180px; margin: 0 auto; padding: 32px 24px 56px; min-height: 100vh; }
 
   .tl-header { text-align: center; margin-bottom: 40px; }
   .tl-eyebrow {
@@ -149,13 +148,12 @@
     font-size: clamp(20px, 2.6vw, 27px); font-weight: 600; margin: 0; line-height: 1.2;
   }
 
-  /* The track runs down the centre of the page — a single vertical line with
-     a dot per node. Each node is its own 3-column grid row (side / dot /
-     side); which side a node's detail content lands in is picked purely by
-     a CSS class (`.side-left` / `.side-right`) setting that content's
-     `grid-column`, so there's no positioning math anywhere — the row's
-     height is just however tall its content naturally is, and opening one
-     node can't affect any other node's layout. */
+  /* The track is normal page flow — the browser's own scroll, freely,
+     nothing boxed or clipped. "Only ~2-3 nodes visible at a time" comes
+     purely from generous per-node vertical spacing (`.tl-node`'s padding),
+     not from constraining the track's height or giving it its own
+     `overflow-y`. A nested scrolling box was tried and explicitly
+     rejected — it read as a cramped widget, not a full-screen timeline. */
   .tl-track { position: relative; max-width: 980px; margin: 0 auto; }
   .tl-track::before {
     content: "";
@@ -172,7 +170,7 @@
     grid-template-columns: 1fr 190px 1fr;
     column-gap: 36px;
     align-items: start;
-    padding: 26px 0;
+    padding: 62px 0;
   }
 
   .tl-node-center {
@@ -222,43 +220,6 @@
   .detail-bullets { margin: 0; padding-left: 18px; }
   .detail-bullets li { font-size: 15px; line-height: 1.55; color: var(--text); margin-bottom: 6px; }
 
-  /* Plain in-flow content, not `position: fixed`. A fixed bar sits at the
-     same screen coordinates no matter how far you've scrolled, so on a long
-     track it inevitably parks itself on top of whatever node happens to be
-     at that point on screen — which is exactly the overlap bug this
-     replaced. This is just a normal centred row after the last node. */
-  .tl-nav {
-    display: flex;
-    justify-content: center;
-    gap: 10px;
-    margin-top: 32px;
-  }
-  .tl-nav button {
-    border: 1px solid var(--border);
-    background: var(--surface-solid);
-    color: var(--text);
-    border-radius: 999px;
-    padding: 9px 18px;
-    font-size: 13px; font-weight: 600;
-    cursor: pointer;
-    box-shadow: var(--shadow);
-    transition: background .15s ease, transform .1s ease;
-  }
-  .tl-nav button:hover:not(:disabled) { background: var(--accent-soft); transform: translateY(-1px); }
-  .tl-nav button:disabled { opacity: .35; cursor: default; }
-
-  .doc-footer {
-    margin: 56px auto 0;
-    max-width: 760px;
-    padding-top: 18px;
-    padding-bottom: 60px;
-    border-top: 1px solid var(--border);
-    text-align: center;
-    font-size: 12px;
-    line-height: 1.6;
-    color: var(--text-faint);
-  }
-
   @media (max-width: 760px) {
     #doc { padding: 24px 18px 48px; }
     .tl-track::before { display: none; }
@@ -276,7 +237,7 @@
   }
 
   @media print {
-    .settings-toggle, .settings-panel, .tl-nav { display: none; }
+    .settings-toggle, .settings-panel { display: none; }
     .tl-node-detail { display: block !important; }
   }
 </style>
@@ -347,13 +308,6 @@
 
     </div>
 
-    <div class="tl-nav">
-      <button id="tl-prev">← Previous</button>
-      <button id="tl-next">Next →</button>
-    </div>
-
-    <div class="doc-footer">{{TIMELINE_SUBTITLE}} &middot; {{TIMELINE_DATE}} &middot; {{TIMELINE_SUMMARY}} &middot; {{AUTHOR}}</div>
-
   </div>
 
 <script>
@@ -410,7 +364,6 @@
     function nodeFor(index) {
       return tlNodes.filter(function (n) { return n.getAttribute('data-index') === index; })[0];
     }
-    function indices() { return tlNodes.map(function (n) { return n.getAttribute('data-index'); }); }
 
     // Each node's detail block already lives inside that same node, correctly
     // placed on its own side by CSS — this just toggles display, nothing is
@@ -437,23 +390,6 @@
       var trigger = function () { selectNode(node.getAttribute('data-index')); };
       dot.addEventListener('click', trigger);
       label.addEventListener('click', trigger);
-    });
-
-    function step(delta) {
-      var idxs = indices();
-      var pos = activeIndex !== null ? idxs.indexOf(activeIndex) : -1;
-      var next = pos + delta;
-      if (next < 0) next = 0;
-      if (next > idxs.length - 1) next = idxs.length - 1;
-      selectNode(idxs[next]);
-    }
-
-    document.getElementById('tl-prev').addEventListener('click', function () { step(-1); });
-    document.getElementById('tl-next').addEventListener('click', function () { step(1); });
-
-    document.addEventListener('keydown', function (e) {
-      if (e.key === 'ArrowDown') { e.preventDefault(); step(1); }
-      else if (e.key === 'ArrowUp') { e.preventDefault(); step(-1); }
     });
   })();
 </script>
