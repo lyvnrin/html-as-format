@@ -23,6 +23,13 @@
     --shadow: 0 8px 32px rgba(0,0,0,0.45);
     --blur: 18px;
     --ease: cubic-bezier(.2,.8,.2,1);
+    /* Slight overshoot ("back out") curve — used only for slide bubbles
+       clearing space around an expanding neighbor (see .slide-bubble and
+       relaxNeighbors() in the script). Deliberately different from --ease:
+       that calm curve is for chrome/fades: this one is for bubbles
+       physically nudging each other aside, which is supposed to read as
+       organic/springy, not smooth. Don't use this for panel/dot fades. */
+    --spring-ease: cubic-bezier(.34, 1.56, .64, 1);
   }
 
   [data-theme="blue"]   { --accent: #5b8cff; --accent-soft: rgba(91,140,255,0.16); --accent-glow: rgba(91,140,255,0.55); --accent-dark: #3a63d4; }
@@ -149,6 +156,24 @@
     text-align: left;
     pointer-events: none;
   }
+  /* A soft scrim, not a card — the bubble map is the main focus, the
+     header is just legible on top of it. A hard-edged background box
+     here would compete with the bubbles for attention (a title bar
+     sitting on top of a bubble reads as two things fighting each other);
+     a radial gradient in the page's own --bg colour, strongest right
+     behind the text and fully transparent by ~default padding out, lets
+     whatever bubble happens to scroll underneath stay visible at the
+     edges while keeping the text reliably readable, without ever
+     reading as its own rectangle. */
+  .doc-header::before {
+    content: '';
+    position: absolute;
+    inset: -22px -36px -30px -20px;
+    background: radial-gradient(ellipse 120% 100% at 0% 25%,
+      var(--bg) 0%, color-mix(in srgb, var(--bg) 65%, transparent) 45%, transparent 78%);
+    z-index: -1;
+    pointer-events: none;
+  }
   .doc-eyebrow {
     display: inline-block;
     font-size: 10px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase;
@@ -188,13 +213,24 @@
   /* Scrollable viewport onto the (usually much larger) canvas. Scrollbars are
      hidden by the sitewide rule above — click-and-drag panning (wired in JS)
      is the discoverable way to explore a map bigger than the viewport. */
+  /* NOT display:flex + align-items/justify-content:center — that combo on
+     a scrollable (overflow:auto) container is a real CSS trap: once the
+     child is bigger than the wrap (which is the normal case once a deck
+     has more than a handful of slides), flex's default ("unsafe") center
+     alignment lets the child overflow equally on both sides, but negative
+     scroll offsets don't exist — so the overflow on the leading side
+     (roughly the top-left of the canvas) becomes permanently unreachable,
+     clipped and unscrollable. That's what "bubbles overflowing off
+     screen and unreachable" was. Plain block layout has no such trap:
+     the canvas sits at (0,0) inside the wrap and every pixel of it is
+     reachable across the full scroll range. The "starts centered on
+     load" look is achieved entirely by the JS setting scrollLeft/scrollTop
+     after layout (see layoutBubbles()) — don't reintroduce flex centering
+     here to try to get that for free, it's what breaks reachability. */
   #canvas-wrap {
     position: absolute;
     inset: 0;
     overflow: auto;
-    display: flex;
-    align-items: center;
-    justify-content: center;
     cursor: grab;
   }
   #canvas-wrap.dragging { cursor: grabbing; }
@@ -203,7 +239,7 @@
      outermost bubble radius, plus margin). Every bubble inside is an
      absolutely-positioned sibling placed via the --cx/--cy/--d custom
      properties computed by layoutBubbles() — never hand-place one. */
-  #canvas { position: relative; flex-shrink: 0; }
+  #canvas { position: relative; }
 
   .bubble {
     position: absolute;
@@ -224,151 +260,124 @@
   }
   .bubble.dimmed { opacity: 0.25; }
 
-  /* Level 1 — theme bubbles */
-  .theme-bubble {
+  /* Level 1 — slide bubbles, the main unit of the map (one per slide, not
+     per theme — see SKILL.md). Packed edge-to-edge by the force-relaxation
+     packer in the script, never orbiting a ring around a parent, so there
+     are no big empty gaps between clusters. Coloured per-theme via --cat,
+     set inline per bubble; the theme itself has no bubble of its own. */
+  .slide-bubble {
     z-index: 1;
-    background: var(--accent-soft);
-    border: 2px solid var(--accent);
-    box-shadow: 0 0 0 1px transparent;
+    /* Solidly filled, not a faint tint — the whole point of PARENT_CAT/
+       CHILD_CAT (see script) is a visible dark-vs-light contrast between
+       parent and child bubbles, which a low-opacity wash over the page
+       background couldn't show. */
+    background: color-mix(in srgb, var(--cat) 78%, transparent);
+    border: 2.5px solid var(--cat);
     flex-direction: column;
-    gap: 4px;
-    padding: 10px;
+    gap: 2px;
+    padding: 8px;
+    /* Overrides .bubble's base transition list to add left/top with a
+       springy overshoot curve — this is what makes neighbors nudged aside
+       by relaxNeighbors() (see script) settle with an organic wobble
+       instead of a flat glide. Width/height/border-radius are dropped
+       here since a slide bubble's size never changes after layout. */
+    transition: left .55s var(--spring-ease), top .55s var(--spring-ease),
+                opacity .3s ease, box-shadow .3s ease;
   }
-  .theme-bubble.active { box-shadow: 0 0 0 4px var(--accent-soft), 0 0 30px var(--accent-glow); }
-  .theme-label { font-weight: 800; line-height: 1.2; font-size: calc(var(--d) * 0.11); color: var(--text); }
-  .theme-count { font-size: calc(var(--d) * 0.075); color: var(--text-faint); font-weight: 600; }
+  /* The glow uses --accent-glow (bright), not --cat (dark for a slide
+     bubble) — a dark colour makes a poor-looking glow. --cat still drives
+     the fill/border; only the selection halo borrows the bright accent. */
+  .slide-bubble.active { box-shadow: 0 0 0 4px var(--accent-soft), 0 0 30px var(--accent-glow); z-index: 40; }
+  /* Fixed light text, not var(--text) — a slide bubble's fill (PARENT_CAT)
+     is always darkened toward black regardless of light/dark page mode,
+     so text needs to stay light in both modes, not flip with the page. */
+  .slide-index {
+    position: absolute; top: 7px; left: 9px;
+    font-size: 10px; font-weight: 800; color: #f4f6fb; opacity: .75;
+  }
+  .slide-label { font-weight: 800; line-height: 1.18; font-size: calc(var(--d) * 0.1); color: #f4f6fb; }
 
-  /* Level 2 — satellites.
-     IMPORTANT: the collapsed dot and the expanded content are TWO separate
-     elements, not one div morphing its width/height/border-radius. A single
-     flex-centered, overflow:hidden circle cannot also hold multi-paragraph
-     wrapped text without the content reading as "crammed into a bubble" —
-     that was a real bug caught in review. render-timeline avoids this by
-     keeping its dot button and its node-panel as siblings; follow that same
-     shape here: .satellite-dot never resizes, .satellite-panel is a normal
-     block-layout card that fades/scales in on top of it, concentric on the
-     same --cx/--cy center (so it reads as "the dot grew into this"). */
-  .satellite-dot {
-    z-index: 2;
-    background: var(--surface-solid);
-    border: 3px solid var(--accent);
-    color: var(--accent);
-    font-weight: 800;
-    font-size: 18px;
-  }
-  .satellite-dot:hover { box-shadow: var(--shadow), 0 0 0 5px var(--accent-soft); }
-  .satellite-dot.expanded {
-    background: var(--accent);
-    color: #0a0c12;
-    box-shadow: var(--shadow), 0 0 0 6px var(--accent-soft);
+  /* Level 2 — child bubbles (text + image), clustered organically around
+     the ACTIVE slide's fixed center via packChildrenAroundParent() (see
+     SKILL.md Step 3), hidden until that slide expands. Every child is a
+     true circle —
+     never a rectangle card. Content is supposed to read as smaller
+     bubbles blooming out of the parent, immersively, not a card popping
+     up beside it — an earlier version anchored a rounded-rect panel to
+     the bubble's edge and it still read as a disconnected modal in
+     practice, however tightly it was anchored. Don't bring back a
+     rectangle for content, ever, at any level. */
+  .childcluster[hidden] { display: none; }
+
+  /* Solid CHILD_CAT fill, not var(--surface-solid) — children need to
+     visibly read as the LIGHT half of the parent-dark/child-light pair
+     (see script), not a neutral page-coloured surface that happened to
+     look plain white/grey regardless of the accent colour. Text is a
+     fixed dark colour, not var(--text), because CHILD_CAT is always
+     lightened toward white regardless of page mode, so dark text is what
+     stays legible in both light and dark mode. */
+  /* overflow-y: auto is a rare-case safety net (see TEXT_MAX_PARENT_FRAC
+     in the script — sizing is meant to fit almost all paragraphs without
+     ever needing it), NOT a visible scrolling affordance — this bubble
+     gets no scrollbar-width/::-webkit-scrollbar override, so it inherits
+     the sitewide hidden-scrollbar rule like everything else on the page.
+     A visible scrollbar on a small circle read as broken, not readable. */
+  .text-bubble {
+    z-index: 46;
+    background: var(--cat);
+    border: 2px solid var(--cat);
+    padding: 12px;
+    font-size: 12px;
+    line-height: 1.4;
+    color: #1b1e26;
+    overflow-y: auto;
+    cursor: default;
   }
 
-  .satellite-label {
+  /* Image children stay small thumbnails at rest; clicking one zooms it
+     in place via `transform: scale()` (cheap, no reflow, and — unlike
+     text — an image has no wrapped-content layout to fight, so animating
+     its apparent size is safe here even though the base .bubble rule
+     deliberately never animates width/height for text-bearing bubbles).
+     The caption lives in a separate sibling label below it rather than
+     inside the circle, so the image itself stays an uncluttered circle.
+     Background is CHILD_CAT (visible behind any transparent PNG), same
+     light-tint rule as .text-bubble. */
+  .image-dot {
+    z-index: 46;
+    background: var(--cat);
+    border: 2px solid var(--cat);
+    overflow: hidden;
+    transition: transform .4s var(--ease), box-shadow .3s ease, opacity .3s ease;
+  }
+  .image-dot img { display: block; width: 100%; height: 100%; object-fit: cover; border-radius: 50%; }
+  .image-dot:hover { box-shadow: var(--shadow), 0 0 0 4px color-mix(in srgb, var(--cat) 25%, transparent); }
+  .image-dot.expanded {
+    transform: translate(-50%, -50%) scale(var(--zoom));
+    z-index: 90;
+    box-shadow: var(--shadow), 0 0 0 6px color-mix(in srgb, var(--cat) 25%, transparent);
+  }
+
+  .image-caption-label {
     position: absolute;
-    top: calc(100% + 6px);
-    left: 50%;
+    left: var(--cx);
+    /* IMAGE_EXPANDED_D/2 (100) + 8px gap below the zoomed-in circle —
+       kept in sync with IMAGE_EXPANDED_D in the script. */
+    top: calc(var(--cy) + 108px);
     transform: translateX(-50%);
     width: max-content;
-    max-width: 130px;
+    max-width: 200px;
     font-size: 11.5px;
     font-weight: 600;
     color: var(--text-soft);
     line-height: 1.3;
-    pointer-events: none;
-    transition: opacity .2s ease;
-  }
-  .satellite-dot.expanded .satellite-label { opacity: 0; }
-
-  /* Shared "detail card" mechanics for both the satellite panel and the
-     image sub-bubble panel: positioned at the same center as their dot,
-     starts scaled-down/invisible/non-interactive, scales up to full size
-     and fades in on .expanded. No width/height/border-radius transition,
-     no overflow:hidden wrapper fighting an inner scroll area — just one
-     normal block box with its own overflow-y:auto, exactly like
-     render-timeline's .node-panel. */
-  .detail-panel {
-    position: absolute;
-    left: var(--cx);
-    top: var(--cy);
-    transform: translate(-50%, -50%) scale(0.82);
+    text-align: center;
     opacity: 0;
     pointer-events: none;
-    background: var(--surface-solid);
-    border: 1px solid var(--border);
-    box-shadow: var(--shadow), 0 0 0 1px var(--accent-soft);
-    overflow-y: auto;
-    cursor: default;
-    transition: transform .35s var(--ease), opacity .3s ease, box-shadow .3s ease;
+    transition: opacity .25s ease;
+    z-index: 91;
   }
-  .detail-panel { scrollbar-width: thin; scrollbar-color: var(--accent-glow) transparent; }
-  .detail-panel::-webkit-scrollbar { display: block; width: 5px; }
-  .detail-panel::-webkit-scrollbar-thumb { background: var(--accent-glow); border-radius: 6px; }
-  .detail-panel.expanded {
-    transform: translate(-50%, -50%) scale(1);
-    opacity: 1;
-    pointer-events: auto;
-  }
-
-  .satellite-panel {
-    width: min(440px, 82vw);
-    max-height: min(520px, 70vh);
-    border-radius: 22px;
-    padding: 26px;
-    text-align: left;
-    z-index: 50;
-  }
-  .satellite-panel.expanded { box-shadow: var(--shadow), 0 0 0 1px var(--accent-soft), 0 0 40px var(--accent-glow); }
-  .satellite-heading { margin: 0 0 10px; font-size: 19px; font-weight: 800; color: var(--text); }
-  .satellite-body p { margin: 0 0 10px; font-size: 14.5px; line-height: 1.55; color: var(--text); }
-
-  .panel-close {
-    position: absolute;
-    top: 10px;
-    right: 10px;
-    width: 26px;
-    height: 26px;
-    border-radius: 50%;
-    border: 1px solid var(--border);
-    background: var(--surface-alt);
-    color: var(--text-soft);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    font-size: 14px;
-    line-height: 1;
-  }
-
-  /* Level 3 — image sub-bubbles, pre-positioned but hidden until the parent
-     satellite expands (see .subcluster[hidden]). Position is fixed from the
-     start so expansion never needs to recompute anything. */
-  .subcluster[hidden] { display: none; }
-
-  .subbubble-dot {
-    z-index: 51;
-    background: var(--surface-solid);
-    border: 2px solid var(--accent);
-    overflow: hidden;
-  }
-  .subbubble-dot:hover { box-shadow: var(--shadow), 0 0 0 4px var(--accent-soft); }
-  .subbubble-dot img { display: block; width: 100%; height: 100%; object-fit: cover; border-radius: 50%; }
-  .subbubble-dot.expanded { box-shadow: var(--shadow), 0 0 0 5px var(--accent-soft); }
-
-  .subbubble-panel {
-    width: min(360px, 70vw);
-    max-height: min(420px, 60vh);
-    border-radius: 20px;
-    padding: 20px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 10px;
-    text-align: center;
-    z-index: 60;
-  }
-  .subbubble-panel.expanded { box-shadow: var(--shadow), 0 0 0 1px var(--accent-soft), 0 0 34px var(--accent-glow); }
-  .subbubble-full { display: block; width: 100%; max-height: 260px; object-fit: contain; border-radius: 8px; }
-  .subbubble-caption { margin: 0; font-size: 13px; font-style: italic; color: var(--text-soft); line-height: 1.4; }
+  .image-caption-label.visible { opacity: 1; }
 
   @media print {
     .settings-toggle, .settings-panel, .canvas-hint { display: none; }
@@ -468,59 +477,191 @@
       html2pdf().set(opt).from(el).save();
     });
 
-    // ---- Radial layout engine ---------------------------------------------
+    // ---- Layout engine -------------------------------------------------------
 
-    var THEME_MIN_D = 120, THEME_MAX_D = 280, THEME_GAP = 28;
-    var SATELLITE_D = 64, SATELLITE_GAP = 16, PARENT_GAP = 20;
-    var SUBBUBBLE_D = 56, SUBBUBBLE_GAP = 14, SUBBUBBLE_PARENT_GAP = 18;
-    var CANVAS_MARGIN = 70;
+    // Deterministic pseudo-random in [0,1) from an integer seed (mulberry32-
+    // style hash). Used everywhere a bubble needs to look randomly placed —
+    // NOT `Math.random()`, because this template's JS reruns on every page
+    // load: a real-random seed would reshuffle the whole map (and every
+    // slide's child cluster) on every reload, which reads as glitchy rather
+    // than alive. A seeded hash gives the same "organic" arrangement every
+    // time the same data is rendered.
+    function seededRandom(seed) {
+      var t = (seed + 0x6D2B79F5) | 0;
+      t = Math.imul(t ^ (t >>> 15), t | 1);
+      t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    }
 
-    // Expanded satellite panels are rounded rects, not circles, and can grow
-    // taller than they are wide if a slide has a lot of body text (max
-    // 440px wide, up to 520px tall — see .satellite.expanded). Sub-bubbles
-    // need to clear the panel's actual corner, not just its width, so this
-    // is the half-diagonal of the largest the panel can get, not a flat guess.
-    var EXPANDED_W = Math.min(440, window.innerWidth * 0.82);
-    var EXPANDED_H = Math.min(520, window.innerHeight * 0.70);
-    var EXPANDED_RADIUS = Math.sqrt(EXPANDED_W * EXPANDED_W + EXPANDED_H * EXPANDED_H) / 2;
+    // Colour encodes HIERARCHY (parent vs. child), not theme identity — a
+    // single hue (the CURRENTLY SELECTED accent, the [data-theme] picker
+    // in the chrome above), shaded darker for every slide bubble and
+    // lighter for every child bubble. Both are `color-mix()` formulas
+    // referencing `var(--accent)` rather than literal hex values, so
+    // switching the theme picker (blue/green/purple/orange/red) re-tints
+    // the whole map — nothing in the script needs to rebuild the DOM when
+    // the picker changes, the browser just re-resolves the custom
+    // property. Two earlier versions got the colour model wrong in
+    // different ways: one used 8 unrelated hues (blue, green, orange...)
+    // regardless of which accent was selected; the next fixed the hue but
+    // still assigned a different SHADE per theme (so shade encoded theme
+    // identity, needing a legend to explain it). Neither is right — the
+    // shade axis is reserved for depth (parent darker, child lighter),
+    // full stop. Don't reintroduce per-theme colour variation or a legend.
+    function shade(t) {
+      if (t === 0) return 'var(--accent)';
+      if (t > 0) return 'color-mix(in srgb, var(--accent) ' + Math.round((1 - t) * 100) + '%, white ' + Math.round(t * 100) + '%)';
+      return 'color-mix(in srgb, var(--accent) ' + Math.round((1 + t) * 100) + '%, black ' + Math.round(-t * 100) + '%)';
+    }
+    var PARENT_CAT = shade(-0.3);
+    var CHILD_CAT = shade(0.42);
 
-    // Smallest ring radius that keeps N circles (radii[]) evenly spaced by
-    // angle from overlapping, given a minimum gap between adjacent edges.
-    // See SKILL.md Step 3 for the derivation.
-    function ringRadius(radii, gap) {
-      var n = radii.length;
-      if (n <= 1) return 0;
-      var maxR = 0;
-      for (var i = 0; i < n; i++) {
-        var j = (i + 1) % n;
-        var need = radii[i] + radii[j] + gap;
-        var r = need / (2 * Math.sin(Math.PI / n));
-        if (r > maxR) maxR = r;
+    // Slide bubbles are bigger than they might look like they need to be
+    // at a glance — this headroom is what gives child bubbles enough
+    // absolute room to hold real paragraph text at a fraction of the
+    // parent's size (see TEXT_MAX_PARENT_FRAC below). A smaller range
+    // here was tried and forced every child into a visible scrollbar
+    // (see that note).
+    var SLIDE_MIN_D = 110, SLIDE_MAX_D = 340, SLIDE_GAP = 12;
+    // Text bubble diameter is content-based FIRST (same sqrt-of-length
+    // sizing as everything else here — this is the range that actually
+    // fits a typical few-sentence paragraph without scrolling), then
+    // capped to TEXT_MAX_PARENT_FRAC of that specific parent's own
+    // diameter so it can never reach or exceed its parent's size. Two
+    // things had to change together to fix this, not just one: an
+    // earlier version sized children as a FRACTION of the parent with no
+    // content-based component (0.22–0.5 of the parent) — that guaranteed
+    // "smaller than parent" but made children far too small to hold real
+    // paragraph text, forcing a visible scrollbar on nearly every child.
+    // Raising the cap fraction alone (without also raising SLIDE_MAX_D)
+    // still wasn't enough — a 150-char paragraph needs roughly 200px+ of
+    // diameter to lay out without scrolling regardless of what fraction
+    // of the parent that happens to be, so the parent has to be big
+    // enough that TEXT_MAX_PARENT_FRAC of it clears that floor. If body
+    // paragraphs are kept short (see Step 1's character-count guidance),
+    // the cap should rarely bite at all.
+    var TEXT_MIN_D = 84, TEXT_MAX_D = 220, TEXT_MAX_PARENT_FRAC = 0.75, CHILD_GAP = 12;
+    var IMAGE_MIN_D = 38, IMAGE_MAX_D = 92, IMAGE_FRAC = 0.28;
+    var IMAGE_EXPANDED_D = 220, CHILD_PARENT_GAP = 20;
+    // Generous enough that a child cluster blooming out around the largest
+    // possible slide bubble still lands inside the canvas instead of
+    // being clipped by its bounding box.
+    var CANVAS_MARGIN = 60 + TEXT_MAX_D + CHILD_PARENT_GAP;
+    var PACK_ITERATIONS = 400;
+
+    // Force-relaxation circle packer: seed every slide bubble on a
+    // randomly jittered cloud (deterministic, see seededRandom — NOT a
+    // grid), then repeatedly (a) pull all of them a little toward their
+    // shared centroid and (b) push apart any pair that overlaps. A grid
+    // seed still converges to a valid non-overlapping packing, but it
+    // visibly kept its row/column structure even after relaxation — the
+    // pull-to-centroid force is uniform and gentle, so it closes gaps
+    // without actually reshuffling who's next to whom, and the result
+    // read as "sequentially spread out" rather than a native, organically
+    // clustered blob. Seeding from a random cloud instead means there's
+    // no underlying grid for the relaxation to preserve — the same family
+    // of technique bubble-chart libraries use (a small physics sim),
+    // simpler to hand-roll than true front-chain circle packing and
+    // plenty accurate for a layout computed once at load. See SKILL.md
+    // Step 3. Themes play no part in this positioning — sizing and
+    // packing are per-slide, and themes have no colour role at all now
+    // (see PARENT_CAT/CHILD_CAT above).
+    function packCircles(items) {
+      var n = items.length;
+      if (n === 0) return items;
+      var spread = (SLIDE_MAX_D + SLIDE_GAP) * Math.sqrt(n) * 0.55;
+      items.forEach(function (it, i) {
+        var a = seededRandom(i * 2 + 1) * Math.PI * 2;
+        var rad = seededRandom(i * 2 + 2) * spread;
+        it.x = Math.cos(a) * rad;
+        it.y = Math.sin(a) * rad;
+      });
+      if (n === 1) return items;
+      for (var iter = 0; iter < PACK_ITERATIONS; iter++) {
+        var cx = 0, cy = 0;
+        items.forEach(function (it) { cx += it.x; cy += it.y; });
+        cx /= n; cy /= n;
+        // Decay the pull to zero over the run so collision resolution gets
+        // the final say — a constant-strength pull left a small chronic
+        // overlap (the pull re-introducing it faster than one collision
+        // sweep per iteration could clear), even after hundreds of iterations.
+        var pull = 0.02 * (1 - iter / PACK_ITERATIONS);
+        items.forEach(function (it) {
+          it.x += (cx - it.x) * pull;
+          it.y += (cy - it.y) * pull;
+        });
+        for (var i = 0; i < n; i++) {
+          for (var j = i + 1; j < n; j++) {
+            var a = items[i], b = items[j];
+            var dx = b.x - a.x, dy = b.y - a.y;
+            var dist = Math.sqrt(dx * dx + dy * dy) || 0.01;
+            var minDist = a.r + b.r + SLIDE_GAP;
+            if (dist < minDist) {
+              var overlap = (minDist - dist) / 2;
+              var ux = dx / dist, uy = dy / dist;
+              a.x -= ux * overlap; a.y -= uy * overlap;
+              b.x += ux * overlap; b.y += uy * overlap;
+            }
+          }
+        }
       }
-      return maxR;
+      return items;
     }
 
-    // Reorders items so the largest and smallest alternate around the ring —
-    // keeps two big circles from landing adjacent and forcing an unnecessarily
-    // large ring. A tightness optimization, not a correctness requirement.
-    function orderForPacking(items, sizeOf) {
-      var sorted = items.slice().sort(function (a, b) { return sizeOf(b) - sizeOf(a); });
-      var result = [];
-      var i = 0, j = sorted.length - 1;
-      var front = true;
-      while (i <= j) {
-        if (front) { result.push(sorted[i++]); } else { result.push(sorted[j--]); }
-        front = !front;
+    // Clusters child circles ORGANICALLY around a fixed parent circle —
+    // used per expanded slide to bloom its child bubbles (text + image)
+    // around it. An earlier version placed every child on one perfectly
+    // even ring (same radius, angles spaced by exactly 2π/n) — mathematically
+    // collision-free, but it read as mechanical/"sequentially spread out"
+    // rather than native bubbles nestling together. This instead seeds each
+    // child at a random angle and a near-minimum distance from the parent
+    // (deterministic, see seededRandom), then runs a short relaxation: pull
+    // every child weakly toward the parent's center, re-clamp it to just
+    // outside the parent's surface if that pull put it inside, and resolve
+    // pairwise overlaps between children. The net effect is children settling
+    // at varying distances and angles — some hugging the parent directly,
+    // others nested a little further out behind a sibling — the way real
+    // bubbles cluster against a larger one, not one uniform halo.
+    function packChildrenAroundParent(parentX, parentY, parentR, children, gap, seedBase) {
+      var n = children.length;
+      if (n === 0) return children;
+      children.forEach(function (c, i) {
+        var a = seededRandom(seedBase + i * 2 + 1) * Math.PI * 2;
+        var rad = parentR + c.r + gap + seededRandom(seedBase + i * 2 + 2) * c.r;
+        c.x = parentX + Math.cos(a) * rad;
+        c.y = parentY + Math.sin(a) * rad;
+      });
+      var iterations = 160;
+      for (var iter = 0; iter < iterations; iter++) {
+        var pull = 0.05 * (1 - (iter / iterations) * 0.6);
+        children.forEach(function (c) {
+          c.x += (parentX - c.x) * pull;
+          c.y += (parentY - c.y) * pull;
+          var dx = c.x - parentX, dy = c.y - parentY;
+          var dist = Math.sqrt(dx * dx + dy * dy) || 0.01;
+          var minDist = parentR + c.r + gap;
+          if (dist < minDist) {
+            var ux = dx / dist, uy = dy / dist;
+            c.x = parentX + ux * minDist;
+            c.y = parentY + uy * minDist;
+          }
+        });
+        for (var i = 0; i < n; i++) {
+          for (var j = i + 1; j < n; j++) {
+            var a = children[i], b = children[j];
+            var dx = b.x - a.x, dy = b.y - a.y;
+            var dist = Math.sqrt(dx * dx + dy * dy) || 0.01;
+            var minDist = a.r + b.r + gap;
+            if (dist < minDist) {
+              var overlap = (minDist - dist) / 2;
+              var ux = dx / dist, uy = dy / dist;
+              a.x -= ux * overlap; a.y -= uy * overlap;
+              b.x += ux * overlap; b.y += uy * overlap;
+            }
+          }
+        }
       }
-      return result;
-    }
-
-    function polar(cx, cy, r, angle) {
-      return { x: cx + r * Math.cos(angle), y: cy + r * Math.sin(angle) };
-    }
-
-    function angleFor(i, n) {
-      return (i * (2 * Math.PI / n)) - Math.PI / 2;
+      return children;
     }
 
     function el(tag, className) {
@@ -543,52 +684,119 @@
 
     // ---- Interaction state --------------------------------------------------
 
-    var allThemeEls = [];
-    var allSatelliteEls = [];
-    var expandedSatellite = null;
+    var allSlideEls = [];
+    var expandedSlide = null;
+    var RELAX_ITERATIONS = 200;
 
-    function collapseSubbubbles(satEl) {
-      if (!satEl._subclusterEl) return;
-      var pairs = satEl._subclusterEl._pairs || [];
-      pairs.forEach(function (p) {
-        p.dot.classList.remove('expanded', 'dimmed');
-        p.panel.classList.remove('expanded', 'dimmed');
+    function collapseImages(slide) {
+      (slide.imagePairs || []).forEach(function (p) {
+        p.dot.classList.remove('expanded');
+        p.label.classList.remove('visible');
       });
+    }
+
+    // Moves every slide bubble back to its resting (packed) position —
+    // the mirror image of relaxNeighbors() below.
+    function resetPositions() {
+      allSlideEls.forEach(function (s) {
+        s.x = s.baseX; s.y = s.baseY;
+        setGeometry(s.bubbleEl, s.x, s.y, s.d);
+      });
+    }
+
+    // Clears free space around `active` by nudging every OTHER slide
+    // bubble outside its footprint circle (own radius + however far its
+    // child ring blooms out, see footprintR at build time) — so an
+    // expanded cluster never sits on top of a neighbor, it displaces it.
+    // `active` itself never moves; it's the fixed anchor everything else
+    // clears away from. This is a one-shot relaxation (obstacle push +
+    // pairwise collision + a weak pull back toward each bubble's own
+    // resting spot), computed once per click, not a live physics loop —
+    // the CSS spring easing on left/top (see .slide-bubble) is what
+    // supplies the organic, slightly overshooting settle, not per-frame
+    // simulation. Same family of technique as packCircles(), just
+    // relative to a fixed obstacle instead of a shared centroid.
+    function relaxNeighbors(active) {
+      var others = allSlideEls.filter(function (s) { return s !== active; });
+      var cx = active.baseX, cy = active.baseY, footR = active.footprintR;
+
+      function pushOutsideFootprint(s) {
+        var dx = s.x - cx, dy = s.y - cy;
+        var dist = Math.sqrt(dx * dx + dy * dy) || 0.01;
+        var minDist = footR + s.d / 2 + SLIDE_GAP;
+        if (dist < minDist) {
+          var ux = dx / dist, uy = dy / dist;
+          s.x = cx + ux * minDist;
+          s.y = cy + uy * minDist;
+        }
+      }
+
+      others.forEach(function (s) { s.x = s.baseX; s.y = s.baseY; pushOutsideFootprint(s); });
+
+      for (var iter = 0; iter < RELAX_ITERATIONS; iter++) {
+        var pull = 0.03 * (1 - iter / RELAX_ITERATIONS);
+        others.forEach(function (s) {
+          s.x += (s.baseX - s.x) * pull;
+          s.y += (s.baseY - s.y) * pull;
+        });
+        for (var i = 0; i < others.length; i++) {
+          for (var j = i + 1; j < others.length; j++) {
+            var a = others[i], b = others[j];
+            var dx = b.x - a.x, dy = b.y - a.y;
+            var dist = Math.sqrt(dx * dx + dy * dy) || 0.01;
+            var minDist = a.d / 2 + b.d / 2 + SLIDE_GAP;
+            if (dist < minDist) {
+              var overlap = (minDist - dist) / 2;
+              var ux = dx / dist, uy = dy / dist;
+              a.x -= ux * overlap; a.y -= uy * overlap;
+              b.x += ux * overlap; b.y += uy * overlap;
+            }
+          }
+        }
+        others.forEach(pushOutsideFootprint);
+      }
+
+      others.forEach(function (s) { setGeometry(s.bubbleEl, s.x, s.y, s.d); });
     }
 
     function collapseAll() {
-      allThemeEls.forEach(function (t) { t.classList.remove('active', 'dimmed'); });
-      allSatelliteEls.forEach(function (s) {
-        s.dot.classList.remove('expanded', 'dimmed');
-        s.panel.classList.remove('expanded');
-        collapseSubbubbles(s.dot);
-        if (s.dot._subclusterEl) s.dot._subclusterEl.hidden = true;
+      allSlideEls.forEach(function (s) {
+        s.bubbleEl.classList.remove('active', 'dimmed');
+        collapseImages(s);
+        if (s.childClusterEl) s.childClusterEl.hidden = true;
       });
-      expandedSatellite = null;
+      resetPositions();
+      expandedSlide = null;
     }
 
-    function selectSatellite(sat) {
-      var reopening = expandedSatellite === sat;
+    // No panel to expand here — the slide's own bubble already shows its
+    // heading. Selecting a slide reveals its pre-positioned child ring
+    // (text + image bubbles), dims every other slide bubble, and clears
+    // free space around itself by nudging any bubble in the way outward.
+    function selectSlide(slide) {
+      var reopening = expandedSlide === slide;
       collapseAll();
       if (reopening) return;
 
-      sat.dot.classList.add('expanded');
-      sat.panel.classList.add('expanded');
-      sat.dot._themeEl.classList.add('active');
-      allThemeEls.forEach(function (t) { if (t !== sat.dot._themeEl) t.classList.add('dimmed'); });
-      allSatelliteEls.forEach(function (s) { if (s !== sat) s.dot.classList.add('dimmed'); });
-      if (sat.dot._subclusterEl) sat.dot._subclusterEl.hidden = false;
-      expandedSatellite = sat;
+      slide.bubbleEl.classList.add('active');
+      allSlideEls.forEach(function (s) { if (s !== slide) s.bubbleEl.classList.add('dimmed'); });
+      if (slide.childClusterEl) slide.childClusterEl.hidden = false;
+      relaxNeighbors(slide);
+      expandedSlide = slide;
     }
 
-    function selectSubbubble(sub, satDot) {
-      var pairs = satDot._subclusterEl._pairs;
-      var reopening = sub.dot.classList.contains('expanded');
-      pairs.forEach(function (p) { p.dot.classList.remove('expanded', 'dimmed'); p.panel.classList.remove('expanded'); });
+    // Image children zoom in place (transform: scale on the dot itself,
+    // see CSS) rather than opening a separate panel — there's no card to
+    // toggle, just the circle growing and its caption label fading in.
+    function selectImage(imgPair, slide) {
+      var reopening = imgPair.dot.classList.contains('expanded');
+      (slide.imagePairs || []).forEach(function (p) {
+        p.dot.classList.remove('expanded');
+        p.label.classList.remove('visible');
+      });
       if (reopening) return;
-      sub.dot.classList.add('expanded');
-      sub.panel.classList.add('expanded');
-      pairs.forEach(function (p) { if (p !== sub) p.dot.classList.add('dimmed'); });
+      imgPair.dot.classList.add('expanded');
+      imgPair.label.classList.add('visible');
     }
 
     // ---- Build ---------------------------------------------------------------
@@ -598,139 +806,154 @@
       var themes = data.themes || [];
       if (themes.length === 0) return;
 
-      var maxCount = Math.max.apply(null, themes.map(function (t) { return t.slides.length; }));
+      // Flatten themes -> slides. Every slide is laid out as an
+      // independent, equally first-class bubble alongside every other
+      // slide in the deck — themes drive neither position, size, nor
+      // colour; they exist purely to organize the input JSON.
+      var slides = [];
+      themes.forEach(function (theme) {
+        theme.slides.forEach(function (slide) { slides.push(slide); });
+      });
+      if (slides.length === 0) return;
 
-      // Pass 1: per-theme own radius + satellite orbit + effective cluster radius.
-      var themeInfo = themes.map(function (theme) {
-        var count = theme.slides.length;
-        var ownRadius = (THEME_MIN_D + (THEME_MAX_D - THEME_MIN_D) * Math.sqrt(count / maxCount)) / 2;
-        var satRadii = theme.slides.map(function () { return SATELLITE_D / 2; });
-        var satOrbit = Math.max(
-          ringRadius(satRadii, SATELLITE_GAP),
-          ownRadius + SATELLITE_D / 2 + PARENT_GAP
-        );
-        var effectiveRadius = satOrbit + SATELLITE_D / 2;
-        return { theme: theme, ownRadius: ownRadius, satOrbit: satOrbit, effectiveRadius: effectiveRadius };
+      // Size each bubble by how much content it carries (body length +
+      // image count), area-proportional like every other renderer's
+      // count-driven sizing — a slide with ~4x the weight of another gets
+      // ~2x the diameter, not 4x, so relative size reads at a glance
+      // without one slide swallowing the whole canvas.
+      var weights = slides.map(function (slide) {
+        var bodyLen = (slide.body || []).join(' ').length;
+        return 1 + bodyLen / 220 + (slide.images || []).length * 1.4;
+      });
+      var maxWeight = Math.max.apply(null, weights);
+
+      var items = slides.map(function (slide, i) {
+        var d = SLIDE_MIN_D + (SLIDE_MAX_D - SLIDE_MIN_D) * Math.sqrt(weights[i] / maxWeight);
+        return { slide: slide, r: d / 2 };
       });
 
-      // Pass 2: pack theme clusters on the outer ring using effective radius.
-      var packedThemes = orderForPacking(themeInfo, function (t) { return t.effectiveRadius; });
-      var outerRing = ringRadius(packedThemes.map(function (t) { return t.effectiveRadius; }), THEME_GAP);
+      packCircles(items);
 
-      var maxEffective = Math.max.apply(null, themeInfo.map(function (t) { return t.effectiveRadius; }));
-      var canvasR = outerRing + maxEffective + CANVAS_MARGIN;
-      var canvasSize = canvasR * 2;
-      canvas.style.width = canvasSize + 'px';
-      canvas.style.height = canvasSize + 'px';
-      var cx = canvasSize / 2, cy = canvasSize / 2;
+      // Bounding box of the packed cluster -> canvas size, then shift every
+      // circle so the whole cluster sits inside positive canvas coordinates.
+      var minX = Math.min.apply(null, items.map(function (it) { return it.x - it.r; }));
+      var maxX = Math.max.apply(null, items.map(function (it) { return it.x + it.r; }));
+      var minY = Math.min.apply(null, items.map(function (it) { return it.y - it.r; }));
+      var maxY = Math.max.apply(null, items.map(function (it) { return it.y + it.r; }));
+      var offsetX = CANVAS_MARGIN - minX;
+      var offsetY = CANVAS_MARGIN - minY;
+      var canvasW = (maxX - minX) + CANVAS_MARGIN * 2;
+      var canvasH = (maxY - minY) + CANVAS_MARGIN * 2;
+      canvas.style.width = canvasW + 'px';
+      canvas.style.height = canvasH + 'px';
 
-      packedThemes.forEach(function (info, i) {
-        var n = packedThemes.length;
-        var angle = angleFor(i, n);
-        var themeCenter = n === 1 ? { x: cx, y: cy } : polar(cx, cy, outerRing, angle);
+      items.forEach(function (item, slideIdx) {
+        item.x += offsetX;
+        item.y += offsetY;
 
-        var themeEl = el('div', 'bubble theme-bubble');
-        setGeometry(themeEl, themeCenter.x, themeCenter.y, info.ownRadius * 2);
-        themeEl.innerHTML =
-          '<div class="theme-label">' + escapeHtml(info.theme.name) + '</div>' +
-          '<div class="theme-count">' + info.theme.slides.length + ' slide' + (info.theme.slides.length === 1 ? '' : 's') + '</div>';
-        canvas.appendChild(themeEl);
-        allThemeEls.push(themeEl);
+        var slideData = item.slide;
+        var d = item.r * 2;
 
-        var slideRadii = info.theme.slides.map(function () { return SATELLITE_D / 2; });
-        var orderedSlides = orderForPacking(info.theme.slides.map(function (s, idx) { return { slide: s, idx: idx }; }), function () { return SATELLITE_D / 2; });
+        var shortLabel = (slideData.heading || '').split(/\s+/).slice(0, 6).join(' ');
+        var bubbleEl = el('div', 'bubble slide-bubble');
+        bubbleEl.style.setProperty('--cat', PARENT_CAT);
+        setGeometry(bubbleEl, item.x, item.y, d);
+        bubbleEl.innerHTML =
+          (slideData.index != null ? '<div class="slide-index">' + slideData.index + '</div>' : '') +
+          '<div class="slide-label">' + escapeHtml(shortLabel) + '</div>';
+        canvas.appendChild(bubbleEl);
 
-        orderedSlides.forEach(function (wrapped, si) {
-          var slide = wrapped.slide;
-          var m = orderedSlides.length;
-          var satAngle = m === 1 ? -Math.PI / 2 : angleFor(si, m);
-          var satCenter = polar(themeCenter.x, themeCenter.y, info.satOrbit, satAngle);
-
-          // Dot: the small, always-circular collapsed representation. It
-          // never resizes — see the CSS comment on .satellite-dot for why.
-          var dotEl = el('div', 'bubble satellite-dot');
-          setGeometry(dotEl, satCenter.x, satCenter.y, SATELLITE_D);
-          dotEl._themeEl = themeEl;
-
-          var shortLabel = (slide.heading || '').split(/\s+/).slice(0, 5).join(' ');
-          dotEl.innerHTML =
-            (slide.index != null ? slide.index : si + 1) +
-            '<div class="satellite-label">' + escapeHtml(shortLabel) + '</div>';
-          canvas.appendChild(dotEl);
-
-          // Panel: a separate card, concentric with the dot, hidden/scaled-down
-          // until expanded. Never the same element as the dot.
-          var bodyHtml = (slide.body || []).map(function (p) { return '<p>' + escapeHtml(p) + '</p>'; }).join('');
-          var panelEl = el('div', 'detail-panel satellite-panel');
-          setGeometry(panelEl, satCenter.x, satCenter.y, SATELLITE_D);
-          panelEl.innerHTML =
-            '<button class="panel-close" aria-label="Collapse">✕</button>' +
-            '<h3 class="satellite-heading">' + escapeHtml(slide.heading) + '</h3>' +
-            '<div class="satellite-body">' + bodyHtml + '</div>';
-          canvas.appendChild(panelEl);
-
-          var sat = { dot: dotEl, panel: panelEl };
-          allSatelliteEls.push(sat);
-
-          function bindExpandToggle(dot, panel, onSelect) {
-            dot.addEventListener('click', function (e) {
-              e.stopPropagation();
-              onSelect();
-            });
-            panel.addEventListener('click', function (e) {
-              e.stopPropagation();
-              if (e.target.closest('.panel-close')) { onSelect(); }
-              // clicks elsewhere inside the open panel shouldn't collapse it
-            });
-          }
-          bindExpandToggle(dotEl, panelEl, function () { selectSatellite(sat); });
-
-          // Level 3 — pre-position image sub-bubbles around this satellite's
-          // fixed center, hidden until the satellite expands.
-          var images = slide.images || [];
-          if (images.length > 0) {
-            var subcluster = el('div', 'subcluster');
-            subcluster.hidden = true;
-            subcluster._pairs = [];
-            canvas.appendChild(subcluster);
-            dotEl._subclusterEl = subcluster;
-
-            var subRadii = images.map(function () { return SUBBUBBLE_D / 2; });
-            var subOrbit = Math.max(
-              ringRadius(subRadii, SUBBUBBLE_GAP),
-              EXPANDED_RADIUS + SUBBUBBLE_D / 2 + SUBBUBBLE_PARENT_GAP
-            );
-
-            images.forEach(function (image, ii) {
-              var n2 = images.length;
-              var imgAngle = n2 === 1 ? Math.PI / 2 : angleFor(ii, n2);
-              var subCenter = polar(satCenter.x, satCenter.y, subOrbit, imgAngle);
-
-              var subDotEl = el('div', 'bubble subbubble-dot');
-              setGeometry(subDotEl, subCenter.x, subCenter.y, SUBBUBBLE_D);
-              subDotEl.innerHTML = '<img src="' + image.src + '" alt="">';
-              subcluster.appendChild(subDotEl);
-
-              var subPanelEl = el('div', 'detail-panel subbubble-panel');
-              setGeometry(subPanelEl, subCenter.x, subCenter.y, SUBBUBBLE_D);
-              subPanelEl.innerHTML =
-                '<button class="panel-close" aria-label="Collapse">✕</button>' +
-                '<img class="subbubble-full" src="' + image.src + '" alt="">' +
-                '<p class="subbubble-caption">' + escapeHtml(image.caption || '') + '</p>';
-              subcluster.appendChild(subPanelEl);
-
-              var sub = { dot: subDotEl, panel: subPanelEl };
-              subcluster._pairs.push(sub);
-              bindExpandToggle(subDotEl, subPanelEl, function () { selectSubbubble(sub, dotEl); });
-            });
-          }
+        // baseX/baseY is this bubble's packed resting position (never
+        // changes); x/y is its current, possibly-relaxed position —
+        // resetPositions()/relaxNeighbors() read and write x/y, always
+        // relative back to baseX/baseY. footprintR defaults to just this
+        // bubble's own radius (no bloom to clear space for) and is
+        // widened below once its child ring's extent is known.
+        var slideEntry = {
+          bubbleEl: bubbleEl, childClusterEl: null, imagePairs: [],
+          baseX: item.x, baseY: item.y, x: item.x, y: item.y, d: d, footprintR: item.r
+        };
+        allSlideEls.push(slideEntry);
+        bubbleEl.addEventListener('click', function (e) {
+          e.stopPropagation();
+          selectSlide(slideEntry);
         });
+
+        // Child bubbles: one true circle per body paragraph (text) plus
+        // one per image (thumbnail), clustered organically around this
+        // slide's fixed center (see packChildrenAroundParent), hidden
+        // until the slide expands. Sized by each child's own content — a
+        // long paragraph gets a bigger circle than a short one, same
+        // area-proportional convention as every other bubble here.
+        var bodyParagraphs = slideData.body || [];
+        var images = slideData.images || [];
+        if (bodyParagraphs.length + images.length > 0) {
+          var childCluster = el('div', 'childcluster');
+          childCluster.hidden = true;
+          canvas.appendChild(childCluster);
+          childCluster.addEventListener('click', function (e) { e.stopPropagation(); });
+          slideEntry.childClusterEl = childCluster;
+
+          // Text bubbles: content-based size first (fits the paragraph),
+          // then capped to TEXT_MAX_PARENT_FRAC of THIS parent's own `d`
+          // so it always reads as visibly smaller than its parent — see
+          // the constants above for why it's content-based-then-capped,
+          // not fraction-only.
+          var maxLen = Math.max.apply(null, bodyParagraphs.map(function (p) { return p.length; }).concat([1]));
+          var children = bodyParagraphs.map(function (p) {
+            var contentD = TEXT_MIN_D + (TEXT_MAX_D - TEXT_MIN_D) * Math.sqrt(p.length / maxLen);
+            var dd = Math.min(contentD, d * TEXT_MAX_PARENT_FRAC);
+            return { kind: 'text', text: p, r: dd / 2 };
+          }).concat(images.map(function (image) {
+            var imgD = Math.max(IMAGE_MIN_D, Math.min(IMAGE_MAX_D, d * IMAGE_FRAC));
+            return { kind: 'image', image: image, r: imgD / 2 };
+          }));
+
+          packChildrenAroundParent(item.x, item.y, item.r, children, CHILD_GAP, (slideIdx + 1) * 1000);
+
+          var maxExtent = Math.max.apply(null, children.map(function (c) {
+            return Math.hypot(c.x - item.x, c.y - item.y) + c.r;
+          }));
+          slideEntry.footprintR = maxExtent + 6;
+
+          children.forEach(function (child) {
+            var ccx = child.x, ccy = child.y;
+            var cd = child.r * 2;
+
+            if (child.kind === 'text') {
+              var textEl = el('div', 'bubble text-bubble');
+              textEl.style.setProperty('--cat', CHILD_CAT);
+              setGeometry(textEl, ccx, ccy, cd);
+              textEl.textContent = child.text;
+              childCluster.appendChild(textEl);
+            } else {
+              var dotEl = el('div', 'bubble image-dot');
+              dotEl.style.setProperty('--cat', CHILD_CAT);
+              setGeometry(dotEl, ccx, ccy, cd);
+              dotEl.style.setProperty('--zoom', (IMAGE_EXPANDED_D / cd).toFixed(3));
+              dotEl.innerHTML = '<img src="' + child.image.src + '" alt="">';
+              childCluster.appendChild(dotEl);
+
+              var labelEl = el('div', 'image-caption-label');
+              setGeometry(labelEl, ccx, ccy, cd);
+              labelEl.textContent = child.image.caption || '';
+              childCluster.appendChild(labelEl);
+
+              var imgPair = { dot: dotEl, label: labelEl };
+              slideEntry.imagePairs.push(imgPair);
+              dotEl.addEventListener('click', function (e) {
+                e.stopPropagation();
+                selectImage(imgPair, slideEntry);
+              });
+            }
+          });
+        }
       });
 
       // Center the initial scroll position on the whole map.
       var wrap = document.getElementById('canvas-wrap');
-      wrap.scrollLeft = (canvasSize - wrap.clientWidth) / 2;
-      wrap.scrollTop = (canvasSize - wrap.clientHeight) / 2;
+      wrap.scrollLeft = (canvasW - wrap.clientWidth) / 2;
+      wrap.scrollTop = (canvasH - wrap.clientHeight) / 2;
     }
 
     var raw = document.getElementById('bubble-data').textContent;
@@ -740,25 +963,75 @@
       if (e.target.id === 'canvas-wrap' || e.target.id === 'canvas') collapseAll();
     });
 
-    // Click-and-drag panning — scrollbars are hidden sitewide, so this is the
-    // discoverable way to explore a map bigger than the viewport.
+    // Click-and-drag panning, free in both axes from ANY starting point —
+    // including on top of a bubble. An earlier version bailed out of
+    // starting a pan whenever the mousedown target was inside a `.bubble`
+    // (to leave room for bubbles' own click-to-select), which worked back
+    // when bubbles were small with visible gaps between them. Once bubbles
+    // got bigger and packed edge-to-edge (see Step 3), there was often no
+    // bare canvas background left to grab at all — nearly every mousedown
+    // landed on a bubble, panning simply couldn't start, and what the
+    // pointer did instead was fire that bubble's ordinary click (select/
+    // dim), over and over, for every bubble the pointer happened to land
+    // on. That's the "just keeps highlighting each object instead of
+    // moving through the space" bug. The fix is to always start tracking
+    // on mousedown regardless of target, then decide AFTER the fact, using
+    // DRAG_THRESHOLD px of movement, whether this was a drag (pan) or a
+    // click (select) — and if it was a drag, swallow the click event that
+    // would otherwise still fire on mouseup so whatever's under the
+    // pointer (a bubble, or the canvas background's own collapseAll
+    // listener above) doesn't also react to what was really a pan.
     (function enableDragPan() {
       var wrap = document.getElementById('canvas-wrap');
-      var isDown = false, startX, startY, startLeft, startTop;
+      var DRAG_THRESHOLD = 6;
+      var isDown = false, dragging = false, startX, startY, startLeft, startTop;
+
       wrap.addEventListener('mousedown', function (e) {
-        if (e.target.closest('.bubble')) return;
         isDown = true;
-        wrap.classList.add('dragging');
+        dragging = false;
         startX = e.pageX; startY = e.pageY;
         startLeft = wrap.scrollLeft; startTop = wrap.scrollTop;
       });
-      window.addEventListener('mouseup', function () { isDown = false; wrap.classList.remove('dragging'); });
+
       window.addEventListener('mousemove', function (e) {
         if (!isDown) return;
-        e.preventDefault();
-        wrap.scrollLeft = startLeft - (e.pageX - startX);
-        wrap.scrollTop = startTop - (e.pageY - startY);
+        var dx = e.pageX - startX, dy = e.pageY - startY;
+        if (!dragging && Math.hypot(dx, dy) > DRAG_THRESHOLD) {
+          dragging = true;
+          wrap.classList.add('dragging');
+        }
+        if (dragging) {
+          e.preventDefault();
+          wrap.scrollLeft = startLeft - dx;
+          wrap.scrollTop = startTop - dy;
+        }
       });
+
+      window.addEventListener('mouseup', function () {
+        isDown = false;
+        wrap.classList.remove('dragging');
+        // Fallback reset in case no click event follows this mouseup (e.g.
+        // the pointer was released outside #canvas-wrap) — the capturing
+        // click listener below normally consumes `dragging` first, since
+        // click dispatch happens synchronously before this timeout runs.
+        if (dragging) setTimeout(function () { dragging = false; }, 0);
+      });
+
+      // Registered on `document`, not `wrap` — a capture-phase listener on
+      // a genuine ANCESTOR of every click target (bubbles, #canvas-wrap
+      // itself) is guaranteed to run before ALL of their listeners,
+      // regardless of registration order. A capture listener placed on
+      // `wrap` itself would only reliably beat DESCENDANTS (bubbles); it
+      // wouldn't reliably beat wrap's OWN collapseAll listener above,
+      // since same-element listeners fire in registration order. This is
+      // what makes the suppression cover every click target uniformly.
+      document.addEventListener('click', function (e) {
+        if (dragging) {
+          e.stopPropagation();
+          e.preventDefault();
+          dragging = false;
+        }
+      }, true);
     })();
   })();
 </script>
