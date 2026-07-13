@@ -1,9 +1,5 @@
 import TimelineCover from './covers/TimelineCover'
-import MeetingNotesCover from './covers/MeetingNotesCover'
-import CaseStudyCover from './covers/CaseStudyCover'
 import BubbleMapCover from './covers/BubbleMapCover'
-import ResearchBriefCover from './covers/ResearchBriefCover'
-import ProjectUpdateCover from './covers/ProjectUpdateCover'
 import MagazineCover from './covers/MagazineCover'
 
 export const formats = [
@@ -27,33 +23,5 @@ export const formats = [
     description: 'Topics as an interactive cluster map',
     active: true,
     Cover: BubbleMapCover,
-  },
-  {
-    id: 'meeting-notes',
-    label: 'Meeting notes',
-    description: 'Attendees, actions, decisions',
-    active: false,
-    Cover: MeetingNotesCover,
-  },
-  {
-    id: 'case-study',
-    label: 'Case study',
-    description: 'Hero, timeline, key moments',
-    active: false,
-    Cover: CaseStudyCover,
-  },
-  {
-    id: 'research-brief',
-    label: 'Research brief',
-    description: 'Findings, evidence, recommendations',
-    active: false,
-    Cover: ResearchBriefCover,
-  },
-  {
-    id: 'project-update',
-    label: 'Project update',
-    description: 'Status, risks, next steps',
-    active: false,
-    Cover: ProjectUpdateCover,
   },
 ]
