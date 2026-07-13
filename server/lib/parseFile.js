@@ -1,6 +1,6 @@
-import { PDFParse } from 'pdf-parse'
 import JSZip from 'jszip'
 import path from 'node:path'
+import { extractPdf } from './extractPdf.js'
 
 const IMAGE_MIME_TYPES = {
   png: 'image/png',
@@ -100,17 +100,11 @@ async function parsePptx(buffer) {
   )
 }
 
-async function parsePdf(buffer) {
-  const parser = new PDFParse({ data: buffer })
-  const result = await parser.getText()
-  return result.text
-}
-
 export async function parseFile(buffer, filename) {
   const lower = filename.toLowerCase()
 
   if (lower.endsWith('.pdf')) {
-    return parsePdf(buffer)
+    return extractPdf(buffer)
   }
   if (lower.endsWith('.pptx')) {
     return parsePptx(buffer)
