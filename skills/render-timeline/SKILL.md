@@ -35,7 +35,7 @@ Shares the same interactive chrome as all other renderers: 5-colour theme picker
 
 Use `assets/timeline-template.html`. Copy it to your working directory and fill all `{{PLACEHOLDER}}` blocks.
 
-The template ships dark by default (`data-mode="dark"` on `<body>`) — keep it that way unless the user asks for a light default. The visual language is editorial and restrained (serif type for the title/index labels/headings via `--font-serif`, a thin solid centre line, accent colour used sparingly for the active dot/label). Don't add heavy glow/blur effects back in.
+The template ships light by default (`data-mode="light"` on `<body>`) — keep it that way unless the user asks for a dark default. The visual language is editorial and restrained (serif type for the title/index labels/headings via `--font-serif`, a thin solid centre line, accent colour used sparingly for the active dot/label). Don't add heavy glow/blur effects back in.
 
 **Node structure (per slide) — one `.tl-node` row, detail block inline (no template/clone, no shared panel):**
 - Each `.tl-node` is a 3-column grid row containing (in this DOM order, regardless of side) the detail block (`.tl-node-detail`, holding `key_stat`, full `heading`, `subheading`, `body`, `bullets`) and the centre column (`.tl-node-center`, holding the dot button, index number, short `heading`-derived label, and `key_stat` again — this is the always-visible glance content).

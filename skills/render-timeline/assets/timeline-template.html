@@ -224,15 +224,16 @@
     #doc { padding: 24px 18px 48px; }
     .tl-track::before { display: none; }
     .tl-node {
-      display: block;
+      display: flex;
+      flex-direction: column;
       padding: 14px 0;
       border-bottom: 1px solid var(--border);
     }
     .tl-node:last-child { border-bottom: none; }
-    .tl-node-center { flex-direction: row; align-items: center; gap: 10px; }
+    .tl-node-center { order: 1; flex-direction: row; align-items: center; gap: 10px; }
     .tl-node-label { text-align: left; max-width: none; }
     .tl-node-stat { text-align: left; }
-    .tl-node-detail { display: none; width: 100%; max-width: none; margin-top: 12px; padding-left: 25px; }
+    .tl-node-detail { order: 2; display: none; width: 100%; max-width: none; margin-top: 12px; padding-left: 25px; }
     .tl-node.active .tl-node-detail { display: block; }
   }
 
@@ -242,7 +243,7 @@
   }
 </style>
 </head>
-<body data-theme="blue" data-mode="dark">
+<body data-theme="blue" data-mode="light">
 
   <button class="settings-toggle" id="settings-toggle" aria-label="Settings" aria-expanded="false">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -262,7 +263,7 @@
         <button class="theme-dot" data-t="pink" title="Pink"></button>
       </div>
     </div>
-    <button class="tool-btn" id="mode-toggle">☀️ Light</button>
+    <button class="tool-btn" id="mode-toggle">🌙 Dark</button>
     <button class="tool-btn primary" id="pdf-btn">⬇ Download PDF</button>
   </div>
 

@@ -386,7 +386,7 @@
   }
 </style>
 </head>
-<body data-theme="blue" data-mode="dark">
+<body data-theme="blue" data-mode="light">
 
   <button class="settings-toggle" id="settings-toggle" aria-label="Settings" aria-expanded="false">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -406,7 +406,7 @@
         <button class="theme-dot" data-t="red" title="Red"></button>
       </div>
     </div>
-    <button class="tool-btn" id="mode-toggle">☀️ Light</button>
+    <button class="tool-btn" id="mode-toggle">🌙 Dark</button>
     <button class="tool-btn primary" id="pdf-btn">⬇ Download PDF</button>
   </div>
 
@@ -548,6 +548,10 @@
     // being clipped by its bounding box.
     var CANVAS_MARGIN = 60 + TEXT_MAX_D + CHILD_PARENT_GAP;
     var PACK_ITERATIONS = 400;
+    // Below this, shrinking further to fit the whole map on screen would
+    // make bubble labels unreadable — past this floor we fall back to the
+    // pannable/draggable canvas instead of continuing to scale down.
+    var FIT_MIN_SCALE = 0.4;
 
     // Force-relaxation circle packer: seed every slide bubble on a
     // randomly jittered cloud (deterministic, see seededRandom — NOT a
@@ -803,6 +807,7 @@
 
     function layoutBubbles(data) {
       var canvas = document.getElementById('canvas');
+      var wrap = document.getElementById('canvas-wrap');
       var themes = data.themes || [];
       if (themes.length === 0) return;
 
@@ -844,8 +849,30 @@
       var offsetY = CANVAS_MARGIN - minY;
       var canvasW = (maxX - minX) + CANVAS_MARGIN * 2;
       var canvasH = (maxY - minY) + CANVAS_MARGIN * 2;
-      canvas.style.width = canvasW + 'px';
-      canvas.style.height = canvasH + 'px';
+
+      // Scale the whole map down to fit inside the viewport on load, so
+      // every bubble is visible without having to scroll/drag first — a
+      // transform (not resizing individual bubbles) so every fixed-pixel
+      // relationship in this file (child clusters, the image caption's
+      // `+108px` offset, etc.) stays correct at any scale, since it scales
+      // the whole rendered subtree uniformly. Below FIT_MIN_SCALE, stop
+      // shrinking (labels would go unreadable) and fall back to the
+      // pannable canvas instead — scroll/drag panning still works
+      // regardless of scale.
+      var fitScale = Math.min(1, wrap.clientWidth / canvasW, wrap.clientHeight / canvasH);
+      fitScale = Math.max(fitScale, FIT_MIN_SCALE);
+      // Children below are still positioned in raw (unscaled) px via
+      // --cx/--cy/--d — that's unaffected by shrinking #canvas's own
+      // declared width/height here, since absolutely-positioned children
+      // are placed relative to the padding box's top-left corner, not its
+      // size. Shrinking the box to the scaled size (rather than leaving it
+      // at canvasW/canvasH) just keeps #canvas-wrap's scrollable area
+      // matching what's actually visible, instead of leaving dead pannable
+      // space beyond the scaled-down map.
+      canvas.style.width = (canvasW * fitScale) + 'px';
+      canvas.style.height = (canvasH * fitScale) + 'px';
+      canvas.style.transform = 'scale(' + fitScale + ')';
+      canvas.style.transformOrigin = '0 0';
 
       items.forEach(function (item, slideIdx) {
         item.x += offsetX;
@@ -950,10 +977,12 @@
         }
       });
 
-      // Center the initial scroll position on the whole map.
-      var wrap = document.getElementById('canvas-wrap');
-      wrap.scrollLeft = (canvasW - wrap.clientWidth) / 2;
-      wrap.scrollTop = (canvasH - wrap.clientHeight) / 2;
+      // Center the initial scroll position on the whole map — using the
+      // scaled (rendered) size, not the raw one, so when the map fits
+      // entirely inside the viewport this comes out <= 0 and the browser
+      // just clamps it to 0 (no scroll needed, nothing cut off).
+      wrap.scrollLeft = (canvasW * fitScale - wrap.clientWidth) / 2;
+      wrap.scrollTop = (canvasH * fitScale - wrap.clientHeight) / 2;
     }
 
     var raw = document.getElementById('bubble-data').textContent;
