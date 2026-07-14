@@ -239,7 +239,11 @@
      outermost bubble radius, plus margin). Every bubble inside is an
      absolutely-positioned sibling placed via the --cx/--cy/--d custom
      properties computed by layoutBubbles() — never hand-place one. */
-  #canvas { position: relative; }
+  /* The eased transition here is a camera zoom (collapsed overview <->
+     expanded slide), so it uses the calm --ease like other chrome/fades —
+     never --spring-ease, which is reserved for bubbles physically
+     displacing each other (see .slide-bubble). */
+  #canvas { position: relative; transition: transform .45s var(--ease), width .45s var(--ease), height .45s var(--ease); }
 
   .bubble {
     position: absolute;
@@ -258,81 +262,74 @@
     transition: width .4s var(--ease), height .4s var(--ease), border-radius .4s var(--ease),
                 opacity .3s ease, box-shadow .3s ease, background .2s ease;
   }
-  .bubble.dimmed { opacity: 0.25; }
-
   /* Level 1 — slide bubbles, the main unit of the map (one per slide, not
      per theme — see SKILL.md). Packed edge-to-edge by the force-relaxation
      packer in the script, never orbiting a ring around a parent, so there
-     are no big empty gaps between clusters. Coloured per-theme via --cat,
-     set inline per bubble; the theme itself has no bubble of its own. */
+     are no big empty gaps between clusters. Every bubble is the same flat
+     --accent fill at rest, no border, showing its (truncated) heading —
+     sized relative to the bubble's own diameter (see .slide-label) so it
+     stays legible even on a small bubble. */
   .slide-bubble {
     z-index: 1;
-    /* Solidly filled, not a faint tint — the whole point of PARENT_CAT/
-       CHILD_CAT (see script) is a visible dark-vs-light contrast between
-       parent and child bubbles, which a low-opacity wash over the page
-       background couldn't show. */
-    background: color-mix(in srgb, var(--cat) 78%, transparent);
-    border: 2.5px solid var(--cat);
+    background: var(--accent);
+    border: none;
     flex-direction: column;
-    gap: 2px;
-    padding: 8px;
+    gap: 4px;
+    padding: 14px;
     /* Overrides .bubble's base transition list to add left/top with a
-       springy overshoot curve — this is what makes neighbors nudged aside
-       by relaxNeighbors() (see script) settle with an organic wobble
-       instead of a flat glide. Width/height/border-radius are dropped
-       here since a slide bubble's size never changes after layout. */
+       springy overshoot curve (neighbors nudged aside by relaxNeighbors()
+       settle with an organic wobble, not a flat glide) while keeping
+       width/height/background on the calm --ease curve — growing into the
+       active state is a deliberate camera-like zoom, not bubble physics. */
     transition: left .55s var(--spring-ease), top .55s var(--spring-ease),
-                opacity .3s ease, box-shadow .3s ease;
+                width .4s var(--ease), height .4s var(--ease),
+                background .3s ease, opacity .3s ease, box-shadow .3s ease;
   }
-  /* The glow uses --accent-glow (bright), not --cat (dark for a slide
-     bubble) — a dark colour makes a poor-looking glow. --cat still drives
-     the fill/border; only the selection halo borrows the bright accent. */
-  .slide-bubble.active { box-shadow: 0 0 0 4px var(--accent-soft), 0 0 30px var(--accent-glow); z-index: 40; }
-  /* Fixed light text, not var(--text) — a slide bubble's fill (PARENT_CAT)
-     is always darkened toward black regardless of light/dark page mode,
-     so text needs to stay light in both modes, not flip with the page. */
-  .slide-index {
-    position: absolute; top: 7px; left: 9px;
-    font-size: 10px; font-weight: 800; color: #f4f6fb; opacity: .75;
+  /* Fixed light text, not var(--text) — the resting fill is always
+     var(--accent) at full strength regardless of light/dark page mode, so
+     the label needs to stay light in both modes, not flip with the page.
+     Hidden once active (see .slide-bubble.active .slide-label below) —
+     the active state shows .active-heading/.active-body instead, sized
+     for the bubble's grown diameter rather than its resting one. */
+  .slide-label {
+    font-weight: 800; line-height: 1.18;
+    font-size: clamp(11px, calc(var(--d) * 0.11), 16px);
+    color: #f4f6fb;
   }
-  .slide-label { font-weight: 800; line-height: 1.18; font-size: calc(var(--d) * 0.1); color: #f4f6fb; }
+  .slide-bubble.active .slide-label { display: none; }
+  /* The active bubble lightens (a washed-out tint of --accent, not a dark
+     fill) and grows — see ACTIVE_SCALE/ACTIVE_MIN_D/ACTIVE_MAX_D in the
+     script — so it reads unmistakably as "the one that's open" even
+     before its content loads in. Dark, fixed text colour (not var(--text))
+     because this light tint stays light regardless of page mode. */
+  .slide-bubble.active {
+    background: color-mix(in srgb, var(--accent) 42%, white 58%);
+    box-shadow: 0 0 0 4px var(--accent-soft), 0 0 30px var(--accent-glow);
+    z-index: 40;
+    color: #1b1e26;
+    cursor: default;
+    /* Rare-case safety net, not a visible affordance — ACTIVE_MIN_D/MAX_D
+       and BODY_PREVIEW_MAX_CHARS (see script) are sized to fit a typical
+       heading + short preview without this ever engaging, but an unusually
+       long heading in the smallest (ACTIVE_MIN_D) bubble could still
+       overflow the circle. No scrollbar-width/::-webkit-scrollbar override
+       here, so it inherits the sitewide hidden-scrollbar rule like
+       everything else — a visible scrollbar on a circle reads as broken. */
+    overflow-y: auto;
+  }
+  .active-heading { font-weight: 800; line-height: 1.22; font-size: 15px; }
+  .active-body { font-weight: 500; line-height: 1.4; font-size: 12.5px; opacity: .82; }
 
-  /* Level 2 — child bubbles (text + image), clustered organically around
-     the ACTIVE slide's fixed center via packChildrenAroundParent() (see
-     SKILL.md Step 3), hidden until that slide expands. Every child is a
-     true circle —
-     never a rectangle card. Content is supposed to read as smaller
-     bubbles blooming out of the parent, immersively, not a card popping
-     up beside it — an earlier version anchored a rounded-rect panel to
+  /* Level 2 — image thumbnails only (no more per-paragraph text bubbles;
+     a slide's body text now lives inside the active bubble itself, see
+     .active-body above). Built fresh at click time (see selectSlide in
+     the script) around whatever size the parent just grew to, clustered
+     organically via packChildrenAroundParent() (SKILL.md Step 3). Never a
+     rectangle card — an earlier version anchored a rounded-rect panel to
      the bubble's edge and it still read as a disconnected modal in
      practice, however tightly it was anchored. Don't bring back a
      rectangle for content, ever, at any level. */
   .childcluster[hidden] { display: none; }
-
-  /* Solid CHILD_CAT fill, not var(--surface-solid) — children need to
-     visibly read as the LIGHT half of the parent-dark/child-light pair
-     (see script), not a neutral page-coloured surface that happened to
-     look plain white/grey regardless of the accent colour. Text is a
-     fixed dark colour, not var(--text), because CHILD_CAT is always
-     lightened toward white regardless of page mode, so dark text is what
-     stays legible in both light and dark mode. */
-  /* overflow-y: auto is a rare-case safety net (see TEXT_MAX_PARENT_FRAC
-     in the script — sizing is meant to fit almost all paragraphs without
-     ever needing it), NOT a visible scrolling affordance — this bubble
-     gets no scrollbar-width/::-webkit-scrollbar override, so it inherits
-     the sitewide hidden-scrollbar rule like everything else on the page.
-     A visible scrollbar on a small circle read as broken, not readable. */
-  .text-bubble {
-    z-index: 46;
-    background: var(--cat);
-    border: 2px solid var(--cat);
-    padding: 12px;
-    font-size: 12px;
-    line-height: 1.4;
-    color: #1b1e26;
-    overflow-y: auto;
-    cursor: default;
-  }
 
   /* Image children stay small thumbnails at rest; clicking one zooms it
      in place via `transform: scale()` (cheap, no reflow, and — unlike
@@ -340,22 +337,20 @@
      its apparent size is safe here even though the base .bubble rule
      deliberately never animates width/height for text-bearing bubbles).
      The caption lives in a separate sibling label below it rather than
-     inside the circle, so the image itself stays an uncluttered circle.
-     Background is CHILD_CAT (visible behind any transparent PNG), same
-     light-tint rule as .text-bubble. */
+     inside the circle, so the image itself stays an uncluttered circle. */
   .image-dot {
     z-index: 46;
-    background: var(--cat);
-    border: 2px solid var(--cat);
+    background: color-mix(in srgb, var(--accent) 42%, white 58%);
+    border: 2px solid var(--surface-solid);
     overflow: hidden;
     transition: transform .4s var(--ease), box-shadow .3s ease, opacity .3s ease;
   }
   .image-dot img { display: block; width: 100%; height: 100%; object-fit: cover; border-radius: 50%; }
-  .image-dot:hover { box-shadow: var(--shadow), 0 0 0 4px color-mix(in srgb, var(--cat) 25%, transparent); }
+  .image-dot:hover { box-shadow: var(--shadow), 0 0 0 4px var(--accent-soft); }
   .image-dot.expanded {
     transform: translate(-50%, -50%) scale(var(--zoom));
     z-index: 90;
-    box-shadow: var(--shadow), 0 0 0 6px color-mix(in srgb, var(--cat) 25%, transparent);
+    box-shadow: var(--shadow), 0 0 0 6px var(--accent-soft);
   }
 
   .image-caption-label {
@@ -493,60 +488,30 @@
       return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
     }
 
-    // Colour encodes HIERARCHY (parent vs. child), not theme identity — a
-    // single hue (the CURRENTLY SELECTED accent, the [data-theme] picker
-    // in the chrome above), shaded darker for every slide bubble and
-    // lighter for every child bubble. Both are `color-mix()` formulas
-    // referencing `var(--accent)` rather than literal hex values, so
-    // switching the theme picker (blue/green/purple/orange/red) re-tints
-    // the whole map — nothing in the script needs to rebuild the DOM when
-    // the picker changes, the browser just re-resolves the custom
-    // property. Two earlier versions got the colour model wrong in
-    // different ways: one used 8 unrelated hues (blue, green, orange...)
-    // regardless of which accent was selected; the next fixed the hue but
-    // still assigned a different SHADE per theme (so shade encoded theme
-    // identity, needing a legend to explain it). Neither is right — the
-    // shade axis is reserved for depth (parent darker, child lighter),
-    // full stop. Don't reintroduce per-theme colour variation or a legend.
-    function shade(t) {
-      if (t === 0) return 'var(--accent)';
-      if (t > 0) return 'color-mix(in srgb, var(--accent) ' + Math.round((1 - t) * 100) + '%, white ' + Math.round(t * 100) + '%)';
-      return 'color-mix(in srgb, var(--accent) ' + Math.round((1 + t) * 100) + '%, black ' + Math.round(-t * 100) + '%)';
-    }
-    var PARENT_CAT = shade(-0.3);
-    var CHILD_CAT = shade(0.42);
+    // Every slide bubble is a flat, single-colour circle at rest — colour
+    // here has no hierarchy role anymore (see .slide-bubble/.slide-bubble
+    // .active in the CSS): resting bubbles are plain var(--accent), the
+    // active one lightens via a color-mix() formula in CSS directly. Kept
+    // out of JS entirely so switching the theme picker just re-resolves
+    // the custom property with no DOM rebuild needed.
 
-    // Slide bubbles are bigger than they might look like they need to be
-    // at a glance — this headroom is what gives child bubbles enough
-    // absolute room to hold real paragraph text at a fraction of the
-    // parent's size (see TEXT_MAX_PARENT_FRAC below). A smaller range
-    // here was tried and forced every child into a visible scrollbar
-    // (see that note).
-    var SLIDE_MIN_D = 110, SLIDE_MAX_D = 340, SLIDE_GAP = 12;
-    // Text bubble diameter is content-based FIRST (same sqrt-of-length
-    // sizing as everything else here — this is the range that actually
-    // fits a typical few-sentence paragraph without scrolling), then
-    // capped to TEXT_MAX_PARENT_FRAC of that specific parent's own
-    // diameter so it can never reach or exceed its parent's size. Two
-    // things had to change together to fix this, not just one: an
-    // earlier version sized children as a FRACTION of the parent with no
-    // content-based component (0.22–0.5 of the parent) — that guaranteed
-    // "smaller than parent" but made children far too small to hold real
-    // paragraph text, forcing a visible scrollbar on nearly every child.
-    // Raising the cap fraction alone (without also raising SLIDE_MAX_D)
-    // still wasn't enough — a 150-char paragraph needs roughly 200px+ of
-    // diameter to lay out without scrolling regardless of what fraction
-    // of the parent that happens to be, so the parent has to be big
-    // enough that TEXT_MAX_PARENT_FRAC of it clears that floor. If body
-    // paragraphs are kept short (see Step 1's character-count guidance),
-    // the cap should rarely bite at all.
-    var TEXT_MIN_D = 84, TEXT_MAX_D = 220, TEXT_MAX_PARENT_FRAC = 0.75, CHILD_GAP = 12;
+    // SLIDE_MIN_D has real headroom, not just visual weight — every
+    // resting bubble shows its (truncated) heading (see .slide-label in
+    // the CSS, clamp()'d relative to --d), so the smallest bubble still
+    // needs to be big enough for a short label to read cleanly.
+    var SLIDE_MIN_D = 110, SLIDE_MAX_D = 280, SLIDE_GAP = 14;
+    // A slide bubble grows into its active state rather than swapping for
+    // a separate panel — ACTIVE_MIN_D/MAX_D bound that growth so a tiny
+    // resting bubble still ends up roomy enough to hold a heading + short
+    // body preview, and a huge one doesn't swallow the whole map.
+    var ACTIVE_SCALE = 1.8, ACTIVE_MIN_D = 210, ACTIVE_MAX_D = 380;
+    var BODY_PREVIEW_MAX_CHARS = 130;
     var IMAGE_MIN_D = 38, IMAGE_MAX_D = 92, IMAGE_FRAC = 0.28;
-    var IMAGE_EXPANDED_D = 220, CHILD_PARENT_GAP = 20;
-    // Generous enough that a child cluster blooming out around the largest
-    // possible slide bubble still lands inside the canvas instead of
-    // being clipped by its bounding box.
-    var CANVAS_MARGIN = 60 + TEXT_MAX_D + CHILD_PARENT_GAP;
+    var IMAGE_EXPANDED_D = 220, CHILD_GAP = 12, CHILD_PARENT_GAP = 20;
+    // Generous enough that an image cluster blooming out around the
+    // largest possible EXPANDED bubble still lands inside the canvas
+    // instead of being clipped by its bounding box.
+    var CANVAS_MARGIN = 60 + ACTIVE_MAX_D / 2 + IMAGE_MAX_D + CHILD_PARENT_GAP;
     var PACK_ITERATIONS = 400;
     // Below this, shrinking further to fit the whole map on screen would
     // make bubble labels unreadable — past this floor we fall back to the
@@ -568,8 +533,7 @@
     // simpler to hand-roll than true front-chain circle packing and
     // plenty accurate for a layout computed once at load. See SKILL.md
     // Step 3. Themes play no part in this positioning — sizing and
-    // packing are per-slide, and themes have no colour role at all now
-    // (see PARENT_CAT/CHILD_CAT above).
+    // packing are per-slide, and themes have no colour role at all.
     function packCircles(items) {
       var n = items.length;
       if (n === 0) return items;
@@ -613,8 +577,9 @@
     }
 
     // Clusters child circles ORGANICALLY around a fixed parent circle —
-    // used per expanded slide to bloom its child bubbles (text + image)
-    // around it. An earlier version placed every child on one perfectly
+    // used per expanded slide to bloom its image thumbnails (built fresh
+    // at click time in selectSlide, once the parent's grown/active size is
+    // known) around it. An earlier version placed every child on one perfectly
     // even ring (same radius, angles spaced by exactly 2π/n) — mathematically
     // collision-free, but it read as mechanical/"sequentially spread out"
     // rather than native bubbles nestling together. This instead seeds each
@@ -692,6 +657,38 @@
     var expandedSlide = null;
     var RELAX_ITERATIONS = 200;
 
+    // Set by layoutBubbles() once the map's real size is known. mapEl/
+    // wrapEl/mapCanvasW/mapCanvasH describe the canvas at its natural,
+    // unscaled size (the size ACTIVE_MIN_D/MAX_D etc. were actually tuned
+    // for); restScale is how far that's shrunk to fit the whole map in the
+    // viewport at rest. Expanding a slide zooms back to scale 1 (full,
+    // readable size) centered on that slide, because shrinking its grown,
+    // content-bearing bubble along with the rest of the map made its text
+    // illegible — readability while inspecting one slide matters more than
+    // keeping the whole map in view at that moment.
+    var mapEl, wrapEl, mapCanvasW, mapCanvasH, restScale = 1;
+
+    function setCanvasScale(scale) {
+      mapEl.style.width = (mapCanvasW * scale) + 'px';
+      mapEl.style.height = (mapCanvasH * scale) + 'px';
+      mapEl.style.transform = 'scale(' + scale + ')';
+    }
+
+    // The two camera states: overview (whole map, shrunk to fit) and
+    // zoomed-in-on-one-slide (full natural scale, so that slide's child
+    // bubbles render at the size their own content-based sizing assumed).
+    function zoomToOverview() {
+      setCanvasScale(restScale);
+      wrapEl.scrollLeft = (mapCanvasW * restScale - wrapEl.clientWidth) / 2;
+      wrapEl.scrollTop = (mapCanvasH * restScale - wrapEl.clientHeight) / 2;
+    }
+
+    function zoomToSlide(slide) {
+      setCanvasScale(1);
+      wrapEl.scrollLeft = slide.baseX - wrapEl.clientWidth / 2;
+      wrapEl.scrollTop = slide.baseY - wrapEl.clientHeight / 2;
+    }
+
     function collapseImages(slide) {
       (slide.imagePairs || []).forEach(function (p) {
         p.dot.classList.remove('expanded');
@@ -763,30 +760,93 @@
       others.forEach(function (s) { setGeometry(s.bubbleEl, s.x, s.y, s.d); });
     }
 
+    // Tears down whatever the active slide built (its grown size, its
+    // heading/body text, its image cluster) — the image cluster is
+    // removed from the DOM entirely rather than just hidden, since
+    // selectSlide() below rebuilds it fresh against whatever size the
+    // newly-active bubble grows to.
     function collapseAll() {
       allSlideEls.forEach(function (s) {
-        s.bubbleEl.classList.remove('active', 'dimmed');
+        s.bubbleEl.classList.remove('active');
+        s.bubbleEl.innerHTML = '<div class="slide-label">' + escapeHtml(s.shortLabel) + '</div>';
         collapseImages(s);
-        if (s.childClusterEl) s.childClusterEl.hidden = true;
+        if (s.childClusterEl) { s.childClusterEl.remove(); s.childClusterEl = null; }
+        s.imagePairs = [];
       });
       resetPositions();
       expandedSlide = null;
     }
 
-    // No panel to expand here — the slide's own bubble already shows its
-    // heading. Selecting a slide reveals its pre-positioned child ring
-    // (text + image bubbles), dims every other slide bubble, and clears
-    // free space around itself by nudging any bubble in the way outward.
+    function truncate(str, max) {
+      if (!str || str.length <= max) return str || '';
+      return str.slice(0, max - 1).trim() + '…';
+    }
+
+    // No separate panel here — selecting a slide grows that bubble itself
+    // (see ACTIVE_SCALE/ACTIVE_MIN_D/ACTIVE_MAX_D), lightens its fill (see
+    // CSS), and reveals its heading + a short body preview directly inside
+    // it. Any images bloom out as small thumbnails around the now-bigger
+    // bubble (built fresh here, since their cluster radius depends on the
+    // size the bubble just grew to). Every other slide bubble clears space
+    // by nudging out of the way — see relaxNeighbors.
     function selectSlide(slide) {
       var reopening = expandedSlide === slide;
       collapseAll();
-      if (reopening) return;
+      if (reopening) { zoomToOverview(); return; }
+
+      var expandedD = Math.min(Math.max(slide.d * ACTIVE_SCALE, ACTIVE_MIN_D), ACTIVE_MAX_D);
+      var expandedR = expandedD / 2;
 
       slide.bubbleEl.classList.add('active');
-      allSlideEls.forEach(function (s) { if (s !== slide) s.bubbleEl.classList.add('dimmed'); });
-      if (slide.childClusterEl) slide.childClusterEl.hidden = false;
+      setGeometry(slide.bubbleEl, slide.baseX, slide.baseY, expandedD);
+      slide.bubbleEl.innerHTML =
+        '<div class="active-heading">' + escapeHtml(slide.heading) + '</div>' +
+        (slide.bodyPreview ? '<div class="active-body">' + escapeHtml(slide.bodyPreview) + '</div>' : '');
+
+      slide.footprintR = expandedR;
+
+      if (slide.images.length > 0) {
+        var childCluster = el('div', 'childcluster');
+        mapEl.appendChild(childCluster);
+        childCluster.addEventListener('click', function (e) { e.stopPropagation(); });
+        slide.childClusterEl = childCluster;
+
+        var children = slide.images.map(function (image) {
+          var imgD = Math.max(IMAGE_MIN_D, Math.min(IMAGE_MAX_D, expandedD * IMAGE_FRAC));
+          return { image: image, r: imgD / 2 };
+        });
+        packChildrenAroundParent(slide.baseX, slide.baseY, expandedR, children, CHILD_GAP, (slide.index || 0) * 1000 + 1);
+
+        var maxExtent = Math.max.apply(null, children.map(function (c) {
+          return Math.hypot(c.x - slide.baseX, c.y - slide.baseY) + c.r;
+        }));
+        slide.footprintR = maxExtent + 6;
+
+        children.forEach(function (child) {
+          var cd = child.r * 2;
+          var dotEl = el('div', 'bubble image-dot');
+          setGeometry(dotEl, child.x, child.y, cd);
+          dotEl.style.setProperty('--zoom', (IMAGE_EXPANDED_D / cd).toFixed(3));
+          dotEl.innerHTML = '<img src="' + child.image.src + '" alt="">';
+          childCluster.appendChild(dotEl);
+
+          var labelEl = el('div', 'image-caption-label');
+          setGeometry(labelEl, child.x, child.y, cd);
+          labelEl.textContent = child.image.caption || '';
+          childCluster.appendChild(labelEl);
+
+          var imgPair = { dot: dotEl, label: labelEl };
+          slide.imagePairs.push(imgPair);
+          dotEl.addEventListener('click', function (e) {
+            e.stopPropagation();
+            selectImage(imgPair, slide);
+          });
+        });
+      }
+
       relaxNeighbors(slide);
       expandedSlide = slide;
+      zoomToSlide(slide);
     }
 
     // Image children zoom in place (transform: scale on the dot itself,
@@ -861,18 +921,19 @@
       // regardless of scale.
       var fitScale = Math.min(1, wrap.clientWidth / canvasW, wrap.clientHeight / canvasH);
       fitScale = Math.max(fitScale, FIT_MIN_SCALE);
+
+      mapEl = canvas; wrapEl = wrap; mapCanvasW = canvasW; mapCanvasH = canvasH; restScale = fitScale;
+      canvas.style.transformOrigin = '0 0';
       // Children below are still positioned in raw (unscaled) px via
       // --cx/--cy/--d — that's unaffected by shrinking #canvas's own
       // declared width/height here, since absolutely-positioned children
       // are placed relative to the padding box's top-left corner, not its
       // size. Shrinking the box to the scaled size (rather than leaving it
       // at canvasW/canvasH) just keeps #canvas-wrap's scrollable area
-      // matching what's actually visible, instead of leaving dead pannable
-      // space beyond the scaled-down map.
-      canvas.style.width = (canvasW * fitScale) + 'px';
-      canvas.style.height = (canvasH * fitScale) + 'px';
-      canvas.style.transform = 'scale(' + fitScale + ')';
-      canvas.style.transformOrigin = '0 0';
+      // matching what's actually visible at rest, instead of leaving dead
+      // pannable space beyond the scaled-down map. setCanvasScale(1) (see
+      // selectSlide) switches this back to the map's natural full size.
+      setCanvasScale(fitScale);
 
       items.forEach(function (item, slideIdx) {
         item.x += offsetX;
@@ -881,115 +942,57 @@
         var slideData = item.slide;
         var d = item.r * 2;
 
+        // Resting label: heading truncated to ~6 words, sized relative to
+        // this bubble's own diameter (see .slide-label in the CSS) so it
+        // stays legible even on a small bubble. Full heading + body preview
+        // only render once this bubble becomes active (see selectSlide) —
+        // restored back to this resting label on collapse, not left blank.
         var shortLabel = (slideData.heading || '').split(/\s+/).slice(0, 6).join(' ');
         var bubbleEl = el('div', 'bubble slide-bubble');
-        bubbleEl.style.setProperty('--cat', PARENT_CAT);
+        bubbleEl.title = slideData.heading || '';
         setGeometry(bubbleEl, item.x, item.y, d);
-        bubbleEl.innerHTML =
-          (slideData.index != null ? '<div class="slide-index">' + slideData.index + '</div>' : '') +
-          '<div class="slide-label">' + escapeHtml(shortLabel) + '</div>';
+        bubbleEl.innerHTML = '<div class="slide-label">' + escapeHtml(shortLabel) + '</div>';
         canvas.appendChild(bubbleEl);
+
+        var bodyParagraphs = slideData.body || [];
 
         // baseX/baseY is this bubble's packed resting position (never
         // changes); x/y is its current, possibly-relaxed position —
         // resetPositions()/relaxNeighbors() read and write x/y, always
         // relative back to baseX/baseY. footprintR defaults to just this
-        // bubble's own radius (no bloom to clear space for) and is
-        // widened below once its child ring's extent is known.
+        // bubble's own radius and is widened by selectSlide() once it
+        // knows the bubble's active (grown) size and image cluster extent.
         var slideEntry = {
           bubbleEl: bubbleEl, childClusterEl: null, imagePairs: [],
-          baseX: item.x, baseY: item.y, x: item.x, y: item.y, d: d, footprintR: item.r
+          baseX: item.x, baseY: item.y, x: item.x, y: item.y, d: d, footprintR: item.r,
+          index: slideIdx + 1,
+          shortLabel: shortLabel,
+          heading: slideData.heading || '(untitled)',
+          bodyPreview: truncate(bodyParagraphs.join(' '), BODY_PREVIEW_MAX_CHARS),
+          images: slideData.images || []
         };
         allSlideEls.push(slideEntry);
         bubbleEl.addEventListener('click', function (e) {
           e.stopPropagation();
           selectSlide(slideEntry);
         });
-
-        // Child bubbles: one true circle per body paragraph (text) plus
-        // one per image (thumbnail), clustered organically around this
-        // slide's fixed center (see packChildrenAroundParent), hidden
-        // until the slide expands. Sized by each child's own content — a
-        // long paragraph gets a bigger circle than a short one, same
-        // area-proportional convention as every other bubble here.
-        var bodyParagraphs = slideData.body || [];
-        var images = slideData.images || [];
-        if (bodyParagraphs.length + images.length > 0) {
-          var childCluster = el('div', 'childcluster');
-          childCluster.hidden = true;
-          canvas.appendChild(childCluster);
-          childCluster.addEventListener('click', function (e) { e.stopPropagation(); });
-          slideEntry.childClusterEl = childCluster;
-
-          // Text bubbles: content-based size first (fits the paragraph),
-          // then capped to TEXT_MAX_PARENT_FRAC of THIS parent's own `d`
-          // so it always reads as visibly smaller than its parent — see
-          // the constants above for why it's content-based-then-capped,
-          // not fraction-only.
-          var maxLen = Math.max.apply(null, bodyParagraphs.map(function (p) { return p.length; }).concat([1]));
-          var children = bodyParagraphs.map(function (p) {
-            var contentD = TEXT_MIN_D + (TEXT_MAX_D - TEXT_MIN_D) * Math.sqrt(p.length / maxLen);
-            var dd = Math.min(contentD, d * TEXT_MAX_PARENT_FRAC);
-            return { kind: 'text', text: p, r: dd / 2 };
-          }).concat(images.map(function (image) {
-            var imgD = Math.max(IMAGE_MIN_D, Math.min(IMAGE_MAX_D, d * IMAGE_FRAC));
-            return { kind: 'image', image: image, r: imgD / 2 };
-          }));
-
-          packChildrenAroundParent(item.x, item.y, item.r, children, CHILD_GAP, (slideIdx + 1) * 1000);
-
-          var maxExtent = Math.max.apply(null, children.map(function (c) {
-            return Math.hypot(c.x - item.x, c.y - item.y) + c.r;
-          }));
-          slideEntry.footprintR = maxExtent + 6;
-
-          children.forEach(function (child) {
-            var ccx = child.x, ccy = child.y;
-            var cd = child.r * 2;
-
-            if (child.kind === 'text') {
-              var textEl = el('div', 'bubble text-bubble');
-              textEl.style.setProperty('--cat', CHILD_CAT);
-              setGeometry(textEl, ccx, ccy, cd);
-              textEl.textContent = child.text;
-              childCluster.appendChild(textEl);
-            } else {
-              var dotEl = el('div', 'bubble image-dot');
-              dotEl.style.setProperty('--cat', CHILD_CAT);
-              setGeometry(dotEl, ccx, ccy, cd);
-              dotEl.style.setProperty('--zoom', (IMAGE_EXPANDED_D / cd).toFixed(3));
-              dotEl.innerHTML = '<img src="' + child.image.src + '" alt="">';
-              childCluster.appendChild(dotEl);
-
-              var labelEl = el('div', 'image-caption-label');
-              setGeometry(labelEl, ccx, ccy, cd);
-              labelEl.textContent = child.image.caption || '';
-              childCluster.appendChild(labelEl);
-
-              var imgPair = { dot: dotEl, label: labelEl };
-              slideEntry.imagePairs.push(imgPair);
-              dotEl.addEventListener('click', function (e) {
-                e.stopPropagation();
-                selectImage(imgPair, slideEntry);
-              });
-            }
-          });
-        }
       });
 
-      // Center the initial scroll position on the whole map — using the
-      // scaled (rendered) size, not the raw one, so when the map fits
-      // entirely inside the viewport this comes out <= 0 and the browser
-      // just clamps it to 0 (no scroll needed, nothing cut off).
-      wrap.scrollLeft = (canvasW * fitScale - wrap.clientWidth) / 2;
-      wrap.scrollTop = (canvasH * fitScale - wrap.clientHeight) / 2;
+      // Center the initial scroll position on the whole map — comes out
+      // <= 0 when the map fits entirely inside the viewport, and the
+      // browser just clamps that to 0 (no scroll needed, nothing cut off).
+      zoomToOverview();
     }
 
     var raw = document.getElementById('bubble-data').textContent;
     layoutBubbles(JSON.parse(raw));
 
     document.getElementById('canvas-wrap').addEventListener('click', function (e) {
-      if (e.target.id === 'canvas-wrap' || e.target.id === 'canvas') collapseAll();
+      if (e.target.id === 'canvas-wrap' || e.target.id === 'canvas') {
+        var wasExpanded = expandedSlide !== null;
+        collapseAll();
+        if (wasExpanded) zoomToOverview();
+      }
     });
 
     // Click-and-drag panning, free in both axes from ANY starting point —
