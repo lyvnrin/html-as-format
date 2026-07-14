@@ -29,7 +29,7 @@ Shares the same interactive chrome as all other renderers: 5-colour theme picker
   - `meta.title` — the one-line header title. That's the only `meta.*` field this renderer currently uses.
   - `slides[]` — one timeline node per slide; use `heading`, `subheading`, `body`, `bullets`, `key_stat`
   - `key_moments[]` — array of slide indices to visually flag as highlights (outlined dot)
-- `meta.subtitle`, `meta.date`, `meta.summary`, `meta.author`, and `image_description` all exist in the schema but **none of them render anywhere in this template** — the header footer was removed by explicit request and images were declined earlier in this skill's history (see the top of this file). Don't add any of them back into a header, footer, or elsewhere without being asked, and if asked, say up front that `image_description` is a text-only field (never an actual image) unless the separate pptx image-extraction pipeline `render-magazine` uses is wired in instead.
+- `meta.subtitle`, `meta.date`, `meta.summary`, `meta.author`, and `image_description` all exist in the schema but **none of them render anywhere in this template** — the header footer was removed by explicit request and images were declined earlier in this skill's history (see the top of this file). Don't add any of them back into a header, footer, or elsewhere without being asked, and if asked, say up front that `image_description` is a text-only field (never an actual image) unless the separate pptx image-extraction pipeline `render-gallery` uses is wired in instead.
 
 ## Step 2: Build the timeline
 

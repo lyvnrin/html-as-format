@@ -28,12 +28,12 @@ const TIMELINE_TEMPLATE = fs.readFileSync(
   path.join(ROOT, 'skills/render-timeline/assets/timeline-template.html'),
   'utf-8',
 )
-const MAGAZINE_SKILL = fs.readFileSync(
-  path.join(ROOT, 'skills/render-magazine/SKILL.md'),
+const GALLERY_SKILL = fs.readFileSync(
+  path.join(ROOT, 'skills/render-gallery/SKILL.md'),
   'utf-8',
 )
-const MAGAZINE_TEMPLATE = fs.readFileSync(
-  path.join(ROOT, 'skills/render-magazine/assets/magazine-template.html'),
+const GALLERY_TEMPLATE = fs.readFileSync(
+  path.join(ROOT, 'skills/render-gallery/assets/gallery-template.html'),
   'utf-8',
 )
 const BUBBLE_SKILL = fs.readFileSync(
@@ -122,7 +122,7 @@ function imagePlaceholder(slideNumber) {
   return `__IMAGE_SLIDE_${slideNumber}__`
 }
 
-function buildMagazinePromptSlides(slides) {
+function buildGalleryPromptSlides(slides) {
   return slides.map((slide) => ({
     slide: slide.slide,
     heading: slide.heading,
@@ -134,7 +134,7 @@ function buildMagazinePromptSlides(slides) {
   }))
 }
 
-function embedMagazineImages(html, slides) {
+function embedGalleryImages(html, slides) {
   return slides.reduce((output, slide) => {
     const image = slide.images && slide.images[0]
     if (!image) return output
@@ -143,16 +143,16 @@ function embedMagazineImages(html, slides) {
   }, html)
 }
 
-async function renderMagazine(slides) {
-  const promptSlides = buildMagazinePromptSlides(slides)
+async function renderGallery(slides) {
+  const promptSlides = buildGalleryPromptSlides(slides)
 
-  const prompt = `${MAGAZINE_SKILL}
+  const prompt = `${GALLERY_SKILL}
 
 ---
 
-Here is the HTML template referenced as assets/magazine-template.html:
+Here is the HTML template referenced as assets/gallery-template.html:
 
-${MAGAZINE_TEMPLATE}
+${GALLERY_TEMPLATE}
 
 ---
 
@@ -171,7 +171,7 @@ Follow the SKILL.md instructions above to fill the template with this content. O
   })
 
   const text = response.content.map((block) => block.text || '').join('')
-  return embedMagazineImages(stripCodeFence(text), slides)
+  return embedGalleryImages(stripCodeFence(text), slides)
 }
 
 function bubbleImagePlaceholder(slideNumber, imageIndex) {
@@ -262,7 +262,7 @@ app.post('/api/generate', upload.single('file'), async (req, res) => {
   }
 })
 
-app.post('/api/render-magazine', upload.single('file'), async (req, res) => {
+app.post('/api/render-gallery', upload.single('file'), async (req, res) => {
   const { file } = req
 
   if (!file) {
@@ -274,11 +274,11 @@ app.post('/api/render-magazine', upload.single('file'), async (req, res) => {
     const captionedContent = Array.isArray(fileContent)
       ? await captionImages(fileContent)
       : fileContent
-    const html = await renderMagazine(captionedContent)
+    const html = await renderGallery(captionedContent)
     res.json({ html })
   } catch (err) {
-    console.error('Magazine render failed:', err)
-    res.status(500).json({ error: err.message || 'Magazine render failed.' })
+    console.error('Gallery render failed:', err)
+    res.status(500).json({ error: err.message || 'Gallery render failed.' })
   }
 })
 

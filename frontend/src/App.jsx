@@ -32,7 +32,7 @@ export default function App() {
       formData.append('format', selectedFormat)
 
       const endpoints = {
-        magazine: '/api/render-magazine',
+        gallery: '/api/render-gallery',
         'bubble-map': '/api/render-bubble',
       }
       const endpoint = endpoints[selectedFormat] || '/api/generate'

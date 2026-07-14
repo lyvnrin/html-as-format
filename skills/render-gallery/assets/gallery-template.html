@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>{{MAGAZINE_TITLE}}</title>
+<title>{{GALLERY_TITLE}}</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 <style>
   :root {
@@ -295,9 +295,9 @@
   <div id="doc">
 
     <div class="doc-header">
-      <div class="doc-eyebrow">Magazine</div>
-      <h1 class="doc-title">{{MAGAZINE_TITLE}}</h1>
-      <p class="doc-subtitle">{{MAGAZINE_SUBTITLE}}</p>
+      <div class="doc-eyebrow">Gallery</div>
+      <h1 class="doc-title">{{GALLERY_TITLE}}</h1>
+      <p class="doc-subtitle">{{GALLERY_SUBTITLE}}</p>
     </div>
 
     <div id="grid">
@@ -392,7 +392,7 @@
       var el = document.getElementById('grid');
       var opt = {
         margin: 0.4,
-        filename: '{{MAGAZINE_TITLE}}.pdf',
+        filename: '{{GALLERY_TITLE}}.pdf',
         image: { type: 'jpeg', quality: 0.98 },
         html2canvas: { scale: 2, useCORS: true },
         jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' }

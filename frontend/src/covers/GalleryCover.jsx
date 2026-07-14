@@ -1,4 +1,4 @@
-export default function MagazineCover() {
+export default function GalleryCover() {
   return (
     <svg viewBox="0 0 240 140" className="cover-svg" aria-hidden="true">
       <rect width="240" height="140" fill="#eef1f6" />

@@ -5,7 +5,7 @@ description: Extracts structured slide-like JSON from a PDF file — text conten
 
 # extract-pdf
 
-Takes a PDF file and produces the same structured JSON schema that `parseFile.js` outputs for PPT files. The output drops straight into any renderer skill (timeline, bubble, magazine) without modification.
+Takes a PDF file and produces the same structured JSON schema that `parseFile.js` outputs for PPT files. The output drops straight into any renderer skill (timeline, bubble, gallery) without modification.
 
 ## Step 1: Detect PDF type
 

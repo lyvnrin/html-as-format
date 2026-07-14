@@ -1,6 +1,6 @@
 import TimelineCover from './covers/TimelineCover'
 import BubbleMapCover from './covers/BubbleMapCover'
-import MagazineCover from './covers/MagazineCover'
+import GalleryCover from './covers/GalleryCover'
 
 export const formats = [
   {
@@ -11,11 +11,11 @@ export const formats = [
     Cover: TimelineCover,
   },
   {
-    id: 'magazine',
-    label: 'Magazine',
-    description: 'Slides as a Pinterest-style masonry grid',
+    id: 'gallery',
+    label: 'Gallery',
+    description: 'Slides as a Pinterest-style masonry grid of photo cards',
     active: true,
-    Cover: MagazineCover,
+    Cover: GalleryCover,
   },
   {
     id: 'bubble-map',
