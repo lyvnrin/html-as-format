@@ -6,22 +6,25 @@ export const formats = [
   {
     id: 'timeline',
     label: 'Timeline',
-    description: 'Slides as an interactive horizontal timeline',
+    description: 'An interactive vertical timeline with expandable detail',
     active: true,
+    contentType: 'text',
     Cover: TimelineCover,
   },
   {
     id: 'gallery',
     label: 'Gallery',
-    description: 'Slides as a Pinterest-style masonry grid of photo cards',
+    description: 'An interactive masonry grid of expandable photo cards',
     active: true,
+    contentType: 'image',
     Cover: GalleryCover,
   },
   {
     id: 'bubble-map',
     label: 'Bubble map',
-    description: 'Topics as an interactive cluster map',
+    description: 'An interactive, clustered map for non-linear exploration',
     active: true,
+    contentType: 'both',
     Cover: BubbleMapCover,
   },
 ]

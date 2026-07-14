@@ -24,6 +24,14 @@
   box-shadow: 0 0 0 3px var(--accent-soft);
 }
 
+.card.recommended {
+  border-color: var(--accent);
+}
+
+.card.recommended .body {
+  background: var(--accent-soft);
+}
+
 .card.disabled {
   cursor: not-allowed;
   opacity: 0.55;
@@ -59,11 +67,30 @@
   border-top: 1px solid var(--rule);
 }
 
+.labelRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
 .label {
   font-size: 14px;
   font-weight: 700;
   color: var(--ink);
-  margin-bottom: 4px;
+}
+
+.recommendedTag {
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--accent);
+  background: #ffffff;
+  border: 1px solid var(--accent);
+  padding: 2px 7px;
+  border-radius: 999px;
 }
 
 .description {
