@@ -81,7 +81,7 @@ Follow the extraction-only mode (Step 2b) instructions above. Output ONLY the JS
 
   const response = await anthropic.messages.create({
     model: MODEL,
-    max_tokens: 4000,
+    max_tokens: 16000,
     messages: [{ role: 'user', content: prompt }],
   })
 

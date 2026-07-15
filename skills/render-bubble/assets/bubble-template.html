@@ -232,6 +232,10 @@
     inset: 0;
     overflow: auto;
     cursor: grab;
+    /* Hands wheel/pinch fully to our own zoom handlers (see enablePinchZoom()
+       and the wheel listener in the script) instead of letting the browser's
+       native touch-scroll/pinch-zoom fight them. */
+    touch-action: none;
   }
   #canvas-wrap.dragging { cursor: grabbing; }
 
@@ -267,8 +271,11 @@
      packer in the script, never orbiting a ring around a parent, so there
      are no big empty gaps between clusters. Every bubble is the same flat
      --accent fill at rest, no border, showing its (truncated) heading —
-     sized relative to the bubble's own diameter (see .slide-label) so it
-     stays legible even on a small bubble. */
+     sized relative to the bubble's own diameter, but only down to a point:
+     updateLabelSizing() in the script hides the label entirely once its
+     RENDERED (post-zoom) diameter drops below LABEL_HIDE_BELOW_D rather
+     than shrinking it into illegible mush, since the same heading is one
+     click away in the expand panel regardless. */
   .slide-bubble {
     z-index: 1;
     background: var(--accent);
@@ -290,7 +297,14 @@
      the label needs to stay light in both modes, not flip with the page.
      Hidden once active (see .slide-bubble.active .slide-label below) —
      the active state shows .active-heading/.active-body instead, sized
-     for the bubble's grown diameter rather than its resting one. */
+     for the bubble's grown diameter rather than its resting one.
+     font-size here is only the pre-JS fallback (natural/unscaled diameter,
+     scale 1) — updateLabelSizing() overrides it inline on every scale
+     change with a value that accounts for the canvas's current zoom, so
+     the RENDERED size never drops below LABEL_MIN_FONT; it also toggles
+     `display` per-bubble once rendered diameter drops below
+     LABEL_HIDE_BELOW_D. Don't rely on this rule alone to reason about what
+     a label looks like on screen. */
   .slide-label {
     font-weight: 800; line-height: 1.18;
     font-size: clamp(11px, calc(var(--d) * 0.11), 16px);
@@ -331,13 +345,16 @@
      rectangle for content, ever, at any level. */
   .childcluster[hidden] { display: none; }
 
-  /* Image children stay small thumbnails at rest; clicking one zooms it
-     in place via `transform: scale()` (cheap, no reflow, and — unlike
-     text — an image has no wrapped-content layout to fight, so animating
-     its apparent size is safe here even though the base .bubble rule
-     deliberately never animates width/height for text-bearing bubbles).
-     The caption lives in a separate sibling label below it rather than
-     inside the circle, so the image itself stays an uncluttered circle. */
+  /* Image children stay small thumbnails at rest; clicking one opens a
+     third, standalone level — a full circular bubble overlay centred on
+     the viewport (see .image-bubble below), not an in-place zoom of the
+     dot itself. An earlier version scaled the dot up in place with its
+     caption fading in as a sibling label beneath it; that read fine for a
+     thumbnail near the middle of the cluster but put the enlarged image
+     and its caption in an arbitrary, sometimes off-screen spot for a
+     thumbnail out near the edge. Centring on the viewport instead means
+     the image is always fully visible regardless of where its thumbnail
+     landed. */
   .image-dot {
     z-index: 46;
     background: color-mix(in srgb, var(--accent) 42%, white 58%);
@@ -347,32 +364,83 @@
   }
   .image-dot img { display: block; width: 100%; height: 100%; object-fit: cover; border-radius: 50%; }
   .image-dot:hover { box-shadow: var(--shadow), 0 0 0 4px var(--accent-soft); }
-  .image-dot.expanded {
-    transform: translate(-50%, -50%) scale(var(--zoom));
-    z-index: 90;
-    box-shadow: var(--shadow), 0 0 0 6px var(--accent-soft);
-  }
 
-  .image-caption-label {
-    position: absolute;
-    left: var(--cx);
-    /* IMAGE_EXPANDED_D/2 (100) + 8px gap below the zoomed-in circle —
-       kept in sync with IMAGE_EXPANDED_D in the script. */
-    top: calc(var(--cy) + 108px);
-    transform: translateX(-50%);
-    width: max-content;
-    max-width: 200px;
-    font-size: 11.5px;
-    font-weight: 600;
-    color: var(--text-soft);
-    line-height: 1.3;
-    text-align: center;
+  /* Level 3 — the "Russian doll" image bubble: clicking a Level 2 image
+     thumbnail opens this, a full circle centred on the viewport (fixed
+     positioning, independent of canvas scroll/scale) rather than growing
+     the small thumbnail itself. Still a circle — same "never a rectangle"
+     rule as every other level — but a frosted/glass fill (translucent
+     --accent + backdrop-filter blur) instead of the flat fill every
+     resting map bubble uses, since this one floats above the whole page
+     rather than sitting flush in the packed cluster. Dismissing it
+     (backdrop click or Escape) returns to the slide-expanded state, not a
+     full collapseAll() — see closeImageBubble()/dismissImageBubbleOnEscape
+     in the script. */
+  .image-bubble-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 200;
+    background: rgba(0, 0, 0, 0.3);
+    opacity: 0;
+    transition: opacity .4s var(--ease);
+  }
+  .image-bubble-backdrop.visible { opacity: 1; }
+
+  .image-bubble {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    width: 420px;
+    height: 420px;
+    border-radius: 50%;
+    background: color-mix(in srgb, var(--accent) 55%, transparent);
+    backdrop-filter: blur(var(--blur));
+    -webkit-backdrop-filter: blur(var(--blur));
+    box-shadow: var(--shadow), 0 0 0 1px rgba(255, 255, 255, 0.15) inset;
+    z-index: 201;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    padding: 32px;
+    transform: translate(-50%, -50%) scale(.85);
     opacity: 0;
     pointer-events: none;
-    transition: opacity .25s ease;
-    z-index: 91;
+    /* Same calm --ease every other camera/panel-style transition in this
+       file uses (see #canvas's zoom transition and .active-heading's
+       parent growing into place) — never --spring-ease, which is reserved
+       for bubbles physically displacing each other, not for a standalone
+       overlay animating in. Keeps the motion language consistent across
+       every nesting level instead of introducing a fourth easing curve. */
+    transition: transform .4s var(--ease), opacity .4s var(--ease);
   }
-  .image-caption-label.visible { opacity: 1; }
+  .image-bubble.visible {
+    transform: translate(-50%, -50%) scale(1);
+    opacity: 1;
+    pointer-events: auto;
+  }
+  .image-bubble img {
+    display: block;
+    max-width: 100%;
+    max-height: 68%;
+    object-fit: contain;
+    border-radius: 10px;
+  }
+  .image-bubble-caption {
+    color: #fff;
+    text-align: center;
+    font-size: 13px;
+    line-height: 1.4;
+    max-width: 100%;
+    /* Line-clamp, not an ellipsis-on-overflow single line — a caption is
+       often more than one line at 13px inside a 420px circle, so this
+       caps it at 3 full lines instead of truncating after the first. */
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
 
   @media print {
     .settings-toggle, .settings-panel, .canvas-hint { display: none; }
@@ -405,6 +473,12 @@
     <button class="tool-btn primary" id="pdf-btn">⬇ Download PDF</button>
   </div>
 
+  <div class="image-bubble-backdrop" id="image-bubble-backdrop" hidden></div>
+  <div class="image-bubble" id="image-bubble" hidden>
+    <img id="image-bubble-img" src="" alt="">
+    <div class="image-bubble-caption" id="image-bubble-caption"></div>
+  </div>
+
   <div id="doc">
 
     <div class="doc-header">
@@ -417,7 +491,7 @@
       <div id="canvas"></div>
     </div>
 
-    <p class="canvas-hint">scroll or drag to explore · click a bubble to expand</p>
+    <p class="canvas-hint">drag to explore · click a bubble to expand · scroll or pinch to zoom</p>
     <div class="doc-footer">{{AUTHOR}}</div>
 
   </div>
@@ -507,16 +581,15 @@
     var ACTIVE_SCALE = 1.8, ACTIVE_MIN_D = 210, ACTIVE_MAX_D = 380;
     var BODY_PREVIEW_MAX_CHARS = 130;
     var IMAGE_MIN_D = 38, IMAGE_MAX_D = 92, IMAGE_FRAC = 0.28;
-    var IMAGE_EXPANDED_D = 220, CHILD_GAP = 12, CHILD_PARENT_GAP = 20;
+    var CHILD_GAP = 12, CHILD_PARENT_GAP = 20;
+    // The Level 3 image bubble's own diameter (420px) is fixed in CSS on
+    // .image-bubble, not here — it's viewport-centred and independent of
+    // any thumbnail's size, so it has no packing/layout math to drive.
     // Generous enough that an image cluster blooming out around the
     // largest possible EXPANDED bubble still lands inside the canvas
     // instead of being clipped by its bounding box.
     var CANVAS_MARGIN = 60 + ACTIVE_MAX_D / 2 + IMAGE_MAX_D + CHILD_PARENT_GAP;
     var PACK_ITERATIONS = 400;
-    // Below this, shrinking further to fit the whole map on screen would
-    // make bubble labels unreadable — past this floor we fall back to the
-    // pannable/draggable canvas instead of continuing to scale down.
-    var FIT_MIN_SCALE = 0.4;
 
     // Force-relaxation circle packer: seed every slide bubble on a
     // randomly jittered cloud (deterministic, see seededRandom — NOT a
@@ -660,41 +733,204 @@
     // Set by layoutBubbles() once the map's real size is known. mapEl/
     // wrapEl/mapCanvasW/mapCanvasH describe the canvas at its natural,
     // unscaled size (the size ACTIVE_MIN_D/MAX_D etc. were actually tuned
-    // for); restScale is how far that's shrunk to fit the whole map in the
-    // viewport at rest. Expanding a slide zooms back to scale 1 (full,
-    // readable size) centered on that slide, because shrinking its grown,
-    // content-bearing bubble along with the rest of the map made its text
-    // illegible — readability while inspecting one slide matters more than
-    // keeping the whole map in view at that moment.
-    var mapEl, wrapEl, mapCanvasW, mapCanvasH, restScale = 1;
+    // for); restScale is how far that's shrunk (or grown) to fill the
+    // target fraction of the viewport at rest (see TARGET_FILL below).
+    // Expanding a slide zooms to scale 1 (full, natural size) centered on
+    // that slide, because shrinking its grown, content-bearing bubble along
+    // with the rest of the map made its text illegible — readability while
+    // inspecting one slide matters more than keeping the whole map in view
+    // at that moment. `scale` is the single source of truth for whatever the
+    // camera is actually showing right now (rest, slide, or mid-gesture) —
+    // gesture zoom (wheel/pinch, below) reads and writes it directly rather
+    // than layering a separate multiplier on top.
+    var mapEl, wrapEl, mapCanvasW, mapCanvasH, restScale = 1, scale = 1;
 
-    function setCanvasScale(scale) {
-      mapEl.style.width = (mapCanvasW * scale) + 'px';
-      mapEl.style.height = (mapCanvasH * scale) + 'px';
-      mapEl.style.transform = 'scale(' + scale + ')';
+    // Cluster fills ~70-75% of the smaller viewport dimension at rest (not
+    // edge-to-edge) — see restScale's computation in layoutBubbles(). Gesture
+    // zoom (wheel/pinch) is clamped to the same [ZOOM_MIN, ZOOM_MAX] range.
+    var TARGET_FILL = 0.72;
+    var ZOOM_MIN = 0.4, ZOOM_MAX = 3;
+
+    // Max pointerdown->pointerup displacement (px) still counted as a tap
+    // rather than a drag — see the bubble pointerdown/pointerup handlers
+    // in layoutBubbles() below.
+    var TAP_MAX_DISPLACEMENT = 8;
+
+    // #canvas keeps its natural (unscaled) width/height always — children
+    // are absolutely positioned via raw --cx/--cy px (see setGeometry) and
+    // #canvas has no overflow:hidden, so shrinking its own declared box
+    // does nothing to where they paint; the transform below is the only
+    // thing that actually scales the rendered map.
+    function setCanvasScale() {
+      mapEl.style.width = mapCanvasW + 'px';
+      mapEl.style.height = mapCanvasH + 'px';
     }
 
-    // The two camera states: overview (whole map, shrunk to fit) and
-    // zoomed-in-on-one-slide (full natural scale, so that slide's child
-    // bubbles render at the size their own content-based sizing assumed).
+    // Applies `s` as the canvas's actual scale, keeps the map centred via a
+    // translate whenever it's smaller than the viewport, and refreshes every
+    // resting bubble's label visibility/size for the new scale (see
+    // updateLabelSizing). Returns the translate offsets used, so callers
+    // doing their own scroll math (zoomAtPoint) can reuse them instead of
+    // recomputing.
+    //
+    // Centering can't be done via scrollLeft/scrollTop alone: once the
+    // scaled map is SMALLER than the viewport (the common case at rest), the
+    // target scroll offset comes out negative, the browser clamps it to 0,
+    // and the map just sits flush at #canvas's untransformed (0,0) origin —
+    // flush top-left, not centered, with a big dead gutter on the right/
+    // bottom. (This was a real bug: "the map won't center.") The fix is to
+    // compute how much smaller the rendered map is than the viewport and
+    // bake that gap into the transform itself as a translate, not to lean
+    // harder on scroll offsets that can't go negative.
+    function applyCanvasTransform(s) {
+      scale = s;
+      setCanvasScale();
+      var renderedW = mapCanvasW * s, renderedH = mapCanvasH * s;
+      var offsetX = Math.max(0, (wrapEl.clientWidth - renderedW) / 2);
+      var offsetY = Math.max(0, (wrapEl.clientHeight - renderedH) / 2);
+      mapEl.style.transform = 'translate(' + offsetX + 'px, ' + offsetY + 'px) scale(' + s + ')';
+      updateLabelSizing(s);
+      return { offsetX: offsetX, offsetY: offsetY };
+    }
+
+    // The two discrete camera states: overview (whole map, fit to
+    // TARGET_FILL) and zoomed-in-on-one-slide (full natural scale, so that
+    // slide's child bubbles render at the size their own content-based
+    // sizing assumed). Both re-center via applyCanvasTransform.
     function zoomToOverview() {
-      setCanvasScale(restScale);
-      wrapEl.scrollLeft = (mapCanvasW * restScale - wrapEl.clientWidth) / 2;
-      wrapEl.scrollTop = (mapCanvasH * restScale - wrapEl.clientHeight) / 2;
+      applyCanvasTransform(restScale);
+      var renderedW = mapCanvasW * restScale, renderedH = mapCanvasH * restScale;
+      wrapEl.scrollLeft = Math.max(0, (renderedW - wrapEl.clientWidth) / 2);
+      wrapEl.scrollTop = Math.max(0, (renderedH - wrapEl.clientHeight) / 2);
     }
 
     function zoomToSlide(slide) {
-      setCanvasScale(1);
+      applyCanvasTransform(1);
       wrapEl.scrollLeft = slide.baseX - wrapEl.clientWidth / 2;
       wrapEl.scrollTop = slide.baseY - wrapEl.clientHeight / 2;
     }
 
-    function collapseImages(slide) {
-      (slide.imagePairs || []).forEach(function (p) {
-        p.dot.classList.remove('expanded');
-        p.label.classList.remove('visible');
+    // Below this rendered diameter (px, post-scale) a slide's resting label
+    // is dropped entirely rather than shrunk into illegible mush — its full
+    // heading is still one click away via the expand panel, nothing is
+    // actually lost. At or above it, the label's font-size is floored at
+    // LABEL_MIN_FONT rendered px regardless of the bubble's own radius (the
+    // unscaled font-size is inflated by 1/scale so the ON-SCREEN result
+    // never dips below the floor even when zoomed out).
+    var LABEL_HIDE_BELOW_D = 52, LABEL_MIN_FONT = 10;
+
+    function updateLabelSizing(s) {
+      allSlideEls.forEach(function (entry) {
+        var labelEl = entry.bubbleEl.querySelector('.slide-label');
+        if (!labelEl) return; // active bubble shows heading/body instead, no .slide-label present
+        var renderedD = entry.d * s;
+        if (renderedD < LABEL_HIDE_BELOW_D) {
+          labelEl.style.display = 'none';
+          return;
+        }
+        labelEl.style.display = '';
+        var naturalPx = Math.min(16, Math.max(11, entry.d * 0.11));
+        var renderedFont = Math.max(LABEL_MIN_FONT, naturalPx * s);
+        labelEl.style.fontSize = (renderedFont / s) + 'px';
       });
     }
+
+    // ---- Gesture zoom (wheel + two-finger pinch) ----------------------------
+    // Scales the cluster around the pointer/pinch midpoint as the focal
+    // point (not the canvas centre) — the point under the cursor/fingers
+    // stays fixed on screen as the scale changes, which is what makes it
+    // feel natural rather than a re-centering jump.
+
+    // Discrete camera jumps (click-to-expand/collapse) keep #canvas's eased
+    // CSS transition; a continuous gesture needs to track the pointer 1:1,
+    // so transitions are suspended for the duration of the gesture and
+    // restored shortly after it ends.
+    var gestureTransitionTimer = null;
+    function suspendTransitionDuringGesture() {
+      mapEl.style.transition = 'none';
+      clearTimeout(gestureTransitionTimer);
+      gestureTransitionTimer = setTimeout(function () { mapEl.style.transition = ''; }, 150);
+    }
+
+    // (px, py) is the focal point in #canvas-wrap viewport coordinates.
+    function zoomAtPoint(newScale, px, py) {
+      newScale = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, newScale));
+      var oldScale = scale;
+      var renderedW0 = mapCanvasW * oldScale, renderedH0 = mapCanvasH * oldScale;
+      var offsetX0 = Math.max(0, (wrapEl.clientWidth - renderedW0) / 2);
+      var offsetY0 = Math.max(0, (wrapEl.clientHeight - renderedH0) / 2);
+
+      // Content-space (raw, unscaled) point currently under the focal point.
+      var contentX = (px - offsetX0 + wrapEl.scrollLeft) / oldScale;
+      var contentY = (py - offsetY0 + wrapEl.scrollTop) / oldScale;
+
+      var applied = applyCanvasTransform(newScale);
+      wrapEl.scrollLeft = contentX * newScale + applied.offsetX - px;
+      wrapEl.scrollTop = contentY * newScale + applied.offsetY - py;
+    }
+
+    // Attached directly to the DOM element (not `wrapEl`, which layoutBubbles()
+    // only assigns once the map's first layout pass runs) — safe, since a
+    // user can't actually wheel/pinch before that initial synchronous pass
+    // has already completed and populated wrapEl/mapCanvasW/etc.
+    (function enableWheelZoom() {
+      var wrap = document.getElementById('canvas-wrap');
+      wrap.addEventListener('wheel', function (e) {
+        e.preventDefault();
+        suspendTransitionDuringGesture();
+        var rect = wrap.getBoundingClientRect();
+        var px = e.clientX - rect.left, py = e.clientY - rect.top;
+        var factor = Math.exp(-e.deltaY * 0.0015);
+        zoomAtPoint(scale * factor, px, py);
+      }, { passive: false });
+    })();
+
+    (function enablePinchZoom() {
+      var wrap = document.getElementById('canvas-wrap');
+      var pointers = {}; // pointerId -> {x, y}
+      var pinchStartDist = null, pinchStartScale = null;
+
+      function dist(a, b) { return Math.hypot(a.x - b.x, a.y - b.y); }
+      function midpoint(a, b) { return { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 }; }
+
+      function clearPointer(e) {
+        delete pointers[e.pointerId];
+        if (Object.keys(pointers).length < 2) {
+          pinchStartDist = null;
+          pinchStartScale = null;
+        }
+      }
+
+      wrap.addEventListener('pointerdown', function (e) {
+        pointers[e.pointerId] = { x: e.clientX, y: e.clientY };
+      });
+
+      wrap.addEventListener('pointermove', function (e) {
+        if (!(e.pointerId in pointers)) return;
+        pointers[e.pointerId] = { x: e.clientX, y: e.clientY };
+        var ids = Object.keys(pointers);
+        if (ids.length !== 2) return;
+        e.preventDefault();
+
+        var a = pointers[ids[0]], b = pointers[ids[1]];
+        var d = dist(a, b);
+        var mid = midpoint(a, b);
+        var rect = wrap.getBoundingClientRect();
+        var px = mid.x - rect.left, py = mid.y - rect.top;
+
+        if (pinchStartDist == null) {
+          pinchStartDist = d;
+          pinchStartScale = scale;
+          return;
+        }
+        suspendTransitionDuringGesture();
+        zoomAtPoint(pinchStartScale * (d / pinchStartDist), px, py);
+      });
+
+      wrap.addEventListener('pointerup', clearPointer);
+      wrap.addEventListener('pointercancel', clearPointer);
+      wrap.addEventListener('pointerleave', clearPointer);
+    })();
 
     // Moves every slide bubble back to its resting (packed) position —
     // the mirror image of relaxNeighbors() below.
@@ -766,10 +1002,10 @@
     // selectSlide() below rebuilds it fresh against whatever size the
     // newly-active bubble grows to.
     function collapseAll() {
+      closeImageBubble();
       allSlideEls.forEach(function (s) {
         s.bubbleEl.classList.remove('active');
         s.bubbleEl.innerHTML = '<div class="slide-label">' + escapeHtml(s.shortLabel) + '</div>';
-        collapseImages(s);
         if (s.childClusterEl) { s.childClusterEl.remove(); s.childClusterEl = null; }
         s.imagePairs = [];
       });
@@ -826,20 +1062,14 @@
           var cd = child.r * 2;
           var dotEl = el('div', 'bubble image-dot');
           setGeometry(dotEl, child.x, child.y, cd);
-          dotEl.style.setProperty('--zoom', (IMAGE_EXPANDED_D / cd).toFixed(3));
           dotEl.innerHTML = '<img src="' + child.image.src + '" alt="">';
           childCluster.appendChild(dotEl);
 
-          var labelEl = el('div', 'image-caption-label');
-          setGeometry(labelEl, child.x, child.y, cd);
-          labelEl.textContent = child.image.caption || '';
-          childCluster.appendChild(labelEl);
-
-          var imgPair = { dot: dotEl, label: labelEl };
+          var imgPair = { dot: dotEl, image: child.image };
           slide.imagePairs.push(imgPair);
           dotEl.addEventListener('click', function (e) {
             e.stopPropagation();
-            selectImage(imgPair, slide);
+            openImageBubble(child.image);
           });
         });
       }
@@ -849,19 +1079,56 @@
       zoomToSlide(slide);
     }
 
-    // Image children zoom in place (transform: scale on the dot itself,
-    // see CSS) rather than opening a separate panel — there's no card to
-    // toggle, just the circle growing and its caption label fading in.
-    function selectImage(imgPair, slide) {
-      var reopening = imgPair.dot.classList.contains('expanded');
-      (slide.imagePairs || []).forEach(function (p) {
-        p.dot.classList.remove('expanded');
-        p.label.classList.remove('visible');
-      });
-      if (reopening) return;
-      imgPair.dot.classList.add('expanded');
-      imgPair.label.classList.add('visible');
+    // ---- Level 3: the image bubble overlay -----------------------------------
+    // Clicking a Level 2 image thumbnail opens this — a standalone circle
+    // fixed to the viewport (independent of the canvas's own scroll/scale),
+    // not an in-place zoom of the small thumbnail. See the CSS notes above
+    // .image-bubble for why. Dismissing it (backdrop click or Escape) closes
+    // only this overlay, returning to the slide-expanded state underneath —
+    // never a full collapseAll(), which is a distinct, separate action
+    // (clicking the canvas background or the active bubble itself).
+    var imageBubbleEl = document.getElementById('image-bubble');
+    var imageBubbleBackdropEl = document.getElementById('image-bubble-backdrop');
+    var imageBubbleImgEl = document.getElementById('image-bubble-img');
+    var imageBubbleCaptionEl = document.getElementById('image-bubble-caption');
+    // Matches the CSS transition duration on .image-bubble/.image-bubble-backdrop
+    // — used to defer re-hiding them until the closing animation finishes.
+    var IMAGE_BUBBLE_TRANSITION_MS = 400;
+    var imageBubbleHideTimer = null;
+
+    function openImageBubble(image) {
+      clearTimeout(imageBubbleHideTimer);
+      imageBubbleImgEl.src = image.src;
+      imageBubbleCaptionEl.textContent = image.caption || '';
+      imageBubbleBackdropEl.hidden = false;
+      imageBubbleEl.hidden = false;
+      // Force a reflow between un-hiding and adding .visible so the browser
+      // actually animates the transition instead of jumping straight to the
+      // end state (both style changes would otherwise land in the same frame).
+      void imageBubbleEl.offsetWidth;
+      imageBubbleBackdropEl.classList.add('visible');
+      imageBubbleEl.classList.add('visible');
     }
+
+    function isImageBubbleOpen() {
+      return !imageBubbleEl.hidden;
+    }
+
+    function closeImageBubble() {
+      if (!isImageBubbleOpen()) return;
+      imageBubbleBackdropEl.classList.remove('visible');
+      imageBubbleEl.classList.remove('visible');
+      clearTimeout(imageBubbleHideTimer);
+      imageBubbleHideTimer = setTimeout(function () {
+        imageBubbleBackdropEl.hidden = true;
+        imageBubbleEl.hidden = true;
+      }, IMAGE_BUBBLE_TRANSITION_MS);
+    }
+
+    imageBubbleBackdropEl.addEventListener('click', closeImageBubble);
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape' && isImageBubbleOpen()) closeImageBubble();
+    });
 
     // ---- Build ---------------------------------------------------------------
 
@@ -910,30 +1177,29 @@
       var canvasW = (maxX - minX) + CANVAS_MARGIN * 2;
       var canvasH = (maxY - minY) + CANVAS_MARGIN * 2;
 
-      // Scale the whole map down to fit inside the viewport on load, so
-      // every bubble is visible without having to scroll/drag first — a
-      // transform (not resizing individual bubbles) so every fixed-pixel
-      // relationship in this file (child clusters, the image caption's
-      // `+108px` offset, etc.) stays correct at any scale, since it scales
-      // the whole rendered subtree uniformly. Below FIT_MIN_SCALE, stop
-      // shrinking (labels would go unreadable) and fall back to the
-      // pannable canvas instead — scroll/drag panning still works
-      // regardless of scale.
-      var fitScale = Math.min(1, wrap.clientWidth / canvasW, wrap.clientHeight / canvasH);
-      fitScale = Math.max(fitScale, FIT_MIN_SCALE);
+      // Scale the whole map to fill ~TARGET_FILL of the smaller viewport
+      // dimension on load — not a bare Math.min(1, ...) edge-to-edge fit,
+      // which for most decks left the cluster looking like a small clump
+      // with a big dead margin around it (or, for a huge deck, packed
+      // flush to the very edges). A transform (not resizing individual
+      // bubbles) so every fixed-pixel relationship in this file (child
+      // clusters, the image caption's `+108px` offset, etc.) stays correct
+      // at any scale, since it scales the whole rendered subtree uniformly.
+      // Using Math.min across both axes (not scaling each independently)
+      // guarantees neither dimension ever overflows the viewport. Labels
+      // that would go illegible at the resulting scale are handled per-
+      // bubble by updateLabelSizing(), not by a floor on this scale.
+      var fitScale = Math.min(
+        (wrap.clientWidth * TARGET_FILL) / canvasW,
+        (wrap.clientHeight * TARGET_FILL) / canvasH
+      );
+      fitScale = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, fitScale));
 
       mapEl = canvas; wrapEl = wrap; mapCanvasW = canvasW; mapCanvasH = canvasH; restScale = fitScale;
       canvas.style.transformOrigin = '0 0';
-      // Children below are still positioned in raw (unscaled) px via
-      // --cx/--cy/--d — that's unaffected by shrinking #canvas's own
-      // declared width/height here, since absolutely-positioned children
-      // are placed relative to the padding box's top-left corner, not its
-      // size. Shrinking the box to the scaled size (rather than leaving it
-      // at canvasW/canvasH) just keeps #canvas-wrap's scrollable area
-      // matching what's actually visible at rest, instead of leaving dead
-      // pannable space beyond the scaled-down map. setCanvasScale(1) (see
-      // selectSlide) switches this back to the map's natural full size.
-      setCanvasScale(fitScale);
+      // Children below are positioned in raw (unscaled) px via --cx/--cy —
+      // zoomToOverview() (called at the end of this function) applies the
+      // actual scale/centering transform, so nothing further is needed here.
 
       items.forEach(function (item, slideIdx) {
         item.x += offsetX;
@@ -972,15 +1238,38 @@
           images: slideData.images || []
         };
         allSlideEls.push(slideEntry);
-        bubbleEl.addEventListener('click', function (e) {
+
+        // Pointer-based tap detection, not a bare 'click' listener — a
+        // native 'click' still fires after ANY mouseup on this element
+        // regardless of how far the pointer moved in between (browsers are
+        // inconsistent about suppressing it for a drag, and it fires
+        // identically for touch), so a drag that happened to end on top of
+        // a bubble could fire selectSlide() as if it were a tap. Tracking
+        // displacement ourselves between pointerdown and pointerup and
+        // gating on TAP_MAX_DISPLACEMENT fixes that uniformly for mouse and
+        // touch. stopPropagation on both is immediate and unconditional —
+        // these must never reach #canvas-wrap's own pointerdown/pointermove
+        // listeners (see enablePinchZoom), which track pointers for pinch-
+        // zoom; letting a bubble's pointer events leak into that tracker is
+        // what let a single tap on a bubble occasionally get misread as
+        // part of a pinch gesture and trigger a large, spurious zoom jump
+        // instead of opening the bubble. Do NOT also keep a 'click'
+        // listener here — selectSlide() toggles, so both firing for the
+        // same tap would open and instantly re-close it.
+        var tapStartX = 0, tapStartY = 0;
+        bubbleEl.addEventListener('pointerdown', function (e) {
           e.stopPropagation();
-          selectSlide(slideEntry);
+          tapStartX = e.clientX;
+          tapStartY = e.clientY;
+        });
+        bubbleEl.addEventListener('pointerup', function (e) {
+          e.stopPropagation();
+          if (Math.hypot(e.clientX - tapStartX, e.clientY - tapStartY) < TAP_MAX_DISPLACEMENT) {
+            selectSlide(slideEntry);
+          }
         });
       });
 
-      // Center the initial scroll position on the whole map — comes out
-      // <= 0 when the map fits entirely inside the viewport, and the
-      // browser just clamps that to 0 (no scroll needed, nothing cut off).
       zoomToOverview();
     }
 
