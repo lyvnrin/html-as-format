@@ -30,6 +30,9 @@
        physically nudging each other aside, which is supposed to read as
        organic/springy, not smooth. Don't use this for panel/dot fades. */
     --spring-ease: cubic-bezier(.34, 1.56, .64, 1);
+    --connector-opacity: 0.35;
+    --connector-dim-opacity: 0.14;
+    --connector-active-opacity: 0.75;
   }
 
   [data-theme="blue"]   { --accent: #5b8cff; --accent-soft: rgba(91,140,255,0.16); --accent-glow: rgba(91,140,255,0.55); --accent-dark: #3a63d4; }
@@ -48,6 +51,9 @@
     --text-soft: #565d6e;
     --text-faint: #8990a3;
     --shadow: 0 8px 28px rgba(20,30,60,0.12);
+    --connector-opacity: 0.35;
+    --connector-dim-opacity: 0.1;
+    --connector-active-opacity: 0.65;
   }
 
   * { box-sizing: border-box; }
@@ -147,45 +153,41 @@
 
   #doc { position: relative; height: 100vh; overflow: hidden; }
 
+  /* A small floating card, not a text block competing with the map for
+     room — capped to a fixed width well short of a third of the viewport
+     and given a real (but modest) surface/border/shadow, like every other
+     piece of floating chrome (.settings-panel), rather than a wide column
+     of text with just a soft scrim behind it. */
   .doc-header {
     position: absolute;
-    top: 28px;
-    left: 24px;
+    top: 20px;
+    left: 20px;
     z-index: 5;
-    max-width: 420px;
+    width: 240px;
+    max-width: 32vw;
     text-align: left;
     pointer-events: none;
-  }
-  /* A soft scrim, not a card — the bubble map is the main focus, the
-     header is just legible on top of it. A hard-edged background box
-     here would compete with the bubbles for attention (a title bar
-     sitting on top of a bubble reads as two things fighting each other);
-     a radial gradient in the page's own --bg colour, strongest right
-     behind the text and fully transparent by ~default padding out, lets
-     whatever bubble happens to scroll underneath stay visible at the
-     edges while keeping the text reliably readable, without ever
-     reading as its own rectangle. */
-  .doc-header::before {
-    content: '';
-    position: absolute;
-    inset: -22px -36px -30px -20px;
-    background: radial-gradient(ellipse 120% 100% at 0% 25%,
-      var(--bg) 0%, color-mix(in srgb, var(--bg) 65%, transparent) 45%, transparent 78%);
-    z-index: -1;
-    pointer-events: none;
+    background: var(--surface-solid);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 12px 14px;
   }
   .doc-eyebrow {
     display: inline-block;
-    font-size: 10px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase;
+    font-size: 9px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase;
     color: var(--accent);
     background: var(--accent-soft);
     border: 1px solid var(--accent-glow);
-    padding: 4px 12px;
+    padding: 3px 10px;
     border-radius: 999px;
-    margin-bottom: 8px;
+    margin-bottom: 7px;
   }
-  .doc-title { font-size: clamp(19px, 2.4vw, 25px); font-weight: 800; margin: 0 0 5px; line-height: 1.2; letter-spacing: -.01em; }
-  .doc-subtitle { font-size: 13px; color: var(--text-soft); margin: 0; line-height: 1.45; max-width: 420px; }
+  .doc-title { font-size: 15px; font-weight: 800; margin: 0 0 4px; line-height: 1.25; letter-spacing: -.01em; }
+  .doc-subtitle {
+    font-size: 11.5px; color: var(--text-soft); margin: 0; line-height: 1.4;
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+  }
 
   .canvas-hint {
     position: absolute;
@@ -249,6 +251,64 @@
      displacing each other (see .slide-bubble). */
   #canvas { position: relative; transition: transform .45s var(--ease), width .45s var(--ease), height .45s var(--ease); }
 
+  /* Theme connector lines — pure structure, not chrome. One thin SVG
+     layer sized to the canvas, inserted as #canvas's first child (z-index
+     0; bubbles are 1+), so lines always render behind every bubble, never
+     over label text or images. Coordinates are the same raw --cx/--cy
+     centres the bubbles themselves use (see buildConnectors() in the
+     script), so the whole layer pans/scales for free with #canvas's
+     existing transform and #canvas-wrap's scroll — nothing here
+     duplicates that math. */
+  #connectors {
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 0;
+    overflow: visible;
+    pointer-events: none;
+  }
+  .connector-line {
+    fill: none;
+    stroke: var(--accent);
+    stroke-width: 3;
+    stroke-linecap: round;
+    opacity: var(--connector-opacity);
+    transition: opacity .3s ease, stroke .25s ease;
+  }
+  /* Set when a slide is active — see updateConnectorEmphasis() in the
+     script. Only a connector-line's own opacity moves; bubbles themselves
+     never dim (see SKILL.md's "neighbors clear space but do NOT dim"),
+     so this is the graph's only "focus" signal while one slide is open. */
+  .connector-line.connector-dim { opacity: var(--connector-dim-opacity); }
+  .connector-line.connector-active { opacity: var(--connector-active-opacity); }
+
+  /* Idle ambient pulse — a short bright dash "travels" the length of each
+     line on a loop (stroke-dasharray sized in JS so only one dash is ever
+     visible at once; animating stroke-dashoffset by exactly one dash+gap
+     cycle, see --pulse-cycle, loops it seamlessly with no visible reset).
+     Duration/delay are randomized per line in buildConnectors() so the
+     crawl reads as 8-12s and staggered across the map, not one uniform
+     pulse. Paused (not removed — resumes mid-cycle, doesn't restart) via
+     .connectors-paused on #connectors whenever a slide is expanded or the
+     canvas is being dragged, so ambient motion never competes with a
+     gesture the user is already tracking. */
+  .connector-pulse {
+    fill: none;
+    stroke: var(--accent);
+    stroke-width: 3;
+    stroke-linecap: round;
+    opacity: .6;
+    animation-name: connector-pulse-crawl;
+    animation-timing-function: linear;
+    animation-iteration-count: infinite;
+  }
+  body[data-mode="light"] .connector-pulse { opacity: .5; }
+  #connectors.connectors-paused .connector-pulse { animation-play-state: paused; }
+  @keyframes connector-pulse-crawl {
+    from { stroke-dashoffset: 0; }
+    to { stroke-dashoffset: var(--pulse-cycle, -400px); }
+  }
+
   .bubble {
     position: absolute;
     left: var(--cx);
@@ -306,8 +366,8 @@
      LABEL_HIDE_BELOW_D. Don't rely on this rule alone to reason about what
      a label looks like on screen. */
   .slide-label {
-    font-weight: 800; line-height: 1.18;
-    font-size: clamp(11px, calc(var(--d) * 0.11), 16px);
+    font-weight: 800; line-height: 1.22;
+    font-size: clamp(14px, calc(var(--d) * 0.15), 22px);
     color: #f4f6fb;
   }
   .slide-bubble.active .slide-label { display: none; }
@@ -573,7 +633,12 @@
     // resting bubble shows its (truncated) heading (see .slide-label in
     // the CSS, clamp()'d relative to --d), so the smallest bubble still
     // needs to be big enough for a short label to read cleanly.
-    var SLIDE_MIN_D = 110, SLIDE_MAX_D = 280, SLIDE_GAP = 14;
+    // SLIDE_GAP is deliberately large (a graph-view read needs the
+    // connector lines between bubbles to look like lines, not hairline
+    // cracks between two touching circles) — this is the resting edge-to-
+    // edge gap every pairwise collision check in the packer enforces, not
+    // just a visual nudge.
+    var SLIDE_MIN_D = 110, SLIDE_MAX_D = 280, SLIDE_GAP = 80;
     // A slide bubble grows into its active state rather than swapping for
     // a separate panel — ACTIVE_MIN_D/MAX_D bound that growth so a tiny
     // resting bubble still ends up roomy enough to hold a heading + short
@@ -610,7 +675,7 @@
     function packCircles(items) {
       var n = items.length;
       if (n === 0) return items;
-      var spread = (SLIDE_MAX_D + SLIDE_GAP) * Math.sqrt(n) * 0.55;
+      var spread = (SLIDE_MAX_D + SLIDE_GAP) * Math.sqrt(n) * 0.9;
       items.forEach(function (it, i) {
         var a = seededRandom(i * 2 + 1) * Math.PI * 2;
         var rad = seededRandom(i * 2 + 2) * spread;
@@ -730,6 +795,156 @@
     var expandedSlide = null;
     var RELAX_ITERATIONS = 200;
 
+    // ---- Theme connector lines -----------------------------------------------
+    // See buildConnectors()/animateConnectors() below. connectors holds one
+    // entry per same-theme slide pair; svgConnectorsEl is the <svg> layer
+    // they live in (created once in layoutBubbles). connectorsPausedByX
+    // are two independent reasons the idle pulse can be paused (a slide is
+    // expanded, or the canvas is mid-drag) — tracked separately since either
+    // can end while the other is still true.
+    var SVG_NS = 'http://www.w3.org/2000/svg';
+    var connectors = [];
+    var svgConnectorsEl = null;
+    var connectorsPausedByExpand = false, connectorsPausedByDrag = false;
+    var connectorAnimToken = 0;
+    // Matches .slide-bubble's own left/top transition duration exactly (see
+    // CSS) — connector endpoints are meant to visually stick to the bubble
+    // centres they're anchored to as those bubbles get pushed aside/spring
+    // back, not just eventually arrive at the same place.
+    var CONNECTOR_MOVE_MS = 550;
+
+    // Applies both pause reasons as one class — called after either one
+    // changes rather than tracked as a single boolean, since drag can end
+    // while a slide is still expanded (and vice versa: collapsing while a
+    // drag happens to be mid-gesture), and the pulse should only resume
+    // once BOTH are clear.
+    function refreshConnectorsPaused() {
+      if (!svgConnectorsEl) return;
+      svgConnectorsEl.classList.toggle('connectors-paused', connectorsPausedByExpand || connectorsPausedByDrag);
+    }
+
+    // JS mirror of --spring-ease (cubic-bezier(.34, 1.56, .64, 1)), i.e.
+    // the canonical "easeOutBack" formula. Needed because SVG <line>'s
+    // x1/y1/x2/y2 aren't CSS-animatable geometry properties the way a
+    // <circle>'s cx/cy/r are — a plain `transition: x1 ...` on
+    // .connector-line is silently a no-op, so endpoint motion has to be
+    // driven by hand, on the same curve/duration .slide-bubble already
+    // uses for left/top, or lines would visibly lag or lead the bubbles
+    // they're anchored to.
+    function easeOutBack(t) {
+      var c1 = 1.70158, c3 = c1 + 1;
+      return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2);
+    }
+
+    // Re-animates every connector's endpoints from wherever they currently
+    // are to each connector's two slides' current x/y — called right after
+    // relaxNeighbors()/resetPositions() write new x/y onto those slides.
+    // A monotonically increasing token (not a boolean) guards against two
+    // overlapping calls (e.g. a fast reopen firing resetPositions() then
+    // relaxNeighbors() within the same duration): only the most recent
+    // call's frame loop keeps running, earlier ones quietly stop rather
+    // than fighting over the same DOM attributes.
+    function animateConnectors() {
+      if (connectors.length === 0) return;
+      connectors.forEach(function (c) {
+        c.fromX1 = parseFloat(c.lineEl.getAttribute('x1'));
+        c.fromY1 = parseFloat(c.lineEl.getAttribute('y1'));
+        c.fromX2 = parseFloat(c.lineEl.getAttribute('x2'));
+        c.fromY2 = parseFloat(c.lineEl.getAttribute('y2'));
+      });
+      var token = ++connectorAnimToken;
+      var start = null;
+      function frame(ts) {
+        if (token !== connectorAnimToken) return;
+        if (start === null) start = ts;
+        var t = Math.min(1, (ts - start) / CONNECTOR_MOVE_MS);
+        var e = easeOutBack(t);
+        connectors.forEach(function (c) {
+          var x1 = c.fromX1 + (c.a.x - c.fromX1) * e;
+          var y1 = c.fromY1 + (c.a.y - c.fromY1) * e;
+          var x2 = c.fromX2 + (c.b.x - c.fromX2) * e;
+          var y2 = c.fromY2 + (c.b.y - c.fromY2) * e;
+          c.lineEl.setAttribute('x1', x1); c.lineEl.setAttribute('y1', y1);
+          c.lineEl.setAttribute('x2', x2); c.lineEl.setAttribute('y2', y2);
+          c.pulseEl.setAttribute('x1', x1); c.pulseEl.setAttribute('y1', y1);
+          c.pulseEl.setAttribute('x2', x2); c.pulseEl.setAttribute('y2', y2);
+        });
+        if (t < 1) requestAnimationFrame(frame);
+      }
+      requestAnimationFrame(frame);
+    }
+
+    // Marks which connectors touch the newly active slide (see
+    // .connector-active/.connector-dim in the CSS) — called once a slide
+    // finishes expanding. Only ever touches connector-line, never the
+    // bubbles themselves (see the CSS comment on .connector-dim for why).
+    function updateConnectorEmphasis(activeSlide) {
+      connectors.forEach(function (c) {
+        var touches = c.a === activeSlide || c.b === activeSlide;
+        c.lineEl.classList.toggle('connector-active', touches);
+        c.lineEl.classList.toggle('connector-dim', !touches);
+      });
+    }
+
+    function clearConnectorEmphasis() {
+      connectors.forEach(function (c) {
+        c.lineEl.classList.remove('connector-active', 'connector-dim');
+      });
+    }
+
+    // Builds one <line> (+ one animated .connector-pulse overlay) per
+    // same-theme slide pair, into svgConnectorsEl. themeGroups is an array
+    // aligned with the JSON's themes array, each entry the list of that
+    // theme's slide entries in the same order they were laid out — see the
+    // call site in layoutBubbles(). Only ever wires slide-level bubbles to
+    // each other, never Level 2/3 (image) bubbles, since those are built
+    // fresh per-expansion and aren't part of the theme grouping.
+    function buildConnectors(themeGroups) {
+      connectors = [];
+      themeGroups.forEach(function (group, groupIdx) {
+        for (var i = 0; i < group.length; i++) {
+          for (var j = i + 1; j < group.length; j++) {
+            var a = group[i], b = group[j];
+
+            var lineEl = document.createElementNS(SVG_NS, 'line');
+            lineEl.setAttribute('class', 'connector-line');
+            lineEl.setAttribute('x1', a.baseX); lineEl.setAttribute('y1', a.baseY);
+            lineEl.setAttribute('x2', b.baseX); lineEl.setAttribute('y2', b.baseY);
+            svgConnectorsEl.appendChild(lineEl);
+
+            // Dash pattern sized off this pair's own resting distance so
+            // exactly one bright dash is ever visible per line, regardless
+            // of how short or long it is: a gap smaller than the line's
+            // length would let a second copy of the dash peek in from the
+            // other end mid-crawl.
+            var length = Math.hypot(b.baseX - a.baseX, b.baseY - a.baseY);
+            var dashLen = Math.max(14, length * 0.08);
+            var gapLen = length + 260;
+            var cycle = dashLen + gapLen;
+
+            var pulseEl = document.createElementNS(SVG_NS, 'line');
+            pulseEl.setAttribute('class', 'connector-pulse');
+            pulseEl.setAttribute('x1', a.baseX); pulseEl.setAttribute('y1', a.baseY);
+            pulseEl.setAttribute('x2', b.baseX); pulseEl.setAttribute('y2', b.baseY);
+            pulseEl.setAttribute('stroke-dasharray', dashLen.toFixed(1) + ' ' + gapLen.toFixed(1));
+            pulseEl.style.setProperty('--pulse-cycle', (-cycle).toFixed(1) + 'px');
+            // Deterministic (see seededRandom) — an 8-12s duration and a
+            // negative delay (starts the loop already mid-cycle) spread
+            // across each line's own seed, so the whole map's pulses read
+            // as staggered rather than breathing in unison.
+            var seed = groupIdx * 5000 + i * 97 + j * 13 + 3;
+            var duration = 8 + seededRandom(seed) * 4;
+            var delay = -(seededRandom(seed + 1) * duration);
+            pulseEl.style.animationDuration = duration.toFixed(2) + 's';
+            pulseEl.style.animationDelay = delay.toFixed(2) + 's';
+            svgConnectorsEl.appendChild(pulseEl);
+
+            connectors.push({ a: a, b: b, lineEl: lineEl, pulseEl: pulseEl });
+          }
+        }
+      });
+    }
+
     // Set by layoutBubbles() once the map's real size is known. mapEl/
     // wrapEl/mapCanvasW/mapCanvasH describe the canvas at its natural,
     // unscaled size (the size ACTIVE_MIN_D/MAX_D etc. were actually tuned
@@ -748,7 +963,7 @@
     // Cluster fills ~70-75% of the smaller viewport dimension at rest (not
     // edge-to-edge) — see restScale's computation in layoutBubbles(). Gesture
     // zoom (wheel/pinch) is clamped to the same [ZOOM_MIN, ZOOM_MAX] range.
-    var TARGET_FILL = 0.72;
+    var TARGET_FILL = 1.7;
     var ZOOM_MIN = 0.4, ZOOM_MAX = 3;
 
     // Max pointerdown->pointerup displacement (px) still counted as a tap
@@ -817,7 +1032,7 @@
     // LABEL_MIN_FONT rendered px regardless of the bubble's own radius (the
     // unscaled font-size is inflated by 1/scale so the ON-SCREEN result
     // never dips below the floor even when zoomed out).
-    var LABEL_HIDE_BELOW_D = 52, LABEL_MIN_FONT = 10;
+    var LABEL_HIDE_BELOW_D = 52, LABEL_MIN_FONT = 13;
 
     function updateLabelSizing(s) {
       allSlideEls.forEach(function (entry) {
@@ -829,7 +1044,7 @@
           return;
         }
         labelEl.style.display = '';
-        var naturalPx = Math.min(16, Math.max(11, entry.d * 0.11));
+        var naturalPx = Math.min(22, Math.max(14, entry.d * 0.15));
         var renderedFont = Math.max(LABEL_MIN_FONT, naturalPx * s);
         labelEl.style.fontSize = (renderedFont / s) + 'px';
       });
@@ -939,6 +1154,7 @@
         s.x = s.baseX; s.y = s.baseY;
         setGeometry(s.bubbleEl, s.x, s.y, s.d);
       });
+      animateConnectors();
     }
 
     // Clears free space around `active` by nudging every OTHER slide
@@ -994,6 +1210,7 @@
       }
 
       others.forEach(function (s) { setGeometry(s.bubbleEl, s.x, s.y, s.d); });
+      animateConnectors();
     }
 
     // Tears down whatever the active slide built (its grown size, its
@@ -1011,6 +1228,9 @@
       });
       resetPositions();
       expandedSlide = null;
+      clearConnectorEmphasis();
+      connectorsPausedByExpand = false;
+      refreshConnectorsPaused();
     }
 
     function truncate(str, max) {
@@ -1076,6 +1296,9 @@
 
       relaxNeighbors(slide);
       expandedSlide = slide;
+      updateConnectorEmphasis(slide);
+      connectorsPausedByExpand = true;
+      refreshConnectorsPaused();
       zoomToSlide(slide);
     }
 
@@ -1143,8 +1366,14 @@
       // slide in the deck — themes drive neither position, size, nor
       // colour; they exist purely to organize the input JSON.
       var slides = [];
-      themes.forEach(function (theme) {
-        theme.slides.forEach(function (slide) { slides.push(slide); });
+      // Parallel to `slides` — which theme (by index into `themes`) each
+      // flattened slide came from. Kept only so the connector layer can
+      // regroup slide entries by theme after they're built below (see
+      // themeGroups); layout/sizing itself never looks at this, same as
+      // before.
+      var slideThemeIdx = [];
+      themes.forEach(function (theme, themeIdx) {
+        theme.slides.forEach(function (slide) { slides.push(slide); slideThemeIdx.push(themeIdx); });
       });
       if (slides.length === 0) return;
 
@@ -1201,6 +1430,20 @@
       // zoomToOverview() (called at the end of this function) applies the
       // actual scale/centering transform, so nothing further is needed here.
 
+      // Inserted before any bubble is appended so it's #canvas's first
+      // child (belt-and-suspenders alongside its explicit z-index: 0 —
+      // see the CSS). Sized to the same raw canvasW/canvasH the bubbles'
+      // own --cx/--cy coordinates are computed in, so connector endpoints
+      // need no separate scaling: they ride #canvas's existing transform
+      // for free, same as every bubble does.
+      svgConnectorsEl = document.createElementNS(SVG_NS, 'svg');
+      svgConnectorsEl.setAttribute('id', 'connectors');
+      svgConnectorsEl.setAttribute('width', canvasW);
+      svgConnectorsEl.setAttribute('height', canvasH);
+      canvas.appendChild(svgConnectorsEl);
+
+      var themeGroups = themes.map(function () { return []; });
+
       items.forEach(function (item, slideIdx) {
         item.x += offsetX;
         item.y += offsetY;
@@ -1238,6 +1481,7 @@
           images: slideData.images || []
         };
         allSlideEls.push(slideEntry);
+        themeGroups[slideThemeIdx[slideIdx]].push(slideEntry);
 
         // Pointer-based tap detection, not a bare 'click' listener — a
         // native 'click' still fires after ANY mouseup on this element
@@ -1270,6 +1514,7 @@
         });
       });
 
+      buildConnectors(themeGroups);
       zoomToOverview();
     }
 
@@ -1320,6 +1565,8 @@
         if (!dragging && Math.hypot(dx, dy) > DRAG_THRESHOLD) {
           dragging = true;
           wrap.classList.add('dragging');
+          connectorsPausedByDrag = true;
+          refreshConnectorsPaused();
         }
         if (dragging) {
           e.preventDefault();
@@ -1336,6 +1583,8 @@
         // click listener below normally consumes `dragging` first, since
         // click dispatch happens synchronously before this timeout runs.
         if (dragging) setTimeout(function () { dragging = false; }, 0);
+        connectorsPausedByDrag = false;
+        refreshConnectorsPaused();
       });
 
       // Registered on `document`, not `wrap` — a capture-phase listener on
