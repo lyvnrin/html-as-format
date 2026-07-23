@@ -105,18 +105,61 @@
     margin-bottom: 10px;
   }
 
-  .theme-dots { display: flex; gap: 8px; }
-  .theme-dot {
-    width: 22px; height: 22px; border-radius: 50%;
-    border: 2px solid transparent; cursor: pointer; padding: 0;
-    transition: transform .15s ease, box-shadow .15s ease;
+  /* Theme dropdown — replaces the old row of clickable colour dots. The
+     trigger's own text sits in var(--accent), so it re-colours for free
+     whenever data-theme changes (no JS needed for that part); the menu
+     stays a plain toggle+outside-click pattern, same as .settings-panel's
+     own open/close. */
+  .theme-select { position: relative; }
+  .theme-select-trigger {
+    display: flex; align-items: center; justify-content: space-between; gap: 6px;
+    width: 100%;
+    font-size: 13px; font-weight: 700;
+    padding: 9px 14px; border-radius: 10px;
+    border: 1px solid var(--border);
+    background: var(--surface-alt);
+    color: var(--accent);
+    cursor: pointer;
+    transition: background .15s ease, transform .1s ease, color .2s ease;
   }
-  .theme-dot[data-t="blue"]   { background: #5b8cff; }
-  .theme-dot[data-t="green"]  { background: #3fd690; }
-  .theme-dot[data-t="purple"] { background: #a684ff; }
-  .theme-dot[data-t="orange"] { background: #ff9d4d; }
-  .theme-dot[data-t="red"]    { background: #ef4444; }
-  .theme-dot.active { border-color: var(--text); transform: scale(1.15); box-shadow: 0 0 10px var(--accent-glow); }
+  .theme-select-trigger:hover { background: var(--accent-soft); transform: translateY(-1px); }
+  .theme-select-trigger::after { content: "\25be"; font-size: 11px; opacity: .7; }
+  .theme-select-menu {
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 0;
+    right: 0;
+    z-index: 10;
+    background: var(--surface-solid);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    box-shadow: var(--shadow);
+    padding: 6px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .theme-select-menu[hidden] { display: none; }
+  .theme-select-option {
+    display: flex; align-items: center; gap: 8px;
+    width: 100%;
+    font-size: 13px; font-weight: 600;
+    padding: 7px 10px; border-radius: 8px;
+    border: none;
+    background: none;
+    color: var(--text);
+    text-align: left;
+    cursor: pointer;
+    transition: background .15s ease;
+  }
+  .theme-select-option:hover { background: var(--surface-alt); }
+  .theme-select-option.active { color: var(--accent); font-weight: 800; }
+  .theme-select-option::before { content: ""; width: 10px; height: 10px; border-radius: 50%; flex: none; }
+  .theme-select-option[data-t="blue"]::before   { background: #5b8cff; }
+  .theme-select-option[data-t="green"]::before  { background: #3fd690; }
+  .theme-select-option[data-t="purple"]::before { background: #a684ff; }
+  .theme-select-option[data-t="orange"]::before { background: #ff9d4d; }
+  .theme-select-option[data-t="red"]::before    { background: #ef4444; }
 
   .settings-panel button.tool-btn {
     display: flex; align-items: center; justify-content: center; gap: 6px;
@@ -135,6 +178,99 @@
     box-shadow: 0 0 18px var(--accent-glow);
   }
   .settings-panel button.tool-btn.primary:hover { background: var(--accent-dark); }
+
+  /* PDF download disabled for now — kept in the DOM/wiring as-is, just
+     visually and functionally inert. */
+  #pdf-btn { opacity: 0.4; pointer-events: none; cursor: not-allowed; }
+
+  /* Dark/light switch — an iOS-style sliding pill instead of a plain text
+     button, so toggling reads as one continuous motion (thumb slides,
+     sun/moon cross-fade+rotate into each other) rather than an instant
+     swap. Label text keeps the original button's semantics: it names the
+     action a click performs, not the current state — aria-pressed carries
+     the actual state for assistive tech. */
+  .mode-toggle {
+    display: flex; align-items: center; justify-content: space-between; gap: 10px;
+    width: 100%;
+    font-size: 13px; font-weight: 600;
+    padding: 9px 14px; border-radius: 10px;
+    border: 1px solid var(--border);
+    background: var(--surface-alt);
+    color: var(--text);
+    cursor: pointer;
+    transition: background .15s ease, transform .1s ease;
+  }
+  .mode-toggle:hover { background: var(--accent-soft); transform: translateY(-1px); }
+  .mode-toggle-switch {
+    position: relative;
+    flex: none;
+    width: 38px; height: 22px;
+    border-radius: 999px;
+    background: var(--border);
+    transition: background .35s ease;
+  }
+  body[data-mode="dark"] .mode-toggle-switch { background: var(--accent-dark); }
+  .mode-toggle-thumb {
+    position: absolute;
+    top: 2px; left: 2px;
+    width: 18px; height: 18px;
+    border-radius: 50%;
+    background: var(--surface-solid);
+    box-shadow: 0 1px 3px rgba(0,0,0,.35);
+    display: flex; align-items: center; justify-content: center;
+    transition: transform .35s cubic-bezier(.34, 1.56, .64, 1);
+  }
+  body[data-mode="dark"] .mode-toggle-thumb { transform: translateX(16px); }
+  .mode-toggle-thumb svg {
+    position: absolute;
+    width: 12px; height: 12px;
+    transition: opacity .3s ease, transform .4s ease;
+  }
+  .mode-toggle-thumb .icon-sun { color: #e8a63c; opacity: 1; transform: rotate(0deg) scale(1); }
+  .mode-toggle-thumb .icon-moon { color: #7c93c9; opacity: 0; transform: rotate(-90deg) scale(.5); }
+  body[data-mode="dark"] .mode-toggle-thumb .icon-sun { opacity: 0; transform: rotate(90deg) scale(.5); }
+  body[data-mode="dark"] .mode-toggle-thumb .icon-moon { opacity: 1; transform: rotate(0deg) scale(1); }
+
+  /* Small "?" affordance pinned immediately left of the settings cog —
+     same visual style/size as .settings-toggle. Opens a dismissible
+     tooltip with the interaction hint instead of permanent on-page text. */
+  .help-toggle {
+    position: fixed;
+    top: 20px;
+    right: 72px;
+    z-index: 100;
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    border: 1px solid var(--border);
+    background: var(--surface-solid);
+    color: var(--text);
+    font-size: 16px;
+    font-weight: 800;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    box-shadow: var(--shadow);
+    transition: border-color .15s ease, transform .15s ease, background .15s ease;
+  }
+  .help-toggle:hover { border-color: var(--accent-glow); transform: translateY(-1px); }
+  .help-tooltip {
+    position: fixed;
+    top: 70px;
+    right: 72px;
+    z-index: 100;
+    width: 208px;
+    background: var(--surface-solid);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 12px 14px;
+    font-size: 12.5px;
+    line-height: 1.45;
+    color: var(--text-soft);
+  }
+  .help-tooltip[hidden] { display: none; }
 
   #doc {
     max-width: 1400px;
@@ -158,6 +294,7 @@
     letter-spacing: -.01em;
   }
   .doc-subtitle { font-size: 16px; color: var(--text-soft); margin: 0; line-height: 1.5; max-width: 640px; }
+  .doc-meta { font-size: 12px; color: var(--text-faint); margin: 10px 0 0; }
 
   /* Masonry grid — CSS columns, not CSS grid. Varied card heights are the point. */
   #grid {
@@ -261,10 +398,8 @@
     .panel::-webkit-scrollbar-thumb { background: var(--accent-glow); border-radius: 6px; }
   }
 
-  .doc-footer { text-align: center; font-size: 12px; color: var(--text-faint); margin-top: 50px; }
-
   @media print {
-    .settings-toggle, .settings-panel { display: none; }
+    .settings-toggle, .settings-panel, .help-toggle, .help-tooltip { display: none; }
   }
 </style>
 </head>
@@ -277,18 +412,42 @@
     </svg>
   </button>
 
+  <button class="help-toggle" id="help-toggle" aria-label="Help" aria-expanded="false">?</button>
+  <div class="help-tooltip" id="help-tooltip" hidden>click a card to view details</div>
+
   <div class="settings-panel" id="settings-panel" hidden>
-    <div>
+    <div class="theme-select" id="theme-select">
       <div class="settings-label">Theme</div>
-      <div class="theme-dots" id="theme-dots">
-        <button class="theme-dot active" data-t="blue" title="Blue"></button>
-        <button class="theme-dot" data-t="green" title="Green"></button>
-        <button class="theme-dot" data-t="purple" title="Purple"></button>
-        <button class="theme-dot" data-t="orange" title="Orange"></button>
-        <button class="theme-dot" data-t="red" title="Red"></button>
+      <button class="theme-select-trigger" id="theme-select-trigger" aria-haspopup="listbox" aria-expanded="false">Change Theme</button>
+      <div class="theme-select-menu" id="theme-select-menu" hidden role="listbox">
+        <button class="theme-select-option active" data-t="blue" role="option" aria-selected="true">Blue</button>
+        <button class="theme-select-option" data-t="green" role="option" aria-selected="false">Green</button>
+        <button class="theme-select-option" data-t="purple" role="option" aria-selected="false">Purple</button>
+        <button class="theme-select-option" data-t="orange" role="option" aria-selected="false">Orange</button>
+        <button class="theme-select-option" data-t="red" role="option" aria-selected="false">Red</button>
       </div>
     </div>
-    <button class="tool-btn" id="mode-toggle">🌙 Dark</button>
+    <button class="mode-toggle" id="mode-toggle" aria-pressed="false">
+      <span id="mode-toggle-label">Dark</span>
+      <span class="mode-toggle-switch" aria-hidden="true">
+        <span class="mode-toggle-thumb">
+          <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="5"></circle>
+            <line x1="12" y1="1" x2="12" y2="3"></line>
+            <line x1="12" y1="21" x2="12" y2="23"></line>
+            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+            <line x1="1" y1="12" x2="3" y2="12"></line>
+            <line x1="21" y1="12" x2="23" y2="12"></line>
+            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+          </svg>
+          <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+          </svg>
+        </span>
+      </span>
+    </button>
     <button class="tool-btn primary" id="pdf-btn">⬇ Download PDF</button>
   </div>
 
@@ -298,6 +457,7 @@
       <div class="doc-eyebrow">Gallery</div>
       <h1 class="doc-title">{{GALLERY_TITLE}}</h1>
       <p class="doc-subtitle">{{GALLERY_SUBTITLE}}</p>
+      <p class="doc-meta">{{AUTHOR}}</p>
     </div>
 
     <div id="grid">
@@ -344,8 +504,6 @@
 
     </div>
 
-    <div class="doc-footer">{{AUTHOR}}</div>
-
   </div>
 
   <div class="overlay" id="overlay" hidden>
@@ -371,20 +529,58 @@
       }
     });
 
-    var dots = document.querySelectorAll('.theme-dot');
-    dots.forEach(function (dot) {
-      dot.addEventListener('click', function () {
-        body.setAttribute('data-theme', dot.getAttribute('data-t'));
-        dots.forEach(function (d) { d.classList.remove('active'); });
-        dot.classList.add('active');
+    var helpToggle = document.getElementById('help-toggle');
+    var helpTooltip = document.getElementById('help-tooltip');
+    helpToggle.addEventListener('click', function (e) {
+      e.stopPropagation();
+      var willOpen = helpTooltip.hidden;
+      helpTooltip.hidden = !willOpen;
+      helpToggle.setAttribute('aria-expanded', String(willOpen));
+    });
+    document.addEventListener('click', function (e) {
+      if (!helpTooltip.hidden && !helpTooltip.contains(e.target) && !helpToggle.contains(e.target)) {
+        helpTooltip.hidden = true;
+        helpToggle.setAttribute('aria-expanded', 'false');
+      }
+    });
+
+    var themeTrigger = document.getElementById('theme-select-trigger');
+    var themeMenu = document.getElementById('theme-select-menu');
+    var themeOptions = document.querySelectorAll('.theme-select-option');
+    themeTrigger.addEventListener('click', function (e) {
+      e.stopPropagation();
+      var willOpen = themeMenu.hidden;
+      themeMenu.hidden = !willOpen;
+      themeTrigger.setAttribute('aria-expanded', String(willOpen));
+    });
+    document.addEventListener('click', function (e) {
+      if (!themeMenu.hidden && !themeMenu.contains(e.target) && !themeTrigger.contains(e.target)) {
+        themeMenu.hidden = true;
+        themeTrigger.setAttribute('aria-expanded', 'false');
+      }
+    });
+    themeOptions.forEach(function (opt) {
+      opt.addEventListener('click', function () {
+        body.setAttribute('data-theme', opt.getAttribute('data-t'));
+        themeOptions.forEach(function (o) {
+          o.classList.remove('active');
+          o.setAttribute('aria-selected', 'false');
+        });
+        opt.classList.add('active');
+        opt.setAttribute('aria-selected', 'true');
+        themeMenu.hidden = true;
+        themeTrigger.setAttribute('aria-expanded', 'false');
       });
     });
 
     var modeBtn = document.getElementById('mode-toggle');
+    var modeLabel = document.getElementById('mode-toggle-label');
     modeBtn.addEventListener('click', function () {
       var isLight = body.getAttribute('data-mode') === 'light';
-      body.setAttribute('data-mode', isLight ? 'dark' : 'light');
-      modeBtn.textContent = isLight ? '☀️ Light' : '🌙 Dark';
+      var newMode = isLight ? 'dark' : 'light';
+      body.setAttribute('data-mode', newMode);
+      modeBtn.setAttribute('aria-pressed', String(newMode === 'dark'));
+      modeLabel.textContent = isLight ? 'Light' : 'Dark';
     });
 
     var pdfBtn = document.getElementById('pdf-btn');
