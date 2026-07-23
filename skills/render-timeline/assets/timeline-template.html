@@ -301,6 +301,35 @@
     background: var(--border);
   }
 
+  /* Ambient rail scanner — a 60px translucent band travels the rail's full
+     height on a loop. Implemented as a small fixed-size gradient
+     (background-size: 100% 60px) sliding via background-position rather
+     than an animated transform/top: a translateY-based approach would need
+     to know the track's height in px, which varies with node count.
+     background-position's percentage term instead always resolves against
+     THIS element's own rendered height, so the same -60px -> 100%+60px
+     keyframe pair works regardless of how tall the track ends up being for
+     a given deck — the band starts fully above (invisible) and finishes
+     fully below (invisible), so the loop has no visible jump/reset. */
+  .tl-track::after {
+    content: "";
+    position: absolute;
+    left: 50%; top: 0; bottom: 0;
+    width: 2px;
+    transform: translateX(-1px);
+    background-image: linear-gradient(to bottom, transparent 0%, var(--accent) 50%, transparent 100%);
+    background-size: 100% 60px;
+    background-repeat: no-repeat;
+    background-position: 0 -60px;
+    opacity: .7;
+    pointer-events: none;
+    animation: tl-rail-scan 3.5s ease-in-out infinite;
+  }
+  @keyframes tl-rail-scan {
+    from { background-position: 0 -60px; }
+    to   { background-position: 0 calc(100% + 60px); }
+  }
+
   .tl-node {
     position: relative;
     display: grid;
@@ -327,9 +356,29 @@
     background: var(--surface-solid);
     border: 2px solid var(--text-faint);
     transition: background .2s ease, border-color .2s ease, box-shadow .2s ease, transform .15s ease;
+    /* Ambient cascade pulse — see @keyframes tl-dot-pulse below. Duration
+       is the full 4s loop (not the ~1s the visible pulse itself takes);
+       animation-delay is set per-dot in JS from each node's DOM position
+       (~0.9s apart) so the pulse visibly sweeps top -> bottom, one node at
+       a time, rather than all dots pulsing in unison. */
+    animation: tl-dot-pulse 4s ease-in-out infinite;
   }
-  .tl-node.active .tl-dot { background: var(--accent); border-color: var(--accent); box-shadow: 0 0 0 5px var(--accent-soft); transform: scale(1.1); }
+  /* box-shadow here is a static state (the "this node is open" ring), not
+     an animation — disable the ambient pulse on the active dot so the two
+     don't fight over the same box-shadow/transform properties (a running
+     CSS animation always wins that fight over a plain rule, regardless of
+     specificity), which would otherwise flicker the active ring. */
+  .tl-node.active .tl-dot { background: var(--accent); border-color: var(--accent); box-shadow: 0 0 0 5px var(--accent-soft); transform: scale(1.1); animation: none; }
   .tl-node.highlight .tl-dot { border-color: var(--accent); }
+  /* --accent-soft already carries a low, theme-derived alpha (see the
+     :root vars up top), which is exactly the "soft ring at low opacity"
+     this calls for — the ring's colour and translucency both just fall
+     out of interpolating box-shadow spread against that one token, no
+     separate opacity handling needed. */
+  @keyframes tl-dot-pulse {
+    0%, 25%, 100% { transform: scale(1); box-shadow: 0 0 0 0 var(--accent-soft); }
+    12.5% { transform: scale(1.3); box-shadow: 0 0 0 8px var(--accent-soft); }
+  }
 
   .tl-node-index { font-family: var(--font-serif); font-size: 11px; color: var(--text-faint); }
   .tl-node-label {
@@ -345,10 +394,20 @@
   .tl-node.active .tl-node-label { color: var(--accent); }
   .tl-node-stat { font-size: 11px; color: var(--text-faint); text-align: center; }
 
-  .tl-node-detail { display: none; width: 100%; max-width: 360px; padding: 2px; }
+  /* Ambient float — a slow, gentle sine bob. animation-delay is set per
+     card in JS from its node's DOM position, so cards never share the
+     same point in the cycle. Since the card is display:none until its
+     node is active, each reveal restarts the animation fresh from 0%
+     (translateY(0)) — display:none boxes don't have running animations —
+     so opening a node never shows the card mid-float/jumping in. */
+  .tl-node-detail { display: none; width: 100%; max-width: 360px; padding: 2px; animation: tl-card-float 5s ease-in-out infinite; }
   .tl-node.side-left .tl-node-detail { grid-column: 1; justify-self: end; }
   .tl-node.side-right .tl-node-detail { grid-column: 3; justify-self: start; }
   .tl-node.active .tl-node-detail { display: block; }
+  @keyframes tl-card-float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-4px); }
+  }
 
   .detail-stat { font-size: 12.5px; color: var(--text-faint); font-weight: 600; margin-bottom: 8px; }
   .detail-heading { font-family: var(--font-serif); font-size: 21px; font-weight: 600; margin: 0 0 6px; line-height: 1.25; }
@@ -360,6 +419,7 @@
   @media (max-width: 760px) {
     #doc { padding: 24px 18px 48px; }
     .tl-track::before { display: none; }
+    .tl-track::after { display: none; }
     .tl-node {
       display: flex;
       flex-direction: column;
@@ -372,6 +432,12 @@
     .tl-node-stat { text-align: left; }
     .tl-node-detail { order: 2; display: none; width: 100%; max-width: none; margin-top: 12px; padding-left: 25px; }
     .tl-node.active .tl-node-detail { display: block; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .tl-track::after { display: none; }
+    .tl-dot { animation: none; }
+    .tl-node-detail { animation: none; }
   }
 
   @media print {
@@ -561,6 +627,22 @@
 
     var tlNodes = Array.prototype.slice.call(document.querySelectorAll('.tl-node'));
     var activeIndex = null;
+
+    // Ambient animation staggering, derived purely from each node's DOM
+    // position (there's no build step here — nodes are just however many
+    // slides got duplicated into the template). Dot pulse uses a positive
+    // delay so the cascade visibly starts from the top node and sweeps
+    // down on load, like the ambient effect it's meant to be. Card float
+    // uses a negative delay instead — since a "reveal cascade" look isn't
+    // the goal there, a negative offset means the very first card shown
+    // is already mid-bob rather than motionless for up to several seconds
+    // waiting for its turn.
+    tlNodes.forEach(function (node, i) {
+      var dot = node.querySelector('.tl-dot');
+      if (dot) dot.style.animationDelay = (i * 0.9) + 's';
+      var detail = node.querySelector('.tl-node-detail');
+      if (detail) detail.style.animationDelay = (-(i * 0.7)) + 's';
+    });
 
     function nodeFor(index) {
       return tlNodes.filter(function (n) { return n.getAttribute('data-index') === index; })[0];
