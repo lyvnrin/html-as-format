@@ -31,8 +31,8 @@
        organic/springy, not smooth. Don't use this for panel/dot fades. */
     --spring-ease: cubic-bezier(.34, 1.56, .64, 1);
     --connector-opacity: 0.35;
-    --connector-dim-opacity: 0.14;
-    --connector-active-opacity: 0.75;
+    --connector-dim-opacity: 0.1;
+    --connector-active-opacity: 0.6;
   }
 
   [data-theme="blue"]   { --accent: #5b8cff; --accent-soft: rgba(91,140,255,0.16); --accent-glow: rgba(91,140,255,0.55); --accent-dark: #3a63d4; }
@@ -53,7 +53,7 @@
     --shadow: 0 8px 28px rgba(20,30,60,0.12);
     --connector-opacity: 0.35;
     --connector-dim-opacity: 0.1;
-    --connector-active-opacity: 0.65;
+    --connector-active-opacity: 0.6;
   }
 
   * { box-sizing: border-box; }
@@ -276,11 +276,20 @@
     transition: opacity .3s ease, stroke .25s ease;
   }
   /* Set when a slide is active — see updateConnectorEmphasis() in the
-     script. Only a connector-line's own opacity moves; bubbles themselves
-     never dim (see SKILL.md's "neighbors clear space but do NOT dim"),
-     so this is the graph's only "focus" signal while one slide is open. */
-  .connector-line.connector-dim { opacity: var(--connector-dim-opacity); }
-  .connector-line.connector-active { opacity: var(--connector-active-opacity); }
+     script. Bubbles themselves never dim (see SKILL.md's "neighbors clear
+     space but do NOT dim"), so this is the graph's only "focus" signal
+     while one slide is open. Applied to .connector-pulse too (not just
+     .connector-line) — otherwise the crawling highlight overlay, which
+     sits on top of the line and is always brighter, would keep showing
+     its own fixed opacity and mask the line's dim/active state entirely.
+     The #connectors prefix isn't for scoping (both classes only ever
+     apply inside it) — it's to out-specificity the body[data-mode="light"]
+     .connector-pulse opacity override below, which would otherwise win
+     in light mode since it has one more selector segment. */
+  #connectors .connector-line.connector-dim,
+  #connectors .connector-pulse.connector-dim { opacity: var(--connector-dim-opacity); }
+  #connectors .connector-line.connector-active,
+  #connectors .connector-pulse.connector-active { opacity: var(--connector-active-opacity); }
 
   /* Idle ambient pulse — a short bright dash "travels" the length of each
      line on a loop (stroke-dasharray sized in JS so only one dash is ever
@@ -395,8 +404,9 @@
   /* Level 1 — slide bubbles, the main unit of the map (one per slide, not
      per theme — see SKILL.md). Packed edge-to-edge by the force-relaxation
      packer in the script, never orbiting a ring around a parent, so there
-     are no big empty gaps between clusters. Every bubble is the same flat
-     --accent fill at rest, no border, showing its (truncated) heading —
+     are no big empty gaps between clusters. Every bubble gets the same
+     --accent-dark lit-sphere gradient at rest (see .slide-bubble below),
+     no border, showing its (truncated) heading —
      sized relative to the bubble's own diameter, but only down to a point:
      updateLabelSizing() in the script hides the label entirely once its
      RENDERED (post-zoom) diameter drops below LABEL_HIDE_BELOW_D rather
@@ -404,7 +414,15 @@
      click away in the expand panel regardless. */
   .slide-bubble {
     z-index: 1;
-    background: var(--accent);
+    /* Dimensional-lit sphere instead of a flat disc: an off-centre highlight
+       (38%/32%, i.e. upper-left, simulating a light source) fading through
+       --accent-dark to a darkened edge. 65% 65% on a square box (width ==
+       height, per --d) is the CSS-ellipse equivalent of an SVG objectBoundingBox
+       radialGradient's r="65%" on a circle — same physical radius, no distortion. */
+    background: radial-gradient(65% 65% at 38% 32%,
+      color-mix(in srgb, var(--accent-dark) 30%, white 70%) 0%,
+      var(--accent-dark) 55%,
+      color-mix(in srgb, var(--accent-dark) 70%, black 30%) 100%);
     border: none;
     flex-direction: column;
     gap: 4px;
@@ -418,9 +436,10 @@
                 width .4s var(--ease), height .4s var(--ease),
                 background .3s ease, opacity .3s ease, box-shadow .3s ease;
   }
-  /* Fixed light text, not var(--text) — the resting fill is always
-     var(--accent) at full strength regardless of light/dark page mode, so
-     the label needs to stay light in both modes, not flip with the page.
+  /* Fixed light text, not var(--text) — the resting fill is always a dark,
+     saturated gradient (built off --accent-dark) regardless of light/dark
+     page mode, so the label needs to stay light in both modes, not flip
+     with the page.
      Hidden once active (see .slide-bubble.active .slide-label below) —
      the active state shows .active-heading/.active-body instead, sized
      for the bubble's grown diameter rather than its resting one.
@@ -483,7 +502,16 @@
      landed. */
   .image-dot {
     z-index: 46;
-    background: color-mix(in srgb, var(--accent) 42%, white 58%);
+    /* Same lit-sphere treatment as .slide-bubble, one shade lighter overall
+       (--accent, not --accent-dark) so children read as softer than their
+       parent. --accent-soft isn't used here despite the name similarity —
+       it's a low-alpha rgba in this codebase (meant for translucent tint
+       backgrounds), so mixing it at high weight would leave children
+       looking washed-out/see-through instead of solid and lit. */
+    background: radial-gradient(65% 65% at 38% 32%,
+      color-mix(in srgb, var(--accent) 30%, white 70%) 0%,
+      var(--accent) 55%,
+      color-mix(in srgb, var(--accent) 70%, black 30%) 100%);
     border: 2px solid var(--surface-solid);
     overflow: hidden;
     transition: transform .4s var(--ease), box-shadow .3s ease, opacity .3s ease;
@@ -942,19 +970,24 @@
 
     // Marks which connectors touch the newly active slide (see
     // .connector-active/.connector-dim in the CSS) — called once a slide
-    // finishes expanding. Only ever touches connector-line, never the
-    // bubbles themselves (see the CSS comment on .connector-dim for why).
+    // finishes expanding. Touches both lineEl and pulseEl (never the
+    // bubbles themselves — see the CSS comment on .connector-dim for why):
+    // the pulse overlay needs the same class so its opacity converges with
+    // the line's instead of staying fixed and masking the dim/active state.
     function updateConnectorEmphasis(activeSlide) {
       connectors.forEach(function (c) {
         var touches = c.a === activeSlide || c.b === activeSlide;
         c.lineEl.classList.toggle('connector-active', touches);
         c.lineEl.classList.toggle('connector-dim', !touches);
+        c.pulseEl.classList.toggle('connector-active', touches);
+        c.pulseEl.classList.toggle('connector-dim', !touches);
       });
     }
 
     function clearConnectorEmphasis() {
       connectors.forEach(function (c) {
         c.lineEl.classList.remove('connector-active', 'connector-dim');
+        c.pulseEl.classList.remove('connector-active', 'connector-dim');
       });
     }
 
