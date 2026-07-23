@@ -315,6 +315,9 @@
     top: var(--cy);
     width: var(--d);
     height: var(--d);
+    /* Static fallback for when the breathing animation below is disabled
+       (prefers-reduced-motion, or .is-panning) — keeps the bubble centred
+       on its --cx/--cy anchor even with no animation running. */
     transform: translate(-50%, -50%);
     border-radius: 50%;
     display: flex;
@@ -325,7 +328,70 @@
     user-select: none;
     transition: width .4s var(--ease), height .4s var(--ease), border-radius .4s var(--ease),
                 opacity .3s ease, box-shadow .3s ease, background .2s ease;
+    /* Ambient "breathing" — every bubble (parent slide bubbles AND image-dot
+       children, both share this class) very slowly scales 1.0 -> 1.03 and
+       back on a sine-like wave. A CSS `animation`, not a JS rAF loop driving
+       inline transforms: animations take priority over transitions on the
+       same property while running (per spec), so this coexists with
+       .image-dot's own `transition: transform ...` without a conflict, and
+       it's GPU-composited for free instead of triggering a style write on
+       every bubble every frame. Each bubble's animation-delay (see
+       layoutBubbles()/selectSlide() in the script) is a negative offset
+       derived from its index, which is what staggers the phase — the
+       animation itself is identical for every bubble. */
+    animation: bubble-breathe 3.6s ease-in-out infinite;
   }
+  @keyframes bubble-breathe {
+    0%, 100% { transform: translate(-50%, -50%) scale(1); }
+    50% { transform: translate(-50%, -50%) scale(1.03); }
+  }
+  /* Set on <body> for the duration of a canvas pan-drag (see enableDragPan
+     in the script) — the only "drag" interaction this renderer has, since
+     individual bubbles aren't draggable. Pausing (not stopping) means it
+     resumes from wherever it was rather than jumping. */
+  body.is-panning .bubble { animation-play-state: paused; }
+  @media (prefers-reduced-motion: reduce) {
+    .bubble { animation: none; }
+    .idle-halo { display: none; }
+  }
+
+  /* Idle spotlight — a single reusable halo (see startIdleCycle() in the
+     script), repositioned/resized to whichever parent slide bubble's turn
+     it is via the same --cx/--cy/--d custom properties setGeometry() uses
+     for bubbles, just sized ~20px of radius larger. z-index 0, same layer
+     as #connectors, so it always sits behind every bubble (z-index 1+) —
+     never drawn on top of a bubble's own text/image. Only ever positioned
+     onto a parent (.slide-bubble); child image-dots never get one.
+
+     The gradient stops matter more than they look like they should: the
+     bubble sitting on top of this element (same centre, ~13-27% smaller
+     radius depending on bubble size) covers roughly the inner 73-87% of
+     THIS element's own radius — only the outer sliver beyond the bubble's
+     own edge is ever actually visible, the rest is hidden behind the
+     opaque bubble regardless of what's drawn there. A gradient that fades
+     to transparent by 70% (i.e. peaks in the center, which sounds like
+     the obvious way to draw a "glow") puts ALL of its colour inside that
+     always-covered inner region — the halo would exist in the DOM and be
+     fully opaque per computed style, and still be completely invisible
+     on screen. Peaking at 88% and fading out again by 100% instead keeps
+     the colour in that outer sliver, regardless of which bubble it's
+     currently sized to, so the ring is actually visible peeking out from
+     behind every bubble it lights up. */
+  .idle-halo {
+    position: absolute;
+    left: var(--cx);
+    top: var(--cy);
+    width: var(--d);
+    height: var(--d);
+    transform: translate(-50%, -50%);
+    border-radius: 50%;
+    z-index: 0;
+    pointer-events: none;
+    background: radial-gradient(circle, transparent 55%, var(--accent) 88%, transparent 100%);
+    opacity: 0;
+    transition: opacity .6s ease;
+  }
+  .idle-halo.visible { opacity: .25; }
   /* Level 1 — slide bubbles, the main unit of the map (one per slide, not
      per theme — see SKILL.md). Packed edge-to-edge by the force-relaxation
      packer in the script, never orbiting a ring around a parent, so there
@@ -945,6 +1011,110 @@
       });
     }
 
+    // ---- Ambient animations (bubble breathing + idle spotlight) --------------
+    // Both are purely decorative — neither reads nor writes any layout,
+    // packing, or interaction state (allSlideEls entries are only read
+    // here, never mutated). See BUBBLE_BREATHE_PERIOD_MS for the breathing
+    // wave itself (CSS-driven, see @keyframes bubble-breathe); everything
+    // below is the idle spotlight, which is JS-driven since it has to walk
+    // between different bubbles over time rather than repeat one fixed
+    // motion in place.
+    var prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    // Matches the `3.6s` in .bubble's `animation` shorthand (CSS) — used
+    // only to derive each bubble's phase offset here in JS, not to drive
+    // the animation itself (that's the browser's job once animation-delay
+    // is set once at creation).
+    var BUBBLE_BREATHE_PERIOD_S = 3.6;
+    // Golden-angle stepping (in the same units as the CSS animation-delay,
+    // i.e. seconds within one period) — an irrational fraction of the
+    // period, so no two bubbles' phases collide or fall into a small
+    // repeating pattern the way a simple index/N spacing could for
+    // specific bubble counts. Deterministic (pure function of index), not
+    // random — see seededRandom()'s own header comment for why this
+    // template never uses Math.random().
+    var BREATHE_PHASE_STEP_S = BUBBLE_BREATHE_PERIOD_S * 0.6180339887;
+
+    function breathePhaseSeconds(index) {
+      return (index * BREATHE_PHASE_STEP_S) % BUBBLE_BREATHE_PERIOD_S;
+    }
+
+    // A negative animation-delay starts the animation that many seconds
+    // into its cycle immediately, rather than waiting — this is what
+    // actually staggers the phase; every bubble otherwise runs the exact
+    // same `bubble-breathe` animation (see CSS).
+    function applyBreathePhase(node, index) {
+      if (prefersReducedMotion) return;
+      node.style.animationDelay = (-breathePhaseSeconds(index)).toFixed(3) + 's';
+    }
+
+    var IDLE_TIMEOUT_MS = 4000;
+    var HALO_FADE_MS = 600;
+    var HALO_HOLD_MS = 800;
+    var idleTimer = null;
+    var haloCycleTimer = null;
+    var haloIndex = -1;
+    var haloEl = null;
+
+    // Removes the halo instantly, with no fade — used when a real user
+    // interaction interrupts the idle cycle (see resetIdleTimer below),
+    // since "the halo disappears immediately" on interaction is a
+    // different, faster motion than its normal cycle-to-cycle fade-out.
+    // Briefly zeroing the transition and forcing a reflow (offsetWidth) is
+    // what makes the opacity change apply instantly instead of picking up
+    // .idle-halo's own `transition: opacity .6s ease`.
+    function clearHalo() {
+      clearTimeout(haloCycleTimer);
+      haloCycleTimer = null;
+      if (!haloEl) return;
+      haloEl.style.transition = 'none';
+      haloEl.classList.remove('visible');
+      void haloEl.offsetWidth;
+      haloEl.style.transition = '';
+    }
+
+    // One step of the idle cycle: light up the next parent bubble (never a
+    // child — only allSlideEls entries are ever used here, image-dots live
+    // elsewhere), hold, fade out, then schedule the next step. Cycle order
+    // is arbitrary (see SKILL.md-style acceptance criteria for this
+    // feature) — walking allSlideEls in order is simplest and still reads
+    // as "cycling through them" since that order is itself unrelated to
+    // on-screen position.
+    function stepHalo() {
+      if (!haloEl || allSlideEls.length === 0) return;
+      haloIndex = (haloIndex + 1) % allSlideEls.length;
+      var entry = allSlideEls[haloIndex];
+      setGeometry(haloEl, entry.baseX, entry.baseY, entry.d + 40);
+      requestAnimationFrame(function () {
+        if (haloEl) haloEl.classList.add('visible');
+      });
+      haloCycleTimer = setTimeout(function () {
+        if (haloEl) haloEl.classList.remove('visible');
+        haloCycleTimer = setTimeout(stepHalo, HALO_FADE_MS);
+      }, HALO_FADE_MS + HALO_HOLD_MS);
+    }
+
+    function startIdleCycle() {
+      if (prefersReducedMotion) return;
+      stepHalo();
+    }
+
+    // Called on every tracked interaction AND once at load to arm the
+    // first countdown. Clearing the halo here (not just the countdown) is
+    // what makes "disappears immediately" true even if the interaction
+    // lands mid-cycle rather than during the 4s wait.
+    function resetIdleTimer() {
+      clearTimeout(idleTimer);
+      clearHalo();
+      if (prefersReducedMotion) return;
+      idleTimer = setTimeout(startIdleCycle, IDLE_TIMEOUT_MS);
+    }
+
+    if (!prefersReducedMotion) {
+      ['mousedown', 'pointermove', 'wheel', 'keydown'].forEach(function (evt) {
+        document.addEventListener(evt, resetIdleTimer, { passive: true });
+      });
+    }
+
     // Set by layoutBubbles() once the map's real size is known. mapEl/
     // wrapEl/mapCanvasW/mapCanvasH describe the canvas at its natural,
     // unscaled size (the size ACTIVE_MIN_D/MAX_D etc. were actually tuned
@@ -1282,6 +1452,11 @@
           var cd = child.r * 2;
           var dotEl = el('div', 'bubble image-dot');
           setGeometry(dotEl, child.x, child.y, cd);
+          // Shares its parent's exact phase (see applyBreathePhase()) rather
+          // than computing its own — "child bubbles breathe at the same
+          // rate ... can share the same phase" (no requirement they vary
+          // independently, unlike parents).
+          dotEl.style.animationDelay = slide.bubbleEl.style.animationDelay;
           dotEl.innerHTML = '<img src="' + child.image.src + '" alt="">';
           childCluster.appendChild(dotEl);
 
@@ -1442,6 +1617,16 @@
       svgConnectorsEl.setAttribute('height', canvasH);
       canvas.appendChild(svgConnectorsEl);
 
+      // Single reusable idle-spotlight halo (see stepHalo()) — repositioned
+      // onto whichever parent bubble's turn it is rather than one element
+      // per bubble, since only one is ever lit at a time. z-index 0 (see
+      // CSS), so DOM position relative to bubbles doesn't matter, but it's
+      // appended here alongside the other canvas-level decoration layer for
+      // the same reason #connectors is.
+      haloEl = document.createElement('div');
+      haloEl.className = 'idle-halo';
+      canvas.appendChild(haloEl);
+
       var themeGroups = themes.map(function () { return []; });
 
       items.forEach(function (item, slideIdx) {
@@ -1460,6 +1645,7 @@
         var bubbleEl = el('div', 'bubble slide-bubble');
         bubbleEl.title = slideData.heading || '';
         setGeometry(bubbleEl, item.x, item.y, d);
+        applyBreathePhase(bubbleEl, slideIdx);
         bubbleEl.innerHTML = '<div class="slide-label">' + escapeHtml(shortLabel) + '</div>';
         canvas.appendChild(bubbleEl);
 
@@ -1520,6 +1706,7 @@
 
     var raw = document.getElementById('bubble-data').textContent;
     layoutBubbles(JSON.parse(raw));
+    resetIdleTimer();
 
     document.getElementById('canvas-wrap').addEventListener('click', function (e) {
       if (e.target.id === 'canvas-wrap' || e.target.id === 'canvas') {
@@ -1567,6 +1754,7 @@
           wrap.classList.add('dragging');
           connectorsPausedByDrag = true;
           refreshConnectorsPaused();
+          document.body.classList.add('is-panning');
         }
         if (dragging) {
           e.preventDefault();
@@ -1585,6 +1773,7 @@
         if (dragging) setTimeout(function () { dragging = false; }, 0);
         connectorsPausedByDrag = false;
         refreshConnectorsPaused();
+        document.body.classList.remove('is-panning');
       });
 
       // Registered on `document`, not `wrap` — a capture-phase listener on
