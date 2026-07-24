@@ -416,6 +416,36 @@
   .detail-bullets { margin: 0; padding-left: 18px; }
   .detail-bullets li { font-size: 15px; line-height: 1.55; color: var(--text); margin-bottom: 6px; }
 
+  /* Simple fade-up affordance, bottom-right (the one corner none of the
+     other fixed chrome occupies) — hidden below a scroll threshold set in
+     JS rather than always shown, since it's meaningless at the top of the
+     page. Opacity/transform, not display:none, so it can transition
+     in/out instead of popping. */
+  .tl-back-to-top {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    z-index: 90;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    border: 1px solid var(--border);
+    background: var(--surface-solid);
+    color: var(--text);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    box-shadow: var(--shadow);
+    opacity: 0;
+    pointer-events: none;
+    transform: translateY(8px);
+    transition: opacity .25s ease, transform .25s ease, border-color .15s ease;
+  }
+  .tl-back-to-top.visible { opacity: 1; pointer-events: auto; transform: translateY(0); }
+  .tl-back-to-top:hover { border-color: var(--accent); }
+  .tl-back-to-top svg { width: 18px; height: 18px; }
+
   @media (max-width: 760px) {
     #doc { padding: 24px 18px 48px; }
     .tl-track::before { display: none; }
@@ -442,6 +472,7 @@
 
   @media print {
     .settings-toggle, .settings-panel, .help-toggle, .help-tooltip { display: none; }
+    .tl-back-to-top { display: none; }
     .tl-node-detail { display: block !important; }
   }
 </style>
@@ -493,6 +524,13 @@
     </button>
     <button class="tool-btn primary" id="pdf-btn">⬇ Download PDF</button>
   </div>
+
+  <button class="tl-back-to-top" id="tl-back-to-top" aria-label="Back to top">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <line x1="12" y1="19" x2="12" y2="5"></line>
+      <polyline points="5 12 12 5 19 12"></polyline>
+    </svg>
+  </button>
 
   <div id="doc">
 
@@ -673,6 +711,14 @@
       var trigger = function () { selectNode(node.getAttribute('data-index')); };
       dot.addEventListener('click', trigger);
       label.addEventListener('click', trigger);
+    });
+
+    var backToTop = document.getElementById('tl-back-to-top');
+    window.addEventListener('scroll', function () {
+      backToTop.classList.toggle('visible', window.scrollY > 400);
+    });
+    backToTop.addEventListener('click', function () {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     });
   })();
 </script>
