@@ -62,7 +62,7 @@ function stripImageData(slides) {
   }))
 }
 
-async function extractToJson(fileContent) {
+async function extractToJson(fileContent, { signal } = {}) {
   const sourceText = Array.isArray(fileContent)
     ? JSON.stringify(stripImageData(fileContent), null, 2)
     : fileContent
@@ -79,17 +79,20 @@ ${sourceText}
 
 Follow the extraction-only mode (Step 2b) instructions above. Output ONLY the JSON object described by the schema — no markdown code fences, no commentary, no surrounding text.`
 
-  const response = await anthropic.messages.create({
-    model: MODEL,
-    max_tokens: 16000,
-    messages: [{ role: 'user', content: prompt }],
-  })
+  const response = await anthropic.messages.create(
+    {
+      model: MODEL,
+      max_tokens: 16000,
+      messages: [{ role: 'user', content: prompt }],
+    },
+    { signal },
+  )
 
   const text = response.content.map((block) => block.text || '').join('')
   return JSON.parse(stripCodeFence(text))
 }
 
-async function renderTimeline(extractedJson) {
+async function renderTimeline(extractedJson, { signal } = {}) {
   const prompt = `${TIMELINE_SKILL}
 
 ---
@@ -108,11 +111,14 @@ ${JSON.stringify(extractedJson, null, 2)}
 
 Follow the SKILL.md instructions above to fill the template with this content. Output ONLY the complete, final HTML document — no markdown code fences, no commentary, no surrounding text.`
 
-  const response = await anthropic.messages.create({
-    model: MODEL,
-    max_tokens: 16000,
-    messages: [{ role: 'user', content: prompt }],
-  })
+  const response = await anthropic.messages.create(
+    {
+      model: MODEL,
+      max_tokens: 16000,
+      messages: [{ role: 'user', content: prompt }],
+    },
+    { signal },
+  )
 
   const text = response.content.map((block) => block.text || '').join('')
   return stripCodeFence(text)
@@ -143,7 +149,7 @@ function embedGalleryImages(html, slides) {
   }, html)
 }
 
-async function renderGallery(slides) {
+async function renderGallery(slides, { signal } = {}) {
   const promptSlides = buildGalleryPromptSlides(slides)
 
   const prompt = `${GALLERY_SKILL}
@@ -164,11 +170,14 @@ ${JSON.stringify(promptSlides, null, 2)}
 
 Follow the SKILL.md instructions above to fill the template with this content. Output ONLY the complete, final HTML document — no markdown code fences, no commentary, no surrounding text.`
 
-  const response = await anthropic.messages.create({
-    model: MODEL,
-    max_tokens: 16000,
-    messages: [{ role: 'user', content: prompt }],
-  })
+  const response = await anthropic.messages.create(
+    {
+      model: MODEL,
+      max_tokens: 16000,
+      messages: [{ role: 'user', content: prompt }],
+    },
+    { signal },
+  )
 
   const text = response.content.map((block) => block.text || '').join('')
   return embedGalleryImages(stripCodeFence(text), slides)
@@ -200,7 +209,7 @@ function embedBubbleImages(html, slides) {
   }, html)
 }
 
-async function renderBubble(slides) {
+async function renderBubble(slides, { signal } = {}) {
   const promptSlides = buildBubblePromptSlides(slides)
 
   const prompt = `${BUBBLE_SKILL}
@@ -221,14 +230,25 @@ ${JSON.stringify(promptSlides, null, 2)}
 
 Follow the SKILL.md instructions above: identify themes for these slides (Step 2), then fill the template's {{BUBBLE_TITLE}}, {{BUBBLE_SUBTITLE}}, {{AUTHOR}}, and {{BUBBLE_DATA}} placeholders (Step 5). Output ONLY the complete, final HTML document — no markdown code fences, no commentary, no surrounding text.`
 
-  const response = await anthropic.messages.create({
-    model: MODEL,
-    max_tokens: 32000,
-    messages: [{ role: 'user', content: prompt }],
-  })
+  const response = await anthropic.messages.create(
+    {
+      model: MODEL,
+      max_tokens: 32000,
+      messages: [{ role: 'user', content: prompt }],
+    },
+    { signal },
+  )
 
   const text = response.content.map((block) => block.text || '').join('')
   return embedBubbleImages(stripCodeFence(text), slides)
+}
+
+function abortSignalForRequest(req, res) {
+  const controller = new AbortController()
+  req.on('close', () => {
+    if (!res.writableEnded) controller.abort()
+  })
+  return controller.signal
 }
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 25 * 1024 * 1024 } })
@@ -248,15 +268,18 @@ app.post('/api/generate', upload.single('file'), async (req, res) => {
     return res.status(400).json({ error: `Unsupported format: ${format}` })
   }
 
+  const signal = abortSignalForRequest(req, res)
+
   try {
     const fileContent = await parseFile(file.buffer, file.originalname)
     const captionedContent = Array.isArray(fileContent)
-      ? await captionImages(fileContent)
+      ? await captionImages(fileContent, { signal })
       : fileContent
-    const extractedJson = await extractToJson(captionedContent)
-    const html = await renderTimeline(extractedJson)
+    const extractedJson = await extractToJson(captionedContent, { signal })
+    const html = await renderTimeline(extractedJson, { signal })
     res.json({ html })
   } catch (err) {
+    if (signal.aborted) return
     console.error('Generation failed:', err)
     res.status(500).json({ error: err.message || 'Generation failed.' })
   }
@@ -269,14 +292,17 @@ app.post('/api/render-gallery', upload.single('file'), async (req, res) => {
     return res.status(400).json({ error: 'file is required.' })
   }
 
+  const signal = abortSignalForRequest(req, res)
+
   try {
     const fileContent = await parseFile(file.buffer, file.originalname)
     const captionedContent = Array.isArray(fileContent)
-      ? await captionImages(fileContent)
+      ? await captionImages(fileContent, { signal })
       : fileContent
-    const html = await renderGallery(captionedContent)
+    const html = await renderGallery(captionedContent, { signal })
     res.json({ html })
   } catch (err) {
+    if (signal.aborted) return
     console.error('Gallery render failed:', err)
     res.status(500).json({ error: err.message || 'Gallery render failed.' })
   }
@@ -289,14 +315,17 @@ app.post('/api/render-bubble', upload.single('file'), async (req, res) => {
     return res.status(400).json({ error: 'file is required.' })
   }
 
+  const signal = abortSignalForRequest(req, res)
+
   try {
     const fileContent = await parseFile(file.buffer, file.originalname)
     const captionedContent = Array.isArray(fileContent)
-      ? await captionImages(fileContent)
+      ? await captionImages(fileContent, { signal })
       : fileContent
-    const html = await renderBubble(captionedContent)
+    const html = await renderBubble(captionedContent, { signal })
     res.json({ html })
   } catch (err) {
+    if (signal.aborted) return
     console.error('Bubble render failed:', err)
     res.status(500).json({ error: err.message || 'Bubble render failed.' })
   }

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import DropZone from './components/DropZone'
 import FormatPicker from './components/FormatPicker'
 import styles from './App.module.css'
@@ -20,12 +20,23 @@ export default function App() {
   const [selectedFormat, setSelectedFormat] = useState(null)
   const [isGenerating, setIsGenerating] = useState(false)
   const [error, setError] = useState(null)
+  const abortControllerRef = useRef(null)
 
   const canGenerate = Boolean(file) && Boolean(selectedFormat) && !isGenerating
+
+  useEffect(() => {
+    function abortInFlightRequest() {
+      abortControllerRef.current?.abort()
+    }
+    window.addEventListener('pagehide', abortInFlightRequest)
+    return () => window.removeEventListener('pagehide', abortInFlightRequest)
+  }, [])
 
   async function handleGenerate() {
     setError(null)
     setIsGenerating(true)
+    const controller = new AbortController()
+    abortControllerRef.current = controller
     try {
       const formData = new FormData()
       formData.append('file', file)
@@ -39,6 +50,7 @@ export default function App() {
       const response = await fetch(endpoint, {
         method: 'POST',
         body: formData,
+        signal: controller.signal,
       })
 
       if (!response.ok) {
@@ -49,10 +61,17 @@ export default function App() {
       const { html } = await response.json()
       downloadHtml(html, `${selectedFormat}.html`)
     } catch (err) {
-      setError(err.message || 'Something went wrong.')
+      if (err.name !== 'AbortError') {
+        setError(err.message || 'Something went wrong.')
+      }
     } finally {
+      abortControllerRef.current = null
       setIsGenerating(false)
     }
+  }
+
+  function handleCancel() {
+    abortControllerRef.current?.abort()
   }
 
   return (
@@ -81,6 +100,11 @@ export default function App() {
         >
           {isGenerating ? 'Generating…' : 'Generate page'}
         </button>
+        {isGenerating && (
+          <button type="button" className={styles.cancelButton} onClick={handleCancel}>
+            Cancel
+          </button>
+        )}
       </div>
     </div>
   )

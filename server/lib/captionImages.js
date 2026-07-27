@@ -15,28 +15,31 @@ function getClient() {
   return client
 }
 
-async function captionImage(image) {
+async function captionImage(image, signal) {
   const anthropic = getClient()
-  const response = await anthropic.messages.create({
-    model: MODEL,
-    max_tokens: 200,
-    messages: [
-      {
-        role: 'user',
-        content: [
-          {
-            type: 'image',
-            source: {
-              type: 'base64',
-              media_type: image.mime_type,
-              data: image.base64,
+  const response = await anthropic.messages.create(
+    {
+      model: MODEL,
+      max_tokens: 200,
+      messages: [
+        {
+          role: 'user',
+          content: [
+            {
+              type: 'image',
+              source: {
+                type: 'base64',
+                media_type: image.mime_type,
+                data: image.base64,
+              },
             },
-          },
-          { type: 'text', text: CAPTION_PROMPT },
-        ],
-      },
-    ],
-  })
+            { type: 'text', text: CAPTION_PROMPT },
+          ],
+        },
+      ],
+    },
+    { signal },
+  )
 
   return response.content
     .map((block) => block.text || '')
@@ -44,14 +47,16 @@ async function captionImage(image) {
     .trim()
 }
 
-export async function captionImages(slides) {
+export async function captionImages(slides, { signal } = {}) {
   for (const slide of slides) {
     for (const image of slide.images) {
+      if (signal?.aborted) return slides
       if (!image.base64) continue
 
       try {
-        image.caption = await captionImage(image)
+        image.caption = await captionImage(image, signal)
       } catch (err) {
+        if (signal?.aborted) return slides
         console.warn(`Caption generation failed for slide ${slide.slide}:`, err.message)
         image.caption = ''
       }
