@@ -6,9 +6,9 @@ Turn a PowerPoint, PDF, or transcript into a polished, interactive HTML page. Dr
 
 The pipeline has two layers, kept deliberately separate so renderers stay reusable:
 
-1. **Extraction:** `parseFile.js` cracks open the uploaded file (JSZip for `.pptx`, `pdf-parse` for PDFs, plain read for `.txt`) and returns structured per-slide JSON: heading, body paragraphs, and embedded images as base64 blobs.
-2. **Captioning:** `captionImages.js` sends each extracted image to Claude's vision model, which returns a business-context caption describing what the image actually shows (not just "a bar chart" but what the bars represent).
-3. **Rendering:** the enriched slide array is handed to a renderer skill. Each skill is a `SKILL.md` instruction set paired with an HTML template containing `{{PLACEHOLDER}}` blocks. The server reads both files, sends them to Claude along with the slide data, and Claude fills the template. The result is a single self-contained HTML file.
+1. **Extraction** — `parseFile.js` cracks open the uploaded file (JSZip for `.pptx`, `pdf-parse` for PDFs, plain read for `.txt`) and returns structured per-slide JSON: heading, body paragraphs, and embedded images as base64 blobs.
+2. **Captioning** — `captionImages.js` sends each extracted image to Claude's vision model, which returns a business-context caption describing what the image actually shows (not just "a bar chart" but what the bars represent).
+3. **Rendering** — the enriched slide array is handed to a renderer skill. Each skill is a `SKILL.md` instruction set paired with an HTML template containing `{{PLACEHOLDER}}` blocks. The server reads both files, sends them to Claude along with the slide data, and Claude fills the template. The result is a single self-contained HTML file.
 
 This is a skills-based architecture rather than a hand-coded generator — the rendering logic lives in natural language instructions that Claude follows, not in procedural code that builds HTML strings. Adding a new output format means writing a new skill and template, not a new code path.
 
@@ -16,8 +16,8 @@ This is a skills-based architecture rather than a hand-coded generator — the r
 
 Three renderers are active:
 
-- **Timeline:** interactive horizontal timeline, one node per slide, alternating left/right with expandable detail panels. Best for sequential decks where slide order carries meaning. Uses the `transcript-to-html` extraction schema (text-only, no images).
-- **Gallery:** Pinterest-style masonry grid of image cards and solid accent tiles. Click a card to open a detail overlay with the full slide content. Best for image-heavy decks. Consumes the raw enriched slide array directly because it needs real embedded images.
+- **Timeline:** interactive vertical timeline, one node per slide, alternating left/right with expandable detail panels. Best for sequential decks where slide order carries meaning. Uses the `transcript-to-html` extraction schema (text-only, no images).
+- **Magazine:** Pinterest-style masonry grid of image cards and solid accent tiles. Click a card to open a detail overlay with the full slide content. Best for image-heavy decks. Consumes the raw enriched slide array directly because it needs real embedded images.
 - **Bubble Map:** organically clustered bubble map where every slide is a parent bubble sized by content weight. Click to expand child bubbles (one per body paragraph, one per image). Best for exploring themes and relationships non-linearly. Also consumes the raw enriched slide array.
 
 All renderers share the same interactive chrome: a 5-colour theme picker (blue default), dark/light mode toggle, and a working PDF export button.
@@ -36,7 +36,7 @@ server/              Express API — file parsing, image captioning, Claude orch
 skills/              rendering logic — each skill is a SKILL.md + HTML template
   transcript-to-html/   extraction skill — source content → structured JSON schema
   render-timeline/       timeline renderer
-  render-magazine/       gallery renderer
+  render-magazine/       magazine renderer
   render-bubble/         bubble map renderer
 ```
 

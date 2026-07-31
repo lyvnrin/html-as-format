@@ -4,9 +4,9 @@
 
 The project uses a two-layer architecture that separates extraction from rendering. This was a deliberate move away from a single monolithic skill that would parse and render in one pass.
 
-**Layer 1 — Extraction.** Parses the source document (PPT, PDF, transcript) once and outputs a clean, structured intermediate format: slide headings, body content per section, key points, metadata, and embedded images as base64 blobs. This layer is format-agnostic — it doesn't know or care which renderer will consume the output.
+**Layer 1: Extraction.** Parses the source document (PPT, PDF, transcript) once and outputs a clean, structured intermediate format: slide headings, body content per section, key points, metadata, and embedded images as base64 blobs. This layer is format-agnostic — it doesn't know or care which renderer will consume the output.
 
-**Layer 2 — Render skills.** Each renderer takes the extracted output and produces a self-contained HTML page. If a consultant dislikes the view, the frontend passes the same extracted content to a different renderer without re-parsing the document.
+**Layer 2: Render skills.** Each renderer takes the extracted output and produces a self-contained HTML page. If a consultant dislikes the view, the frontend passes the same extracted content to a different renderer without re-parsing the document.
 
 ### Why skills-based, not hand-coded
 
@@ -19,7 +19,7 @@ This means adding a new output format is writing a new skill and template, not a
 Not all renderers consume the same input shape:
 
 - **Timeline** goes through the `transcript-to-html` extraction skill first, which produces a structured JSON schema (title, slides with headings/body/bullets, key moments, themes). This schema is text-only — `image_description` is a prose description, not an actual image. This works because Timeline doesn't display images.
-- **Gallery and Bubble Map** skip the extraction schema and consume the raw enriched slide array directly (`parseFile` → `captionImages` output), because they need the real embedded images as base64 data. The extraction schema's text-only `image_description` field isn't enough for formats that actually render photos.
+- **Magazine and Bubble Map** skip the extraction schema and consume the raw enriched slide array directly (`parseFile` → `captionImages` output), because they need the real embedded images as base64 data. The extraction schema's text-only `image_description` field isn't enough for formats that actually render photos.
 
 ## Frontend flow
 
@@ -47,7 +47,7 @@ Each node's detail panel lives inside its own `.tl-node` element and is shown/hi
 
 The visual language is editorial and restrained: serif type for the title and index labels, a thin solid centre line, accent colour used sparingly for the active dot and label.
 
-### Gallery
+### Magazine
 
 Pinterest-style masonry grid using CSS `column-count` (not CSS grid or flexbox — the varied card heights from differing image aspect ratios and text lengths are what makes it read as a photo board rather than a rigid grid).
 
@@ -71,4 +71,4 @@ Key design constraints, each the result of a specific iteration that was tried a
 
 ## Motion language
 
-All three renderers share a consistent cinematic glass easing for chrome transitions (settings panel, theme switching, mode toggle). Renderer-specific motion is kept distinct per format — the bubble map's spring physics, the timeline's smooth panel reveals, the gallery's overlay fade — but they all feel like they belong to the same family of internal tooling rather than three different products.
+All three renderers share a consistent cinematic glass easing for chrome transitions (settings panel, theme switching, mode toggle). Renderer-specific motion is kept distinct per format — the bubble map's spring physics, the timeline's smooth panel reveals, the magazine's overlay fade — but they all feel like they belong to the same family of internal tooling rather than three different products.
