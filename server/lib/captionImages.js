@@ -1,7 +1,9 @@
 import Anthropic from '@anthropic-ai/sdk'
+import sharp from 'sharp'
 
 const MODEL = 'claude-sonnet-4-6'
 const CAPTION_CONCURRENCY = 5
+const CAPTION_MAX_DIMENSION = 1024
 
 const CAPTION_PROMPT =
   'Write a concise 1-2 sentence factual caption describing what this image shows, ' +
@@ -16,8 +18,31 @@ function getClient() {
   return client
 }
 
+// Only shrinks the copy sent to the captioning model — image.base64 (the
+// original, full-resolution data) is left untouched for the final HTML output.
+async function downscaleForCaption(image) {
+  if (image.mime_type === 'image/svg+xml') return image
+
+  try {
+    const resized = await sharp(Buffer.from(image.base64, 'base64'))
+      .resize({
+        width: CAPTION_MAX_DIMENSION,
+        height: CAPTION_MAX_DIMENSION,
+        fit: 'inside',
+        withoutEnlargement: true,
+      })
+      .jpeg({ quality: 80 })
+      .toBuffer()
+
+    return { base64: resized.toString('base64'), mime_type: 'image/jpeg' }
+  } catch {
+    return image
+  }
+}
+
 async function captionImage(image, signal) {
   const anthropic = getClient()
+  const captionSource = await downscaleForCaption(image)
   const response = await anthropic.messages.create(
     {
       model: MODEL,
@@ -30,8 +55,8 @@ async function captionImage(image, signal) {
               type: 'image',
               source: {
                 type: 'base64',
-                media_type: image.mime_type,
-                data: image.base64,
+                media_type: captionSource.mime_type,
+                data: captionSource.base64,
               },
             },
             { type: 'text', text: CAPTION_PROMPT },
