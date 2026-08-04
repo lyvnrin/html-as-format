@@ -33,22 +33,36 @@ function parseRelationships(relsXml) {
 
 function extractHeadingAndBody(xml) {
   const shapes = xml.match(/<p:sp>[\s\S]*?<\/p:sp>/g) || []
-  let heading = ''
-  const body = []
-
-  for (const shape of shapes) {
-    const paragraphs = (shape.match(/<a:p>[\s\S]*?<\/a:p>/g) || [])
+  const shapeData = shapes.map((shape) => ({
+    paragraphs: (shape.match(/<a:p>[\s\S]*?<\/a:p>/g) || [])
       .map((p) => Array.from(p.matchAll(/<a:t>([^<]*)<\/a:t>/g), (m) => m[1]).join(''))
-      .filter((text) => text.trim().length > 0)
+      .filter((text) => text.trim().length > 0),
+    isTitle: /<p:ph[^>]*\btype="(title|ctrTitle)"/.test(shape),
+  }))
 
-    if (/<p:ph[^>]*\btype="(title|ctrTitle)"/.test(shape)) {
-      heading = paragraphs.join(' ')
-    } else {
-      body.push(...paragraphs)
+  const explicitTitle = shapeData.find((s) => s.isTitle && s.paragraphs.length > 0)
+  if (explicitTitle) {
+    return {
+      heading: explicitTitle.paragraphs.join(' '),
+      body: shapeData.filter((s) => s !== explicitTitle).flatMap((s) => s.paragraphs),
     }
   }
 
-  return { heading, body }
+  // No shape explicitly marked as the title placeholder (common in decks built
+  // by tools that omit the type="title" attribute) — fall back to the first
+  // paragraph of the first non-empty shape, which is the title in the vast
+  // majority of real-world slides.
+  const firstWithText = shapeData.find((s) => s.paragraphs.length > 0)
+  if (!firstWithText) return { heading: '', body: [] }
+
+  const [heading, ...restOfFirstShape] = firstWithText.paragraphs
+  return {
+    heading,
+    body: [
+      ...restOfFirstShape,
+      ...shapeData.filter((s) => s !== firstWithText).flatMap((s) => s.paragraphs),
+    ],
+  }
 }
 
 async function extractImages(xml, zip, slidePath) {

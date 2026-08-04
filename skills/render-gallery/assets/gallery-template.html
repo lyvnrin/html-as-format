@@ -382,8 +382,30 @@
   .panel-content::-webkit-scrollbar { display: block; width: 5px; }
   .panel-content::-webkit-scrollbar-thumb { background: var(--accent-glow); border-radius: 6px; }
   .panel-content h2 { margin: 0 0 18px; font-size: 24px; font-weight: 800; }
+
+  /* Fallback only — current output never emits a <ul class="panel-body-list">
+     (see the content-block styles below), kept in case a future direct
+     template edit needs a plain bullet list. */
   .panel-body-list { margin: 0 0 18px; padding-left: 20px; }
   .panel-body-list li { font-size: 16px; line-height: 1.6; color: var(--text); margin-bottom: 8px; }
+
+  /* Content blocks — the detail panel's body[] is grouped server-side into
+     typed blocks (stat / steps / prose) instead of one uniform bullet list.
+     See galleryBodyBlocksHtml() in server/index.js for the grouping logic. */
+  .block-stat { display: grid; grid-template-columns: 1fr 1fr; gap: 16px 24px; margin: 0 0 18px; }
+  .stat-item { }
+  .stat-value { font-size: 28px; font-weight: 700; color: var(--accent); line-height: 1.2; }
+  .stat-label { font-size: 13px; color: var(--text-faint); margin-top: 2px; }
+
+  .block-steps { margin: 0 0 18px; }
+  .step { display: flex; gap: 12px; align-items: baseline; margin-bottom: 12px; }
+  .step-num { font-size: 12px; font-weight: 700; color: var(--accent); flex-shrink: 0; min-width: 20px; }
+  .step-label { font-weight: 600; margin-right: 6px; white-space: nowrap; }
+  .step-desc { font-size: 15px; color: var(--text); }
+
+  .block-prose { margin: 0 0 18px; }
+  .block-prose p { font-size: 15px; line-height: 1.6; color: var(--text); margin: 0 0 10px; }
+
   .panel-caption {
     font-size: 13px; font-style: italic; color: var(--text-faint);
     border-top: 1px solid var(--border);

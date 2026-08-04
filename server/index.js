@@ -121,16 +121,17 @@ Follow the SKILL.md instructions above to fill the template with this content. O
   return stripCodeFence(text)
 }
 
-function imagePlaceholder(slideNumber) {
-  return `__IMAGE_SLIDE_${slideNumber}__`
+function galleryImagePlaceholder(slideNumber, imageIndex) {
+  return `__IMAGE_SLIDE_${slideNumber}_${imageIndex}__`
 }
 
 function embedGalleryImages(html, slides) {
   return slides.reduce((output, slide) => {
-    const image = slide.images && slide.images[0]
-    if (!image) return output
-    const dataUri = `data:${image.mime_type};base64,${image.base64}`
-    return output.split(imagePlaceholder(slide.slide)).join(dataUri)
+    const images = slide.images || []
+    return images.reduce((out, image, i) => {
+      const dataUri = `data:${image.mime_type};base64,${image.base64}`
+      return out.split(galleryImagePlaceholder(slide.slide, i + 1)).join(dataUri)
+    }, output)
   }, html)
 }
 
@@ -143,23 +144,162 @@ function escapeHtml(str) {
     .replace(/'/g, '&#39;')
 }
 
-function galleryBodyListHtml(body) {
-  if (!body || body.length === 0) return ''
-  const items = body.map((line) => `<li>${escapeHtml(line)}</li>`).join('\n              ')
-  return `<ul class="panel-body-list">\n              ${items}\n            </ul>`
+// --- Body content block detection ---
+// Groups a slide's flat body[] array into typed content blocks (stat / steps
+// / prose) so the detail panel renders each kind of content appropriately,
+// instead of a single uniform bullet list. Detection is deterministic
+// (regex/word-count heuristics), not an LLM call — see SKILL.md for why.
+
+function isStatValue(line) {
+  return /^\$?[\d,.]+[%BbMmKk]?$/.test(line.trim())
 }
 
-function galleryCardHtml(slide) {
-  const heading = escapeHtml(slide.heading || `Slide ${slide.slide}`)
-  const image = slide.images && slide.images[0]
-  const bodyHtml = galleryBodyListHtml(slide.body)
+function isStepLabel(line) {
+  const trimmed = line.trim()
+  if (isStatValue(trimmed)) return false
+  if (trimmed.startsWith('**')) return true
+  const wordCount = trimmed.split(/\s+/).length
+  return wordCount < 6 && !/[.!?]$/.test(trimmed)
+}
 
-  if (image) {
-    const placeholder = imagePlaceholder(slide.slide)
-    const captionHtml = image.caption
-      ? `\n            <p class="panel-caption">${escapeHtml(image.caption)}</p>`
-      : ''
-    return `      <div class="card" data-index="${slide.slide}">
+function stripBold(line) {
+  return line.trim().replace(/^\*\*|\*\*$/g, '')
+}
+
+// A step unit is [label, description]. Rule order below checks steps before
+// stats — spec lists Stat first, but real decks carry a bare step-number
+// entry ("01") ahead of the label ("Discovery"); under strict stat-first
+// order that number gets swallowed as a lone stat instead of a step marker,
+// which breaks the "01 Discovery / 02 Consideration" acceptance case. The
+// leading number (if present) is discarded here since steps are
+// auto-numbered from 01 on render anyway.
+function tryConsumeStep(body, i) {
+  let idx = i
+  if (idx < body.length && /^\d{1,3}$/.test(body[idx].trim())) {
+    idx += 1
+  }
+  if (idx >= body.length || !isStepLabel(body[idx])) return null
+  const label = stripBold(body[idx])
+  idx += 1
+  if (idx >= body.length || isStatValue(body[idx]) || isStepLabel(body[idx])) return null
+  const description = body[idx]
+  idx += 1
+  return { label, description, next: idx }
+}
+
+function tryConsumeStepRun(body, i) {
+  const items = []
+  let idx = i
+  while (idx < body.length) {
+    const step = tryConsumeStep(body, idx)
+    if (!step) break
+    items.push(step)
+    idx = step.next
+  }
+  return items.length > 0 ? { items, next: idx } : null
+}
+
+// One or more [value, label] pairs — the next entry is consumed as the
+// label whenever it doesn't itself match the stat pattern.
+function tryConsumeStatRun(body, i) {
+  const items = []
+  let idx = i
+  while (idx < body.length && isStatValue(body[idx])) {
+    const value = body[idx].trim()
+    idx += 1
+    let label = ''
+    if (idx < body.length && !isStatValue(body[idx])) {
+      label = body[idx]
+      idx += 1
+    }
+    items.push({ value, label })
+  }
+  return items.length > 0 ? { items, next: idx } : null
+}
+
+function groupBodyIntoBlocks(body) {
+  const blocks = []
+  let i = 0
+  while (i < body.length) {
+    const stepRun = tryConsumeStepRun(body, i)
+    if (stepRun) {
+      blocks.push({ type: 'steps', items: stepRun.items })
+      i = stepRun.next
+      continue
+    }
+    const statRun = tryConsumeStatRun(body, i)
+    if (statRun) {
+      blocks.push({ type: 'stats', items: statRun.items })
+      i = statRun.next
+      continue
+    }
+    const last = blocks[blocks.length - 1]
+    if (last && last.type === 'prose') {
+      last.items.push(body[i])
+    } else {
+      blocks.push({ type: 'prose', items: [body[i]] })
+    }
+    i += 1
+  }
+  return blocks
+}
+
+function renderStatBlock(items) {
+  const statItems = items
+    .map(
+      ({ value, label }) => `  <div class="stat-item">
+    <div class="stat-value">${escapeHtml(value)}</div>
+    <div class="stat-label">${escapeHtml(label)}</div>
+  </div>`,
+    )
+    .join('\n')
+  return `<div class="block-stat">\n${statItems}\n</div>`
+}
+
+function renderStepsBlock(items) {
+  const steps = items
+    .map(({ label, description }, i) => {
+      const num = String(i + 1).padStart(2, '0')
+      return `  <div class="step">
+    <span class="step-num">${num}</span>
+    <span class="step-label">${escapeHtml(label)}</span>
+    <span class="step-desc">${escapeHtml(description)}</span>
+  </div>`
+    })
+    .join('\n')
+  return `<div class="block-steps">\n${steps}\n</div>`
+}
+
+function renderProseBlock(items) {
+  const paragraphs = items.map((line) => `  <p>${escapeHtml(line)}</p>`).join('\n')
+  return `<div class="block-prose">\n${paragraphs}\n</div>`
+}
+
+function galleryBodyBlocksHtml(body) {
+  if (!body || body.length === 0) return ''
+  return groupBodyIntoBlocks(body)
+    .map((block) => {
+      if (block.type === 'stats') return renderStatBlock(block.items)
+      if (block.type === 'steps') return renderStepsBlock(block.items)
+      return renderProseBlock(block.items)
+    })
+    .join('\n')
+}
+
+// One card per image. The first image on a slide carries the slide's full
+// content (body bullets + its own VLM caption); additional images on the
+// same slide get a lighter card — same heading, no repeated body text, and
+// the slide's heading used as the caption instead of duplicating content.
+function galleryImageCardHtml(slide, image, imageIndex, isPrimary) {
+  const heading = escapeHtml(slide.heading || `Slide ${slide.slide}`)
+  const placeholder = galleryImagePlaceholder(slide.slide, imageIndex)
+  const bodyHtml = isPrimary ? galleryBodyBlocksHtml(slide.body) : ''
+  const captionText = isPrimary ? image.caption : slide.heading
+  const captionHtml = captionText
+    ? `\n            <p class="panel-caption">${escapeHtml(captionText)}</p>`
+    : ''
+
+  return `      <div class="card" data-index="${slide.slide}-${imageIndex}">
         <div class="card-face">
           <div class="card-image-wrap">
             <img class="card-image" src="${placeholder}" alt="${heading}">
@@ -174,7 +314,11 @@ function galleryCardHtml(slide) {
           </div>
         </div>
       </div>`
-  }
+}
+
+function gallerySolidCardHtml(slide) {
+  const heading = escapeHtml(slide.heading || `Slide ${slide.slide}`)
+  const bodyHtml = galleryBodyBlocksHtml(slide.body)
 
   return `      <div class="card" data-index="${slide.slide}">
         <div class="card-face card-solid">
@@ -190,6 +334,12 @@ function galleryCardHtml(slide) {
       </div>`
 }
 
+function galleryCardsForSlide(slide) {
+  const images = slide.images || []
+  if (images.length === 0) return [gallerySolidCardHtml(slide)]
+  return images.map((image, i) => galleryImageCardHtml(slide, image, i + 1, i === 0))
+}
+
 function titleFromFilename(filename) {
   const base = filename.replace(/\.[^/.]+$/, '')
   return base
@@ -203,8 +353,8 @@ function fillPlaceholder(html, token, value) {
 }
 
 function renderGallery(slides, filename) {
-  const cardsHtml = slides.map(galleryCardHtml).join('\n\n')
-  const title = escapeHtml(titleFromFilename(filename))
+  const cardsHtml = slides.flatMap(galleryCardsForSlide).join('\n\n')
+  const title = escapeHtml(slides[0]?.heading || titleFromFilename(filename))
   const subtitle = `${slides.length} slide${slides.length === 1 ? '' : 's'}`
 
   let html = GALLERY_TEMPLATE
