@@ -18,14 +18,14 @@ Takes the enriched slide array produced by the pptx image pipeline (`parseFile` 
 
 ## Step 2: Build the masonry grid
 
-Use `assets/gallery-template.html`. Copy it to your working directory and fill all `{{PLACEHOLDER}}` blocks.
+**This step is code, not an LLM fill-in-template pass.** `server/index.js` (`galleryCardHtml`, `renderGallery`) builds the `#grid` markup directly from the enriched slide array and stamps it into `assets/gallery-template.html`'s single `{{GALLERY_CARDS}}` token — there is no per-card LLM call. This section documents the visual contract that code implements, so a human editing `galleryCardHtml` or the template knows what rules to preserve.
 
 - One `.card` per slide inside `#grid`, laid out with CSS `column-count` (see template). Don't switch this to CSS grid/flexbox — the varied card heights from differing image aspect ratios and text lengths are what makes it read as a photo board rather than a rigid grid.
-- **Image card** (slide has an image), Pinterest-style: a plain image (no text overlaid on top of it) with a short bold title strip directly below it, in the card's own background — this is the `heading`, not the VLM-generated `caption`. The `caption` is descriptive and often runs long; it does not belong on the compact card, only in the detail panel (Step 3). Use the `CARD BLOCK: IMAGE VARIANT` comment block as the template.
-- **Solid card** (no image): a full-bleed tile in `var(--accent)` with the heading centred in bold white text. Use the `CARD BLOCK: SOLID VARIANT` comment block.
-- Each `.card` also carries a hidden `.card-detail` block with the full content for that slide (used by the detail panel — see Step 3). Don't skip filling this even though it's hidden.
+- **Image card** (slide has an image), Pinterest-style: a plain image (no text overlaid on top of it) with a short bold title strip directly below it, in the card's own background — this is the `heading`, not the VLM-generated `caption`. The `caption` is descriptive and often runs long; it does not belong on the compact card, only in the detail panel (Step 3).
+- **Solid card** (no image): a full-bleed tile in `var(--accent)` with the heading centred in bold white text.
+- Each `.card` also carries a hidden `.card-detail` block with the full content for that slide (used by the detail panel — see Step 3).
 
-**Image placeholders — critical:** never inline actual base64 image data yourself. For any slide with an image, set every `<img>` `src` for that slide (both in the card face and in its `.card-detail`) to the exact literal token `__IMAGE_SLIDE_<n>__`, where `<n>` is that slide's `slide` number — nothing else, no surrounding text. A code step after your output does a plain string substitution of each token for the real `data:` URI. Inventing a URL, guessing a filename, or altering the token in any way breaks the image silently.
+**Image placeholders — critical:** never inline actual base64 image data. For any slide with an image, every `<img>` `src` for that slide (both in the card face and in its `.card-detail`) is set to the exact literal token `__IMAGE_SLIDE_<n>__`, where `<n>` is that slide's `slide` number. `embedGalleryImages` does a plain string substitution of each token for the real `data:` URI afterward.
 
 ## Step 3: Detail panel
 

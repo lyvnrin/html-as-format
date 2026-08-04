@@ -461,47 +461,7 @@
     </div>
 
     <div id="grid">
-
-      <!-- CARD BLOCK: IMAGE VARIANT — duplicate for each slide that has an image.
-           Both <img> src attributes (card face + card-detail) must be the exact
-           token __IMAGE_SLIDE_<n>__ for that slide's number. Do not fill in a real URL. -->
-      <div class="card" data-index="1">
-        <div class="card-face">
-          <div class="card-image-wrap">
-            <img class="card-image" src="__IMAGE_SLIDE_1__" alt="{{CARD_1_HEADING}}">
-          </div>
-          <div class="card-title">{{CARD_1_HEADING}}</div>
-        </div>
-        <div class="card-detail" hidden>
-          <div class="panel-media"><img src="__IMAGE_SLIDE_1__" alt="{{CARD_1_HEADING}}"></div>
-          <div class="panel-content">
-            <h2>{{CARD_1_HEADING}}</h2>
-            <ul class="panel-body-list">
-              <li>{{CARD_1_BODY_1}}</li>
-            </ul>
-            <p class="panel-caption">{{CARD_1_CAPTION}}</p>
-          </div>
-        </div>
-      </div>
-      <!-- END CARD BLOCK: IMAGE VARIANT -->
-
-      <!-- CARD BLOCK: SOLID VARIANT — duplicate for each slide with no image. -->
-      <div class="card" data-index="2">
-        <div class="card-face card-solid">
-          <div class="card-heading-solid">{{CARD_2_HEADING}}</div>
-        </div>
-        <div class="card-detail" hidden>
-          <div class="panel-media"><div class="card-heading-solid">{{CARD_2_HEADING}}</div></div>
-          <div class="panel-content">
-            <h2>{{CARD_2_HEADING}}</h2>
-            <ul class="panel-body-list">
-              <li>{{CARD_2_BODY_1}}</li>
-            </ul>
-          </div>
-        </div>
-      </div>
-      <!-- END CARD BLOCK: SOLID VARIANT -->
-
+{{GALLERY_CARDS}}
     </div>
 
   </div>

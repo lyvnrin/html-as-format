@@ -28,10 +28,6 @@ const TIMELINE_TEMPLATE = fs.readFileSync(
   path.join(ROOT, 'skills/render-timeline/assets/timeline-template.html'),
   'utf-8',
 )
-const GALLERY_SKILL = fs.readFileSync(
-  path.join(ROOT, 'skills/render-gallery/SKILL.md'),
-  'utf-8',
-)
 const GALLERY_TEMPLATE = fs.readFileSync(
   path.join(ROOT, 'skills/render-gallery/assets/gallery-template.html'),
   'utf-8',
@@ -128,18 +124,6 @@ function imagePlaceholder(slideNumber) {
   return `__IMAGE_SLIDE_${slideNumber}__`
 }
 
-function buildGalleryPromptSlides(slides) {
-  return slides.map((slide) => ({
-    slide: slide.slide,
-    heading: slide.heading,
-    body: slide.body,
-    image:
-      slide.images && slide.images.length > 0
-        ? { placeholder: imagePlaceholder(slide.slide), caption: slide.images[0].caption }
-        : null,
-  }))
-}
-
 function embedGalleryImages(html, slides) {
   return slides.reduce((output, slide) => {
     const image = slide.images && slide.images[0]
@@ -149,38 +133,86 @@ function embedGalleryImages(html, slides) {
   }, html)
 }
 
-async function renderGallery(slides, { signal } = {}) {
-  const promptSlides = buildGalleryPromptSlides(slides)
+function escapeHtml(str) {
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+}
 
-  const prompt = `${GALLERY_SKILL}
+function galleryBodyListHtml(body) {
+  if (!body || body.length === 0) return ''
+  const items = body.map((line) => `<li>${escapeHtml(line)}</li>`).join('\n              ')
+  return `<ul class="panel-body-list">\n              ${items}\n            </ul>`
+}
 
----
+function galleryCardHtml(slide) {
+  const heading = escapeHtml(slide.heading || `Slide ${slide.slide}`)
+  const image = slide.images && slide.images[0]
+  const bodyHtml = galleryBodyListHtml(slide.body)
 
-Here is the HTML template referenced as assets/gallery-template.html:
+  if (image) {
+    const placeholder = imagePlaceholder(slide.slide)
+    const captionHtml = image.caption
+      ? `\n            <p class="panel-caption">${escapeHtml(image.caption)}</p>`
+      : ''
+    return `      <div class="card" data-index="${slide.slide}">
+        <div class="card-face">
+          <div class="card-image-wrap">
+            <img class="card-image" src="${placeholder}" alt="${heading}">
+          </div>
+          <div class="card-title">${heading}</div>
+        </div>
+        <div class="card-detail" hidden>
+          <div class="panel-media"><img src="${placeholder}" alt="${heading}"></div>
+          <div class="panel-content">
+            <h2>${heading}</h2>
+            ${bodyHtml}${captionHtml}
+          </div>
+        </div>
+      </div>`
+  }
 
-${GALLERY_TEMPLATE}
+  return `      <div class="card" data-index="${slide.slide}">
+        <div class="card-face card-solid">
+          <div class="card-heading-solid">${heading}</div>
+        </div>
+        <div class="card-detail" hidden>
+          <div class="panel-media"><div class="card-heading-solid">${heading}</div></div>
+          <div class="panel-content">
+            <h2>${heading}</h2>
+            ${bodyHtml}
+          </div>
+        </div>
+      </div>`
+}
 
----
+function titleFromFilename(filename) {
+  const base = filename.replace(/\.[^/.]+$/, '')
+  return base
+    .replace(/[-_]+/g, ' ')
+    .trim()
+    .replace(/\b\w/g, (c) => c.toUpperCase())
+}
 
-Here is the enriched slide content to render (output of parseFile → captionImages, with image data replaced by placeholder tokens):
+function fillPlaceholder(html, token, value) {
+  return html.split(token).join(value)
+}
 
-${JSON.stringify(promptSlides, null, 2)}
+function renderGallery(slides, filename) {
+  const cardsHtml = slides.map(galleryCardHtml).join('\n\n')
+  const title = escapeHtml(titleFromFilename(filename))
+  const subtitle = `${slides.length} slide${slides.length === 1 ? '' : 's'}`
 
----
+  let html = GALLERY_TEMPLATE
+  html = fillPlaceholder(html, '{{GALLERY_TITLE}}', title)
+  html = fillPlaceholder(html, '{{GALLERY_SUBTITLE}}', subtitle)
+  html = fillPlaceholder(html, '{{AUTHOR}}', '')
+  html = fillPlaceholder(html, '{{GALLERY_CARDS}}', cardsHtml)
 
-Follow the SKILL.md instructions above to fill the template with this content. Output ONLY the complete, final HTML document — no markdown code fences, no commentary, no surrounding text.`
-
-  const response = await anthropic.messages.create(
-    {
-      model: MODEL,
-      max_tokens: 16000,
-      messages: [{ role: 'user', content: prompt }],
-    },
-    { signal },
-  )
-
-  const text = response.content.map((block) => block.text || '').join('')
-  return embedGalleryImages(stripCodeFence(text), slides)
+  return embedGalleryImages(html, slides)
 }
 
 function bubbleImagePlaceholder(slideNumber, imageIndex) {
@@ -299,7 +331,7 @@ app.post('/api/render-gallery', upload.single('file'), async (req, res) => {
     const captionedContent = Array.isArray(fileContent)
       ? await captionImages(fileContent, { signal })
       : fileContent
-    const html = await renderGallery(captionedContent, { signal })
+    const html = renderGallery(captionedContent, file.originalname)
     res.json({ html })
   } catch (err) {
     if (signal.aborted) return
