@@ -1,8 +1,21 @@
 .card {
+  /* Tilt (JS-driven on mousemove), selection scale, and hover lift all
+     compose into one `transform` via custom properties — three independent
+     sources can't each own the `transform` property directly without
+     stomping each other. perspective() is included in the transform chain
+     itself (rather than set on a parent) so the 3D tilt works self-contained
+     on the card. */
+  --card-scale: 1;
+  --card-lift: 0px;
+  --tilt-x: 0deg;
+  --tilt-y: 0deg;
   display: block;
   width: 100%;
-  background: #ffffff;
-  border: 1.5px solid var(--rule);
+  position: relative;
+  background: rgba(255, 255, 255, 0.6);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 0.5px solid rgba(255, 255, 255, 0.5);
   border-radius: 12px;
   padding: 0;
   overflow: hidden;
@@ -10,18 +23,60 @@
   cursor: pointer;
   font-family: inherit;
   opacity: 1;
-  transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
+  transform-style: preserve-3d;
+  transform: perspective(800px) scale(var(--card-scale)) translateY(var(--card-lift))
+    rotateX(var(--tilt-x)) rotateY(var(--tilt-y));
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease,
+    transform 0.3s ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* Tilt is one of the explicitly-listed effects to skip under reduced
+     motion — drop rotateX/rotateY from the composed transform entirely so
+     it has no visual effect even if FormatCard.jsx still sets the vars. */
+  .card {
+    transform: scale(var(--card-scale)) translateY(var(--card-lift));
+  }
 }
 
 .card:hover:not(.disabled) {
+  --card-lift: -3px;
+  background: rgba(255, 255, 255, 0.8);
   border-color: var(--accent);
   box-shadow: 0 8px 20px rgba(107, 140, 174, 0.14);
-  transform: translateY(-3px);
 }
 
+/* Selection morph: selected card scales up slightly and grows a thin accent
+   line outward from the center of its top edge; every other (non-selected)
+   card shrinks very subtly so the selected one reads as "chosen." Not gated
+   behind reduced-motion — scale/line-grow aren't in the effects list called
+   out to skip. */
 .card.selected {
+  --card-scale: 1.02;
   border-color: var(--accent);
   box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+.card.notSelected {
+  --card-scale: 0.98;
+}
+
+.card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: var(--accent);
+  transform: scaleX(0);
+  transform-origin: center;
+  transition: transform 0.3s ease-out;
+  pointer-events: none;
+}
+
+.card.selected::before {
+  transform: scaleX(1);
 }
 
 .card.recommended {
@@ -46,6 +101,28 @@
   display: block;
   width: 100%;
   height: auto;
+}
+
+/* Parallax preview layers — --parallax-x/--parallax-y are set on .card by
+   FormatCard.jsx's mousemove handler and inherit down through coverWrap into
+   the SVG's layer groups. Front shifts most, mid half as much, back stays
+   put, giving the cover a subtle sense of depth. */
+:global(.cover-layer-front) {
+  transform: translate(var(--parallax-x, 0px), var(--parallax-y, 0px));
+  transition: transform 0.15s ease-out;
+}
+
+:global(.cover-layer-mid) {
+  transform: translate(calc(var(--parallax-x, 0px) * 0.5), calc(var(--parallax-y, 0px) * 0.5));
+  transition: transform 0.15s ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* Parallax is explicitly in the reduced-motion skip list. */
+  :global(.cover-layer-front),
+  :global(.cover-layer-mid) {
+    transform: none;
+  }
 }
 
 .badge {
@@ -108,13 +185,16 @@
   }
 }
 
+/* Only animates opacity, not transform — a finite CSS animation with
+   fill-mode `both` permanently overrides its animated property afterward
+   (animation output outranks normal declarations in the cascade), which
+   would have silently pinned .card's transform and broken the tilt/scale/
+   lift system above for the rest of the page's life. */
 @keyframes cardIn {
   from {
     opacity: 0;
-    transform: translateY(10px);
   }
   to {
     opacity: 1;
-    transform: translateY(0);
   }
 }

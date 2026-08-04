@@ -45,6 +45,7 @@ export default function FormatPicker({ selectedFormat, onSelect }) {
             format={format}
             index={index}
             selected={selectedFormat === format.id}
+            anySelected={selectedFormat !== null}
             recommended={contentType !== null && format.contentType === contentType}
             onSelect={onSelect}
           />

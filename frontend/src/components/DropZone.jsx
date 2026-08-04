@@ -16,7 +16,9 @@ function formatSize(bytes) {
 
 export default function DropZone({ file, onFileSelect }) {
   const [isDragOver, setIsDragOver] = useState(false)
+  const [isHoveringZone, setIsHoveringZone] = useState(false)
   const inputRef = useRef(null)
+  const glowRef = useRef(null)
 
   function handleFiles(fileList) {
     const picked = fileList?.[0]
@@ -29,6 +31,14 @@ export default function DropZone({ file, onFileSelect }) {
     e.preventDefault()
     setIsDragOver(false)
     handleFiles(e.dataTransfer.files)
+  }
+
+  function handleZoneMouseMove(e) {
+    const glow = glowRef.current
+    if (!glow) return
+    const rect = e.currentTarget.getBoundingClientRect()
+    glow.style.setProperty('--glow-x', `${e.clientX - rect.left}px`)
+    glow.style.setProperty('--glow-y', `${e.clientY - rect.top}px`)
   }
 
   return (
@@ -44,12 +54,20 @@ export default function DropZone({ file, onFileSelect }) {
         }}
         onDragLeave={() => setIsDragOver(false)}
         onDrop={handleDrop}
+        onMouseEnter={() => setIsHoveringZone(true)}
+        onMouseLeave={() => setIsHoveringZone(false)}
+        onMouseMove={handleZoneMouseMove}
         role="button"
         tabIndex={0}
         onKeyDown={(e) => {
           if (e.key === 'Enter' || e.key === ' ') inputRef.current?.click()
         }}
       >
+        <div
+          ref={glowRef}
+          className={`${styles.glow} ${isHoveringZone ? styles.glowVisible : ''}`}
+          aria-hidden="true"
+        />
         <input
           ref={inputRef}
           type="file"

@@ -3,6 +3,8 @@ import DropZone from './components/DropZone'
 import FormatPicker from './components/FormatPicker'
 import styles from './App.module.css'
 
+const LOGO_TEXT = 'HTML as a Format'
+
 function downloadHtml(html, filename) {
   const blob = new Blob([html], { type: 'text/html' })
   const url = URL.createObjectURL(blob)
@@ -76,8 +78,23 @@ export default function App() {
 
   return (
     <div className={styles.page}>
+      <div className={styles.ambientShapes} aria-hidden="true">
+        <div className={styles.shape1} />
+        <div className={styles.shape2} />
+        <div className={styles.shape3} />
+        <div className={styles.shape4} />
+      </div>
+
       <header className={styles.header}>
-        <div className={styles.logo}>HTML as a Format</div>
+        <div className={styles.logo} aria-label={LOGO_TEXT}>
+          {LOGO_TEXT.split('').map((char, i) => (
+            <span key={i} className={styles.logoCharWrap} aria-hidden="true">
+              <span className={styles.logoChar} style={{ '--char-index': i }}>
+                {char === ' ' ? ' ' : char}
+              </span>
+            </span>
+          ))}
+        </div>
         <div className={styles.tagline}>Internal tool — source documents to shareable HTML pages</div>
       </header>
 
