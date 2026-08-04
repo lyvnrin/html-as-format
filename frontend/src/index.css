@@ -16,6 +16,46 @@
   --gold-dark: #9a6a1f;
   --font-serif: 'Source Serif 4', Georgia, serif;
   --font-sans: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+
+  /* -rgb companion lets rgba()/color-mix-free code build translucent
+     variants of a themed colour (e.g. the footer's blurred backdrop)
+     that still flip correctly with the theme. */
+  --paper-rgb: 250, 250, 246;
+
+  /* Card glass surface — its own tokens (not reused from paper/rule) since
+     the glassmorphism treatment needs specific alpha values that don't map
+     cleanly onto the solid paper/rule scale. */
+  --glass-bg: rgba(255, 255, 255, 0.6);
+  --glass-bg-hover: rgba(255, 255, 255, 0.8);
+  --glass-border: rgba(255, 255, 255, 0.5);
+
+  color-scheme: light;
+}
+
+body[data-theme='dark'] {
+  --ink: #ede9e0;
+  --ink-light: #c9c4b8;
+  --paper: #1c1a17;
+  --paper-shade: #26231f;
+  --paper-dim: #2f2c27;
+  --rule: #3d3933;
+  --muted: #8f8a7e;
+  --muted-dark: #a8a296;
+  --accent: #7fa5c9;
+  --accent-deep: #5c85ac;
+  --accent-soft: rgba(127, 165, 201, 0.15);
+  --accent-light: #3d5570;
+  --gold: #d9a352;
+  --gold-light: #4a3a20;
+  --gold-dark: #f0c98a;
+
+  --paper-rgb: 28, 26, 23;
+
+  --glass-bg: rgba(38, 35, 31, 0.55);
+  --glass-bg-hover: rgba(38, 35, 31, 0.75);
+  --glass-border: rgba(255, 255, 255, 0.08);
+
+  color-scheme: dark;
 }
 
 * {
@@ -41,19 +81,24 @@ body {
 body {
   background: var(--paper);
   color: var(--ink);
-  font: 15px/1.5 var(--font-sans);
-  color-scheme: light;
+  font: 16px/1.5 var(--font-sans);
   position: relative;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  body {
+    transition: background-color 0.25s ease, color 0.25s ease;
+  }
 }
 
 /* Dot-grid texture behind all content. Static (no motion), so it's exempt
    from the prefers-reduced-motion gating that covers the interactive/
-   animated effects elsewhere. */
+   animated effects elsewhere. Uses --rule so it flips with the theme. */
 body::before {
   content: '';
   position: fixed;
   inset: 0;
-  background-image: radial-gradient(#d4d1cb 0.7px, transparent 0.7px);
+  background-image: radial-gradient(var(--rule) 0.7px, transparent 0.7px);
   background-size: 24px 24px;
   opacity: 0.3;
   pointer-events: none;
