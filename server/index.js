@@ -8,6 +8,7 @@ import multer from 'multer'
 import Anthropic from '@anthropic-ai/sdk'
 import { parseFile } from './lib/parseFile.js'
 import { captionImages } from './lib/captionImages.js'
+import { startGenerationLog, finishGenerationLog } from './lib/db.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const ROOT = path.resolve(__dirname, '..')
@@ -277,7 +278,7 @@ Follow the SKILL.md instructions above: identify themes for these slides (Step 2
 
 function abortSignalForRequest(req, res) {
   const controller = new AbortController()
-  req.on('close', () => {
+  res.on('close', () => {
     if (!res.writableEnded) controller.abort()
   })
   return controller.signal
@@ -301,6 +302,7 @@ app.post('/api/generate', upload.single('file'), async (req, res) => {
   }
 
   const signal = abortSignalForRequest(req, res)
+  const log = startGenerationLog({ format, filename: file.originalname })
 
   try {
     const fileContent = await parseFile(file.buffer, file.originalname)
@@ -309,10 +311,20 @@ app.post('/api/generate', upload.single('file'), async (req, res) => {
       : fileContent
     const extractedJson = await extractToJson(captionedContent, { signal })
     const html = await renderTimeline(extractedJson, { signal })
+
+    if (signal.aborted) {
+      finishGenerationLog(log, 'cancelled')
+      return
+    }
+    finishGenerationLog(log, 'completed')
     res.json({ html })
   } catch (err) {
-    if (signal.aborted) return
+    if (signal.aborted) {
+      finishGenerationLog(log, 'cancelled')
+      return
+    }
     console.error('Generation failed:', err)
+    finishGenerationLog(log, 'failed')
     res.status(500).json({ error: err.message || 'Generation failed.' })
   }
 })
@@ -325,6 +337,7 @@ app.post('/api/render-gallery', upload.single('file'), async (req, res) => {
   }
 
   const signal = abortSignalForRequest(req, res)
+  const log = startGenerationLog({ format: 'gallery', filename: file.originalname })
 
   try {
     const fileContent = await parseFile(file.buffer, file.originalname)
@@ -332,10 +345,20 @@ app.post('/api/render-gallery', upload.single('file'), async (req, res) => {
       ? await captionImages(fileContent, { signal })
       : fileContent
     const html = renderGallery(captionedContent, file.originalname)
+
+    if (signal.aborted) {
+      finishGenerationLog(log, 'cancelled')
+      return
+    }
+    finishGenerationLog(log, 'completed')
     res.json({ html })
   } catch (err) {
-    if (signal.aborted) return
+    if (signal.aborted) {
+      finishGenerationLog(log, 'cancelled')
+      return
+    }
     console.error('Gallery render failed:', err)
+    finishGenerationLog(log, 'failed')
     res.status(500).json({ error: err.message || 'Gallery render failed.' })
   }
 })
@@ -348,6 +371,7 @@ app.post('/api/render-bubble', upload.single('file'), async (req, res) => {
   }
 
   const signal = abortSignalForRequest(req, res)
+  const log = startGenerationLog({ format: 'bubble-map', filename: file.originalname })
 
   try {
     const fileContent = await parseFile(file.buffer, file.originalname)
@@ -355,10 +379,20 @@ app.post('/api/render-bubble', upload.single('file'), async (req, res) => {
       ? await captionImages(fileContent, { signal })
       : fileContent
     const html = await renderBubble(captionedContent, { signal })
+
+    if (signal.aborted) {
+      finishGenerationLog(log, 'cancelled')
+      return
+    }
+    finishGenerationLog(log, 'completed')
     res.json({ html })
   } catch (err) {
-    if (signal.aborted) return
+    if (signal.aborted) {
+      finishGenerationLog(log, 'cancelled')
+      return
+    }
     console.error('Bubble render failed:', err)
+    finishGenerationLog(log, 'failed')
     res.status(500).json({ error: err.message || 'Bubble render failed.' })
   }
 })
