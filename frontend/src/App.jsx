@@ -77,11 +77,7 @@ export default function App() {
   return (
     <div className={styles.page}>
       <header className={styles.header}>
-        <div className={styles.logo}>
-          <span className={styles.tagPunct}>&lt;</span>
-          html-as-a-format
-          <span className={styles.tagPunct}>/&gt;</span>
-        </div>
+        <div className={styles.logo}>HTML as a Format</div>
         <div className={styles.tagline}>Internal tool — source documents to shareable HTML pages</div>
       </header>
 

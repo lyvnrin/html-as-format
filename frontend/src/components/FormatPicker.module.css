@@ -1,13 +1,14 @@
 .eyebrow {
-  font-family: var(--font-mono);
+  font-family: var(--font-serif);
+  font-style: italic;
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 600;
   color: var(--accent);
   margin-bottom: 6px;
 }
 
 .heading {
-  font-family: var(--font-sans);
+  font-family: var(--font-serif);
   font-size: 16px;
   font-weight: 700;
   color: var(--ink);
@@ -23,6 +24,8 @@
 }
 
 .filterLabel {
+  font-family: var(--font-sans);
+  font-weight: 400;
   font-size: 13px;
   color: var(--muted);
 }
@@ -33,9 +36,9 @@
 }
 
 .pill {
-  font-family: var(--font-mono);
+  font-family: var(--font-sans);
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 500;
   color: var(--muted);
   background: transparent;
   border: 1.5px solid var(--rule);

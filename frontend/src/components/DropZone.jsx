@@ -33,7 +33,7 @@ export default function DropZone({ file, onFileSelect }) {
 
   return (
     <section>
-      <div className={styles.eyebrow}>&lt;step n="01"/&gt;</div>
+      <div className={styles.eyebrow}>Step 1</div>
       <h2 className={styles.heading}>Upload a source file</h2>
       <div
         className={`${styles.zone} ${isDragOver ? styles.dragOver : ''} ${file ? styles.filled : ''}`}
