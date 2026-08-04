@@ -1,7 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk'
 import sharp from 'sharp'
 
-const MODEL = 'claude-sonnet-4-6'
+const MODEL = 'claude-haiku-4-5-20251001'
 const CAPTION_CONCURRENCY = 5
 const CAPTION_MAX_DIMENSION = 1024
 
