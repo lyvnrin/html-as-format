@@ -12,10 +12,10 @@
   display: block;
   width: 100%;
   position: relative;
-  background: rgba(255, 255, 255, 0.6);
+  background: var(--glass-bg);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
-  border: 0.5px solid rgba(255, 255, 255, 0.5);
+  border: 0.5px solid var(--glass-border);
   border-radius: 12px;
   padding: 0;
   overflow: hidden;
@@ -41,7 +41,7 @@
 
 .card:hover:not(.disabled) {
   --card-lift: -3px;
-  background: rgba(255, 255, 255, 0.8);
+  background: var(--glass-bg-hover);
   border-color: var(--accent);
   box-shadow: 0 8px 20px rgba(107, 140, 174, 0.14);
 }
@@ -80,11 +80,11 @@
 }
 
 .card.recommended {
-  border-color: var(--accent);
+  border-color: var(--gold);
 }
 
 .card.recommended .body {
-  background: var(--accent-soft);
+  background: color-mix(in srgb, var(--gold) 10%, transparent);
 }
 
 .card.disabled {
@@ -140,7 +140,7 @@
 }
 
 .body {
-  padding: 14px 16px 16px;
+  padding: 10px 14px 12px;
   border-top: 1px solid var(--rule);
 }
 
@@ -152,20 +152,23 @@
 }
 
 .label {
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 700;
   color: var(--ink);
 }
 
+/* Recommended tag — amber-gold, not the accent blue, so it reads as a
+   distinct highlight rather than blending into the accent-coloured hover/
+   selection states. */
 .recommendedTag {
   font-family: var(--font-sans);
-  font-size: 9.5px;
+  font-size: 10px;
   font-weight: 500;
   letter-spacing: 0.03em;
   text-transform: uppercase;
-  color: var(--accent);
-  background: #ffffff;
-  border: 1px solid var(--accent);
+  color: var(--gold-dark);
+  background: var(--gold-light);
+  border: 1px solid var(--gold);
   padding: 2px 7px;
   border-radius: 999px;
 }
@@ -173,7 +176,7 @@
 .description {
   font-family: var(--font-sans);
   font-weight: 400;
-  font-size: 12.5px;
+  font-size: 13.5px;
   color: var(--muted);
   line-height: 1.4;
 }
