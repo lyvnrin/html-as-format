@@ -163,7 +163,13 @@ export default function App() {
             </span>
           ))}
         </div>
-        <div className={styles.tagline}>Internal tool — source documents to shareable HTML pages</div>
+        <div className={styles.tagline}>
+          <p className={styles.taglineMain}>Internal tool — turn source documents into shareable HTML pages.</p>
+          <p className={styles.taglineSub}>
+            Drop a file, pick a layout, and generate a standalone page you can send anywhere — no
+            build step, no hosting required.
+          </p>
+        </div>
       </header>
 
       <main className={styles.main}>

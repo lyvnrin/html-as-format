@@ -4,15 +4,15 @@
   font-size: 12px;
   font-weight: 600;
   color: var(--accent);
-  margin-bottom: 6px;
+  margin-bottom: 4px;
 }
 
 .heading {
   font-family: var(--font-serif);
-  font-size: 16px;
+  font-size: 17px;
   font-weight: 700;
   color: var(--ink);
-  margin: 0 0 14px;
+  margin: 0 0 10px;
 }
 
 .zone {
@@ -20,8 +20,8 @@
   z-index: 0;
   border: 1.5px dashed var(--rule);
   border-radius: 10px;
-  background: #ffffff;
-  padding: 16px 20px;
+  background: var(--paper);
+  padding: 13px 18px;
   cursor: pointer;
   transition: border-color 0.15s ease, background 0.15s ease, transform 0.15s ease;
 }
@@ -90,14 +90,14 @@
 .prompt {
   font-family: var(--font-sans);
   font-weight: 400;
-  font-size: 13.5px;
+  font-size: 14.5px;
   color: var(--ink);
 }
 
 .hint {
   font-family: var(--font-sans);
   font-weight: 400;
-  font-size: 12px;
+  font-size: 12.5px;
   color: var(--muted);
 }
 
