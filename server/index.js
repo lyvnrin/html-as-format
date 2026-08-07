@@ -17,14 +17,6 @@ dotenv.config({ path: path.join(ROOT, '.env') })
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
-const TRANSCRIPT_SKILL = fs.readFileSync(
-  path.join(ROOT, 'skills/transcript-to-html/SKILL.md'),
-  'utf-8',
-)
-const TIMELINE_SKILL = fs.readFileSync(
-  path.join(ROOT, 'skills/render-timeline/SKILL.md'),
-  'utf-8',
-)
 const TIMELINE_TEMPLATE = fs.readFileSync(
   path.join(ROOT, 'skills/render-timeline/assets/timeline-template.html'),
   'utf-8',
@@ -40,10 +32,61 @@ const BUBBLE_TEMPLATE = fs.readFileSync(
 
 const MODEL = 'claude-sonnet-4-6'
 
-function stripCodeFence(text) {
-  const trimmed = text.trim()
-  const match = trimmed.match(/^```[a-zA-Z]*\n([\s\S]*?)\n```$/)
-  return match ? match[1].trim() : trimmed
+// Forcing a tool call instead of asking for freeform JSON in the response
+// text means the API itself parses/validates the JSON (via the tool's
+// input_schema) rather than a hand-rolled JSON.parse on raw model text,
+// which broke on unescaped characters (quotes, newlines) inside extracted
+// prose in practice.
+const TIMELINE_EXTRACTION_TOOL = {
+  name: 'submit_timeline_content',
+  description: 'Submit the extracted timeline content.',
+  input_schema: {
+    type: 'object',
+    properties: {
+      title: { type: 'string' },
+      slides: {
+        type: 'array',
+        description:
+          'A native JSON array of slide objects — never a JSON-encoded string. Each item is an object, not text.',
+        items: {
+          type: 'object',
+          properties: {
+            heading: { type: 'string' },
+            label: { type: 'string' },
+            subheading: { type: 'string' },
+            body: { type: 'array', items: { type: 'string' } },
+            bullets: { type: 'array', items: { type: 'string' } },
+            key_stat: { type: 'string' },
+          },
+          required: ['heading', 'label'],
+        },
+      },
+      key_moments: { type: 'array', items: { type: 'integer' } },
+    },
+    required: ['title', 'slides', 'key_moments'],
+  },
+}
+
+const THEME_GROUPING_TOOL = {
+  name: 'submit_theme_groupings',
+  description: 'Submit the theme groupings for the given slides.',
+  input_schema: {
+    type: 'object',
+    properties: {
+      themes: {
+        type: 'array',
+        items: {
+          type: 'object',
+          properties: {
+            name: { type: 'string' },
+            slides: { type: 'array', items: { type: 'integer' } },
+          },
+          required: ['name', 'slides'],
+        },
+      },
+    },
+    required: ['themes'],
+  },
 }
 
 function stripImageData(slides) {
@@ -55,44 +98,61 @@ function stripImageData(slides) {
   }))
 }
 
-async function renderTimeline(fileContent, { signal } = {}) {
+// Writing per-node content (shortening a heading to a glance label, picking
+// out a key_stat, choosing the 3-5 key_moments) needs real reading
+// comprehension, so extraction still goes through the model — but it only
+// ever returns the small structured JSON below, never the ~1000-line
+// template's HTML/CSS/JS boilerplate. Stamping that JSON into the template
+// (renderTimelineHtml, further down) is pure data shaping and runs as code,
+// the same way render-gallery and render-bubble dropped their full-HTML LLM
+// calls.
+async function extractTimelineContent(fileContent, { signal } = {}) {
   const sourceText = Array.isArray(fileContent)
     ? JSON.stringify(stripImageData(fileContent), null, 2)
     : fileContent
 
-  const prompt = `${TRANSCRIPT_SKILL}
+  const prompt = `Extract structured content from the following source document so it can be rendered as a vertical timeline, one node per slide/section.
 
----
+For each slide/section produce:
+- "heading": the full original heading/title text
+- "label": a short 4-6 word paraphrase of the heading for a compact glance label — write a shorter version only if the original is long, otherwise reuse it as-is
+- "subheading": a one-line subheading, omit the key entirely if the source has none
+- "body": array of body paragraph strings (prose), omit the key entirely if none
+- "bullets": array of bullet point strings, omit the key entirely if none
+- "key_stat": a single standout number/stat from this slide/section if one clearly exists, omit the key entirely otherwise
 
-${TIMELINE_SKILL}
+Also produce:
+- "title": a short one-line document title
+- "key_moments": the 1-based indices (matching slide/section order) of the 3-5 most significant nodes, fewer if the source is short
 
----
+Rules:
+- Never invent content not present in the source — leave a key out rather than fabricating it.
+- Preserve source order.
+- Read the entire source before extracting — don't extract from a partial read.
+- If a slide is essentially a pull quote (a standalone quoted line, often with a speaker attribution), don't wrap it in literal quotation marks — put the words themselves in "heading" or "body" and the speaker attribution as a separate short "body" entry. Never place a literal " character inside any text field.
+- "slides" must be submitted as a real, native JSON array of objects in the tool call — never as a JSON-encoded string.
 
-Here is the HTML template referenced as assets/timeline-template.html:
+Source document content:
 
-${TIMELINE_TEMPLATE}
-
----
-
-Here is the source document content to render (output of parseFile → captionImages, with image data replaced by text captions):
-
-${sourceText}
-
----
-
-Follow the extraction-only mode (Step 2b) instructions above to structure this content per the described JSON schema, then immediately follow the render-timeline SKILL.md instructions to fill the template with that structured content — do this in a single pass, without emitting the intermediate JSON. Output ONLY the complete, final HTML document — no markdown code fences, no commentary, no surrounding text, no intermediate JSON.`
+${sourceText}`
 
   const response = await anthropic.messages.create(
     {
       model: MODEL,
       max_tokens: 16000,
+      tools: [TIMELINE_EXTRACTION_TOOL],
+      tool_choice: { type: 'tool', name: TIMELINE_EXTRACTION_TOOL.name },
       messages: [{ role: 'user', content: prompt }],
     },
     { signal },
   )
 
-  const text = response.content.map((block) => block.text || '').join('')
-  return stripCodeFence(text)
+  if (response.stop_reason === 'max_tokens') {
+    console.error('extractTimelineContent: response hit max_tokens, extraction may be truncated')
+  }
+
+  const toolUse = response.content.find((block) => block.type === 'tool_use')
+  return toolUse.input
 }
 
 function galleryImagePlaceholder(slideNumber, imageIndex) {
@@ -340,6 +400,73 @@ function renderGallery(slides, filename) {
   return embedGalleryImages(html, slides)
 }
 
+function timelineNodeHtml(slide, index, isHighlight) {
+  const side = index % 2 === 1 ? 'side-left' : 'side-right'
+  const displayIndex = String(index).padStart(2, '0')
+  const heading = escapeHtml(slide.heading || `Slide ${index}`)
+  const label = escapeHtml(slide.label || slide.heading || `Slide ${index}`)
+  const keyStat = slide.key_stat ? escapeHtml(slide.key_stat) : ''
+  const subheadingHtml = slide.subheading
+    ? `\n          <p class="detail-subheading">${escapeHtml(slide.subheading)}</p>`
+    : ''
+  const bodyHtml = (slide.body || [])
+    .map((p) => `<p class="detail-body">${escapeHtml(p)}</p>`)
+    .join('\n          ')
+  const bulletsHtml =
+    slide.bullets && slide.bullets.length > 0
+      ? `\n          <ul class="detail-bullets">\n            ${slide.bullets
+          .map((b) => `<li>${escapeHtml(b)}</li>`)
+          .join('\n            ')}\n          </ul>`
+      : ''
+
+  return `      <div class="tl-node ${side}${isHighlight ? ' highlight' : ''}" data-index="${index}">
+        <div class="tl-node-detail">
+          <div class="detail-stat">${keyStat}</div>
+          <h2 class="detail-heading">${heading}</h2>${subheadingHtml}
+          ${bodyHtml}${bulletsHtml}
+        </div>
+        <div class="tl-node-center">
+          <button class="tl-dot" aria-label="Open node ${index}" aria-expanded="false"></button>
+          <span class="tl-node-index">${displayIndex}</span>
+          <button class="tl-node-label">${label}</button>
+          <span class="tl-node-stat">${keyStat}</span>
+        </div>
+      </div>`
+}
+
+// The tool's input_schema declares "slides"/"key_moments" as arrays, but
+// isn't a hard runtime guarantee — normalize defensively rather than
+// crashing outright if the model ever emits an object keyed by index instead.
+function toArray(value) {
+  if (Array.isArray(value)) return value
+  if (typeof value === 'string') {
+    try {
+      const parsed = JSON.parse(value)
+      return Array.isArray(parsed) ? parsed : toArray(parsed)
+    } catch (err) {
+      console.error('toArray: failed to parse stringified array:', err.message)
+      return []
+    }
+  }
+  if (value && typeof value === 'object') return Object.values(value)
+  return []
+}
+
+function renderTimelineHtml(extracted, filename) {
+  const slides = toArray(extracted.slides)
+  const keyMoments = new Set(toArray(extracted.key_moments))
+  const nodesHtml = slides
+    .map((slide, i) => timelineNodeHtml(slide, i + 1, keyMoments.has(i + 1)))
+    .join('\n\n')
+  const title = escapeHtml(extracted.title || titleFromFilename(filename))
+
+  let html = TIMELINE_TEMPLATE
+  html = fillPlaceholder(html, '{{TIMELINE_TITLE}}', title)
+  html = fillPlaceholder(html, '{{AUTHOR}}', '')
+  html = fillPlaceholder(html, '{{TIMELINE_NODES}}', nodesHtml)
+  return html
+}
+
 function bubbleImagePlaceholder(slideNumber, imageIndex) {
   return `__IMAGE_SLIDE_${slideNumber}_${imageIndex}__`
 }
@@ -377,21 +504,21 @@ Rules:
 - Aim for roughly 3-8 themes for a typical 10-40 slide deck — fewer if the deck is short, more only if it's genuinely sprawling.
 
 Slides:
-${JSON.stringify(slideSummaries, null, 2)}
-
-Output ONLY a JSON object of the form {"themes":[{"name":"Theme Name","slides":[1,2,3]}]} — no markdown code fences, no commentary, no surrounding text.`
+${JSON.stringify(slideSummaries, null, 2)}`
 
   const response = await anthropic.messages.create(
     {
       model: MODEL,
       max_tokens: 2048,
+      tools: [THEME_GROUPING_TOOL],
+      tool_choice: { type: 'tool', name: THEME_GROUPING_TOOL.name },
       messages: [{ role: 'user', content: prompt }],
     },
     { signal },
   )
 
-  const text = response.content.map((block) => block.text || '').join('')
-  return JSON.parse(stripCodeFence(text)).themes
+  const toolUse = response.content.find((block) => block.type === 'tool_use')
+  return toolUse.input.themes
 }
 
 function bubbleSlideData(slide) {
@@ -467,7 +594,11 @@ app.post('/api/generate', upload.single('file'), async (req, res) => {
     const captionedContent = Array.isArray(fileContent)
       ? await captionImages(fileContent, { signal })
       : fileContent
-    const html = await renderTimeline(captionedContent, { signal })
+    const extracted = await extractTimelineContent(captionedContent, { signal })
+    if (!Array.isArray(extracted?.slides)) {
+      console.error('extractTimelineContent returned non-array slides:', JSON.stringify(extracted).slice(0, 2000))
+    }
+    const html = renderTimelineHtml(extracted, file.originalname)
 
     if (signal.aborted) {
       finishGenerationLog(log, 'cancelled')

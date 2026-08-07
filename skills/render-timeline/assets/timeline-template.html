@@ -541,38 +541,7 @@
     </div>
 
     <div class="tl-track" id="tl-track">
-
-      <!-- NODE BLOCK: duplicate this .tl-node div for each slide.
-           Alternate class "side-left" / "side-right" per node (first node =
-           "side-left") — that's what sends this node's detail content to the
-           left or right column; it's picked by CSS grid-column, not by
-           reordering markup, so keep the same internal block order
-           (detail markup, then centre markup) for every node regardless of
-           which side it's on. Add class "highlight" too if this slide's
-           index is in key_moments (outlines the dot in the accent colour).
-           The row itself only ever shows a dot + index + short label + stat;
-           clicking the dot or the label reveals the full content in that
-           node's own detail block — nothing is shared or cloned between
-           nodes, so one node's click can never show another node's data. -->
-      <div class="tl-node side-left" data-index="1">
-        <div class="tl-node-detail">
-          <div class="detail-stat">{{NODE_1_KEY_STAT}}</div>
-          <h2 class="detail-heading">{{NODE_1_HEADING}}</h2>
-          <p class="detail-subheading">{{NODE_1_SUBHEADING}}</p>
-          <p class="detail-body">{{NODE_1_BODY}}</p>
-          <ul class="detail-bullets">
-            <li>{{NODE_1_BULLET_1}}</li>
-          </ul>
-        </div>
-        <div class="tl-node-center">
-          <button class="tl-dot" aria-label="Open node 1" aria-expanded="false"></button>
-          <span class="tl-node-index">01</span>
-          <button class="tl-node-label">{{NODE_1_LABEL}}</button>
-          <span class="tl-node-stat">{{NODE_1_KEY_STAT}}</span>
-        </div>
-      </div>
-      <!-- END NODE BLOCK -->
-
+{{TIMELINE_NODES}}
     </div>
 
   </div>
