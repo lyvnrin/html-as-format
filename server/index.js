@@ -33,10 +33,6 @@ const GALLERY_TEMPLATE = fs.readFileSync(
   path.join(ROOT, 'skills/render-gallery/assets/gallery-template.html'),
   'utf-8',
 )
-const BUBBLE_SKILL = fs.readFileSync(
-  path.join(ROOT, 'skills/render-bubble/SKILL.md'),
-  'utf-8',
-)
 const BUBBLE_TEMPLATE = fs.readFileSync(
   path.join(ROOT, 'skills/render-bubble/assets/bubble-template.html'),
   'utf-8',
@@ -348,18 +344,6 @@ function bubbleImagePlaceholder(slideNumber, imageIndex) {
   return `__IMAGE_SLIDE_${slideNumber}_${imageIndex}__`
 }
 
-function buildBubblePromptSlides(slides) {
-  return slides.map((slide) => ({
-    slide: slide.slide,
-    heading: slide.heading,
-    body: slide.body,
-    images: (slide.images || []).map((image, i) => ({
-      placeholder: bubbleImagePlaceholder(slide.slide, i + 1),
-      caption: image.caption,
-    })),
-  }))
-}
-
 function embedBubbleImages(html, slides) {
   return slides.reduce((output, slide) => {
     return (slide.images || []).reduce((out, image, i) => {
@@ -370,38 +354,84 @@ function embedBubbleImages(html, slides) {
   }, html)
 }
 
-async function renderBubble(slides, { signal } = {}) {
-  const promptSlides = buildBubblePromptSlides(slides)
+// Grouping slides into themes needs real semantic understanding (a section
+// break, a topic shift) that can't be inferred mechanically, so this is the
+// one piece of bubble rendering that still needs the LLM. Everything else
+// (Step 5 of the skill — building the JSON blob and filling the template) is
+// pure data shaping and runs as plain code below, the same way render-gallery
+// dropped its LLM call entirely.
+async function identifyThemes(slides, { signal } = {}) {
+  const slideSummaries = slides.map((slide) => ({
+    slide: slide.slide,
+    heading: slide.heading,
+    body: slide.body,
+  }))
 
-  const prompt = `${BUBBLE_SKILL}
+  const prompt = `Group the following presentation slides into 3-8 logical themes/sections based on their heading and body content.
 
----
+Rules:
+- Every slide belongs to exactly one theme.
+- Preserve original slide order within each theme; preserve theme order as first-encountered in the deck.
+- If the deck has explicit section-divider slides (a slide that's just a big title with little/no body), treat those as a strong signal for where one theme ends and the next begins.
+- Theme names: short (2-4 words), drawn from the actual content — never generic filler like "Section 1".
+- Aim for roughly 3-8 themes for a typical 10-40 slide deck — fewer if the deck is short, more only if it's genuinely sprawling.
 
-Here is the HTML template referenced as assets/bubble-template.html:
+Slides:
+${JSON.stringify(slideSummaries, null, 2)}
 
-${BUBBLE_TEMPLATE}
-
----
-
-Here is the enriched slide content to render (output of parseFile → captionImages, with image data replaced by placeholder tokens):
-
-${JSON.stringify(promptSlides, null, 2)}
-
----
-
-Follow the SKILL.md instructions above: identify themes for these slides (Step 2), then fill the template's {{BUBBLE_TITLE}}, {{BUBBLE_SUBTITLE}}, {{AUTHOR}}, and {{BUBBLE_DATA}} placeholders (Step 5). Output ONLY the complete, final HTML document — no markdown code fences, no commentary, no surrounding text.`
+Output ONLY a JSON object of the form {"themes":[{"name":"Theme Name","slides":[1,2,3]}]} — no markdown code fences, no commentary, no surrounding text.`
 
   const response = await anthropic.messages.create(
     {
       model: MODEL,
-      max_tokens: 32000,
+      max_tokens: 2048,
       messages: [{ role: 'user', content: prompt }],
     },
     { signal },
   )
 
   const text = response.content.map((block) => block.text || '').join('')
-  return embedBubbleImages(stripCodeFence(text), slides)
+  return JSON.parse(stripCodeFence(text)).themes
+}
+
+function bubbleSlideData(slide) {
+  const entry = { index: slide.slide, heading: slide.heading }
+  if (slide.body && slide.body.length > 0) entry.body = slide.body
+  const images = slide.images || []
+  if (images.length > 0) {
+    entry.images = images.map((image, i) => ({
+      src: bubbleImagePlaceholder(slide.slide, i + 1),
+      caption: image.caption,
+    }))
+  }
+  return entry
+}
+
+function renderBubble(slides, filename, themes) {
+  const slidesByNumber = new Map(slides.map((slide) => [slide.slide, slide]))
+  const bubbleData = {
+    themes: themes.map((theme) => ({
+      name: theme.name,
+      slides: theme.slides
+        .map((slideNumber) => slidesByNumber.get(slideNumber))
+        .filter(Boolean)
+        .map(bubbleSlideData),
+    })),
+  }
+
+  const title = escapeHtml(slides[0]?.heading || titleFromFilename(filename))
+  const subtitle = `${slides.length} slide${slides.length === 1 ? '' : 's'}`
+  // Guard the JSON payload against `</script` prematurely closing the
+  // data blob's <script> tag (see render-bubble SKILL.md Step 7).
+  const dataJson = JSON.stringify(bubbleData).split('</script').join('<\\/script')
+
+  let html = BUBBLE_TEMPLATE
+  html = fillPlaceholder(html, '{{BUBBLE_TITLE}}', title)
+  html = fillPlaceholder(html, '{{BUBBLE_SUBTITLE}}', subtitle)
+  html = fillPlaceholder(html, '{{AUTHOR}}', '')
+  html = fillPlaceholder(html, '{{BUBBLE_DATA}}', dataJson)
+
+  return embedBubbleImages(html, slides)
 }
 
 function abortSignalForRequest(req, res) {
@@ -505,7 +535,8 @@ app.post('/api/render-bubble', upload.single('file'), async (req, res) => {
     const captionedContent = Array.isArray(fileContent)
       ? await captionImages(fileContent, { signal })
       : fileContent
-    const html = await renderBubble(captionedContent, { signal })
+    const themes = await identifyThemes(captionedContent, { signal })
+    const html = renderBubble(captionedContent, file.originalname, themes)
 
     if (signal.aborted) {
       finishGenerationLog(log, 'cancelled')

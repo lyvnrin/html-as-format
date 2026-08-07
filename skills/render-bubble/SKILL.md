@@ -31,6 +31,8 @@ Takes the enriched slide array produced by the pptx image pipeline (`parseFile` 
 
 ## Step 2: Identify themes
 
+**This is a standalone, lightweight LLM call (`identifyThemes` in `server/index.js`), not part of the same pass that fills the template.** It's the one piece of this renderer that still needs a model at all — grouping slides by topic needs real reading comprehension, unlike Step 5's JSON/template assembly, which is plain code. To keep it fast, the call sees only each slide's `heading` and `body` (no images, no captions, no template, no skill text) and returns nothing but the theme groupings — a tiny `{"themes":[{"name":"...","slides":[...]}]}` blob, not any HTML.
+
 The input has no theme field — you assign one. Read all slide headings and body text, then group slides into a small number of logical themes/sections:
 
 - Aim for roughly 3–8 themes for a typical 10–40 slide deck — fewer if the deck is short, more only if it's genuinely sprawling. Avoid two failure modes: one giant theme containing everything (defeats the point of clustering) and a theme per slide (same problem, no clustering happened).
@@ -94,10 +96,10 @@ LABEL_HIDE_BELOW_D = 52, LABEL_MIN_FONT = 10 // resting label visibility/size fl
 
 ## Step 5: Fill the template
 
-Use `assets/bubble-template.html`. Copy it to your working directory.
+**This step is code, not an LLM fill-in-template pass.** `server/index.js` (`bubbleSlideData`, `renderBubble`) takes the theme groupings from Step 2 and the enriched slide array from Step 1 and builds the `{{BUBBLE_DATA}}` JSON directly, then stamps it plus `{{BUBBLE_TITLE}}`/`{{BUBBLE_SUBTITLE}}`/`{{AUTHOR}}` into `assets/bubble-template.html` — there is no per-deck LLM call for this part. This section documents the data contract that code implements, so a human editing `renderBubble` or the template knows what shape to preserve.
 
-1. Fill `{{BUBBLE_TITLE}}`, `{{BUBBLE_SUBTITLE}}`, `{{AUTHOR}}`.
-2. Build the theme/slide/image structure from Steps 1–2 and replace the entire `{{BUBBLE_DATA}}` token (inside the `<script type="application/json" id="bubble-data">` tag) with one JSON object — no markdown fencing, no surrounding commentary:
+1. `{{BUBBLE_TITLE}}`, `{{BUBBLE_SUBTITLE}}`, `{{AUTHOR}}` get filled in.
+2. The theme/slide/image structure from Steps 1–2 replaces the entire `{{BUBBLE_DATA}}` token (inside the `<script type="application/json" id="bubble-data">` tag) as one JSON object:
    ```json
    {
      "themes": [
@@ -115,8 +117,8 @@ Use `assets/bubble-template.html`. Copy it to your working directory.
      ]
    }
    ```
-3. **Image placeholders — critical, same rule as render-gallery:** never inline actual base64 data yourself. For every image on every slide, set its `src` to the exact literal token `__IMAGE_SLIDE_<slide>_<n>__` (`<slide>` = that slide's number, `<n>` = 1-based index of the image within that slide's `images[]`, so a slide with 2 images gets `__IMAGE_SLIDE_5_1__` and `__IMAGE_SLIDE_5_2__`). A code step after your output does a plain string substitution of each token for the real `data:` URI. Don't invent a filename or alter the token in any way.
-4. `body` may still be an array of multiple strings — keep them as separate short entries as authored, even though the template now joins and truncates them into one preview when a slide is active (see Step 1/3). Don't pre-join them yourself into the JSON; hand over the array as given.
+3. **Image placeholders — critical, same rule as render-gallery:** never inline actual base64 data. For every image on every slide, `src` is set to the exact literal token `__IMAGE_SLIDE_<slide>_<n>__` (`<slide>` = that slide's number, `<n>` = 1-based index of the image within that slide's `images[]`, so a slide with 2 images gets `__IMAGE_SLIDE_5_1__` and `__IMAGE_SLIDE_5_2__`). `embedBubbleImages` does a plain string substitution of each token for the real `data:` URI afterward.
+4. `body` stays an array of multiple strings, kept as separate short entries — the template joins and truncates them into one preview when a slide is active (see Step 1/3).
 
 ## Step 6: Chrome
 
