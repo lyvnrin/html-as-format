@@ -59,7 +59,7 @@ function stripImageData(slides) {
   }))
 }
 
-async function extractToJson(fileContent, { signal } = {}) {
+async function renderTimeline(fileContent, { signal } = {}) {
   const sourceText = Array.isArray(fileContent)
     ? JSON.stringify(stripImageData(fileContent), null, 2)
     : fileContent
@@ -68,29 +68,7 @@ async function extractToJson(fileContent, { signal } = {}) {
 
 ---
 
-Source document content:
-
-${sourceText}
-
----
-
-Follow the extraction-only mode (Step 2b) instructions above. Output ONLY the JSON object described by the schema — no markdown code fences, no commentary, no surrounding text.`
-
-  const response = await anthropic.messages.create(
-    {
-      model: MODEL,
-      max_tokens: 16000,
-      messages: [{ role: 'user', content: prompt }],
-    },
-    { signal },
-  )
-
-  const text = response.content.map((block) => block.text || '').join('')
-  return JSON.parse(stripCodeFence(text))
-}
-
-async function renderTimeline(extractedJson, { signal } = {}) {
-  const prompt = `${TIMELINE_SKILL}
+${TIMELINE_SKILL}
 
 ---
 
@@ -100,13 +78,13 @@ ${TIMELINE_TEMPLATE}
 
 ---
 
-Here is the extracted JSON content to render (output of the transcript-to-html extraction step):
+Here is the source document content to render (output of parseFile → captionImages, with image data replaced by text captions):
 
-${JSON.stringify(extractedJson, null, 2)}
+${sourceText}
 
 ---
 
-Follow the SKILL.md instructions above to fill the template with this content. Output ONLY the complete, final HTML document — no markdown code fences, no commentary, no surrounding text.`
+Follow the extraction-only mode (Step 2b) instructions above to structure this content per the described JSON schema, then immediately follow the render-timeline SKILL.md instructions to fill the template with that structured content — do this in a single pass, without emitting the intermediate JSON. Output ONLY the complete, final HTML document — no markdown code fences, no commentary, no surrounding text, no intermediate JSON.`
 
   const response = await anthropic.messages.create(
     {
@@ -459,8 +437,7 @@ app.post('/api/generate', upload.single('file'), async (req, res) => {
     const captionedContent = Array.isArray(fileContent)
       ? await captionImages(fileContent, { signal })
       : fileContent
-    const extractedJson = await extractToJson(captionedContent, { signal })
-    const html = await renderTimeline(extractedJson, { signal })
+    const html = await renderTimeline(captionedContent, { signal })
 
     if (signal.aborted) {
       finishGenerationLog(log, 'cancelled')
