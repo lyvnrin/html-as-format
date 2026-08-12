@@ -5,6 +5,7 @@ import DotField from './components/DotField'
 import styles from './App.module.css'
 
 const LOGO_TEXT = 'HTML as a Format'
+const MAX_CONTAINER_TILT_DEG = 1.5
 
 function downloadHtml(html, filename) {
   const blob = new Blob([html], { type: 'text/html' })
@@ -31,8 +32,32 @@ export default function App() {
   const [error, setError] = useState(null)
   const [theme, setTheme] = useState(getInitialTheme)
   const abortControllerRef = useRef(null)
+  const contentPanelRef = useRef(null)
 
   const canGenerate = Boolean(file) && Boolean(selectedFormat) && !isGenerating
+
+  function handleContentPanelMouseMove(e) {
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
+    const panel = contentPanelRef.current
+    if (!panel) return
+
+    const rect = e.currentTarget.getBoundingClientRect()
+    const normalizedX = (e.clientX - rect.left - rect.width / 2) / (rect.width / 2)
+    const normalizedY = (e.clientY - rect.top - rect.height / 2) / (rect.height / 2)
+
+    panel.style.transitionDuration = '0.2s'
+    panel.style.setProperty('--tilt-x', `${(-normalizedY * MAX_CONTAINER_TILT_DEG).toFixed(2)}deg`)
+    panel.style.setProperty('--tilt-y', `${(normalizedX * MAX_CONTAINER_TILT_DEG).toFixed(2)}deg`)
+  }
+
+  function handleContentPanelMouseLeave() {
+    const panel = contentPanelRef.current
+    if (!panel) return
+
+    panel.style.transitionDuration = '0.5s'
+    panel.style.setProperty('--tilt-x', '0deg')
+    panel.style.setProperty('--tilt-y', '0deg')
+  }
 
   useEffect(() => {
     function abortInFlightRequest() {
@@ -119,7 +144,7 @@ export default function App() {
           bulgeOnly
           gradientFrom="#D4D1CB"
           gradientTo="#D4D1CB"
-          glowColor="rgba(107, 140, 174, 0.3)"
+          glowColor="rgba(46, 109, 180, 0.3)"
           style={{ width: '100%', height: '100%' }}
         />
       </div>
@@ -153,29 +178,36 @@ export default function App() {
         )}
       </button>
 
-      <header className={styles.header}>
-        <div className={styles.logo} aria-label={LOGO_TEXT}>
-          {LOGO_TEXT.split('').map((char, i) => (
-            <span key={i} className={styles.logoCharWrap} aria-hidden="true">
-              <span className={styles.logoChar} style={{ '--char-index': i }}>
-                {char === ' ' ? ' ' : char}
+      <div
+        className={styles.contentPanel}
+        ref={contentPanelRef}
+        onMouseMove={handleContentPanelMouseMove}
+        onMouseLeave={handleContentPanelMouseLeave}
+      >
+        <header className={styles.header}>
+          <div className={styles.logo} aria-label={LOGO_TEXT}>
+            {LOGO_TEXT.split('').map((char, i) => (
+              <span key={i} className={styles.logoCharWrap} aria-hidden="true">
+                <span className={styles.logoChar} style={{ '--char-index': i }}>
+                  {char === ' ' ? ' ' : char}
+                </span>
               </span>
-            </span>
-          ))}
-        </div>
-        <div className={styles.tagline}>
-          <p className={styles.taglineMain}>Internal tool — turn source documents into shareable HTML pages.</p>
-          <p className={styles.taglineSub}>
-            Drop a file, pick a layout, and generate a standalone page you can send anywhere — no
-            build step, no hosting required.
-          </p>
-        </div>
-      </header>
+            ))}
+          </div>
+          <div className={styles.tagline}>
+            <p className={styles.taglineMain}>Internal tool — turn source documents into shareable HTML pages.</p>
+            <p className={styles.taglineSub}>
+              Drop a file, pick a layout, and generate a standalone page you can send anywhere — no
+              build step, no hosting required.
+            </p>
+          </div>
+        </header>
 
-      <main className={styles.main}>
-        <DropZone file={file} onFileSelect={setFile} />
-        <FormatPicker selectedFormat={selectedFormat} onSelect={setSelectedFormat} />
-      </main>
+        <main className={styles.main}>
+          <DropZone file={file} onFileSelect={setFile} />
+          <FormatPicker selectedFormat={selectedFormat} onSelect={setSelectedFormat} />
+        </main>
+      </div>
 
       <div className={styles.footerBar}>
         {error && <div className={styles.error}>{error}</div>}

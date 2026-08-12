@@ -23,7 +23,7 @@ Shares the same interactive chrome as all other renderers: 5-colour theme picker
 
 ## Step 1: Extraction
 
-**Extraction is a standalone, lean LLM call (`extractTimelineContent` in `server/index.js`), not the generic `transcript-to-html` extraction schema and not part of the same pass that fills the template.** It's the one piece of this renderer that still needs a model — shortening a heading to a glance `label`, picking a `key_stat`, and choosing `key_moments` all need real reading comprehension — but the call returns nothing except this small JSON, never the template's HTML/CSS/JS:
+**Extraction is a standalone, lean LLM call (`extractTimelineContent` in `server/index.js`), not part of the same pass that fills the template.** It's the one piece of this renderer that still needs a model — shortening a heading to a glance `label`, picking a `key_stat`, and choosing `key_moments` all need real reading comprehension — but the call returns nothing except this small JSON, never the template's HTML/CSS/JS:
 
 ```json
 {

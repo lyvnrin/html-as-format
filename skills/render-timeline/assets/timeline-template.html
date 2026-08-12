@@ -5,6 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>{{TIMELINE_TITLE}}</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,wght@0,400;0,600;0,700;1,400;1,600&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
 <style>
   :root {
     --bg: #1c1c1f;
@@ -19,7 +22,8 @@
     --accent-dark: #3a63d4;
     --radius: 14px;
     --shadow: 0 8px 32px rgba(0,0,0,0.45);
-    --font-serif: Georgia, 'Iowan Old Style', 'Palatino Linotype', 'Times New Roman', serif;
+    --font-serif: 'Source Serif 4', Georgia, 'Iowan Old Style', 'Palatino Linotype', 'Times New Roman', serif;
+    --font-sans: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
   }
 
   [data-theme="blue"]   { --accent: #5b8cff; --accent-soft: rgba(91,140,255,0.16); --accent-dark: #3a63d4; }
@@ -50,7 +54,7 @@
   body {
     background: var(--bg);
     color: var(--text);
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    font-family: var(--font-sans);
     transition: background-color .25s ease, color .25s ease;
     min-height: 100vh;
   }
@@ -370,6 +374,12 @@
      specificity), which would otherwise flicker the active ring. */
   .tl-node.active .tl-dot { background: var(--accent); border-color: var(--accent); box-shadow: 0 0 0 5px var(--accent-soft); transform: scale(1.1); animation: none; }
   .tl-node.highlight .tl-dot { border-color: var(--accent); }
+  /* Only border-color on hover (not box-shadow/transform) — those are the
+     properties @keyframes tl-dot-pulse animates on a running dot, and a
+     running animation always wins that fight over a plain hover rule,
+     which would otherwise make the hover state flicker in and out as the
+     ambient pulse loops. */
+  .tl-dot:hover { border-color: var(--accent); }
   /* --accent-soft already carries a low, theme-derived alpha (see the
      :root vars up top), which is exactly the "soft ring at low opacity"
      this calls for — the ring's colour and translucency both just fall
@@ -390,8 +400,10 @@
     color: var(--text);
     text-align: center;
     max-width: 170px;
+    transition: color .15s ease;
   }
   .tl-node.active .tl-node-label { color: var(--accent); }
+  .tl-node-label:hover { color: var(--accent); }
   .tl-node-stat { font-size: 11px; color: var(--text-faint); text-align: center; }
 
   /* Ambient float — a slow, gentle sine bob. animation-delay is set per
@@ -400,16 +412,52 @@
      node is active, each reveal restarts the animation fresh from 0%
      (translateY(0)) — display:none boxes don't have running animations —
      so opening a node never shows the card mid-float/jumping in. */
-  .tl-node-detail { display: none; width: 100%; max-width: 360px; padding: 2px; animation: tl-card-float 5s ease-in-out infinite; }
+  .tl-node-detail {
+    display: none;
+    position: relative;
+    width: 100%;
+    max-width: 360px;
+    padding: 22px 26px;
+    background: var(--surface-solid);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    overflow: hidden;
+    animation: tl-card-float 5s ease-in-out infinite;
+  }
+  /* Thin accent bar along the card's outer edge — same "accent used
+     sparingly, only on the open/active thing" language as the rest of the
+     page, just given a visible surface to sit on now that the card has
+     one. Mirrors the frontend's format-card top accent line. */
+  .tl-node-detail::before {
+    content: "";
+    position: absolute;
+    top: 0; bottom: 0;
+    width: 3px;
+    background: var(--accent);
+  }
   .tl-node.side-left .tl-node-detail { grid-column: 1; justify-self: end; }
   .tl-node.side-right .tl-node-detail { grid-column: 3; justify-self: start; }
+  .tl-node.side-left .tl-node-detail::before { right: 0; }
+  .tl-node.side-right .tl-node-detail::before { left: 0; }
   .tl-node.active .tl-node-detail { display: block; }
   @keyframes tl-card-float {
     0%, 100% { transform: translateY(0); }
     50% { transform: translateY(-4px); }
   }
 
-  .detail-stat { font-size: 12.5px; color: var(--text-faint); font-weight: 600; margin-bottom: 8px; }
+  .detail-stat {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .03em;
+    text-transform: uppercase;
+    color: var(--accent);
+    background: var(--accent-soft);
+    padding: 3px 10px;
+    border-radius: 999px;
+    margin-bottom: 10px;
+  }
   .detail-heading { font-family: var(--font-serif); font-size: 21px; font-weight: 600; margin: 0 0 6px; line-height: 1.25; }
   .detail-subheading { font-size: 14px; color: var(--accent); font-weight: 700; margin: 0 0 12px; }
   .detail-body { font-size: 15.5px; line-height: 1.6; color: var(--text); margin: 0 0 12px; }
@@ -460,7 +508,7 @@
     .tl-node-center { order: 1; flex-direction: row; align-items: center; gap: 10px; }
     .tl-node-label { text-align: left; max-width: none; }
     .tl-node-stat { text-align: left; }
-    .tl-node-detail { order: 2; display: none; width: 100%; max-width: none; margin-top: 12px; padding-left: 25px; }
+    .tl-node-detail { order: 2; display: none; width: 100%; max-width: none; margin-top: 12px; }
     .tl-node.active .tl-node-detail { display: block; }
   }
 

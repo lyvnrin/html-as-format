@@ -7,6 +7,40 @@
   min-height: 100vh;
 }
 
+/* Frosted glass panel around the header + main content so it stays legible
+   over the fixed DotField background. Sits above DotField's z-index: 0 via
+   .page's own stacking context (z-index: 1).
+
+   Mouse-tracked tilt: --tilt-x/--tilt-y are set on this element by
+   App.jsx's mousemove handler (same pattern as FormatCard's per-card tilt,
+   but capped much gentler at 1.5deg since this is a large surface, not a
+   small card). perspective() is embedded directly in the transform chain
+   (rather than set on the parent) so the panel tilts self-contained,
+   without pulling .page or DotField into a 3D stacking context. */
+.contentPanel {
+  background: rgba(255, 255, 255, 0.35);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 0.5px solid rgba(255, 255, 255, 0.4);
+  border-radius: 16px;
+  padding: 40px 48px;
+  max-width: 960px;
+  margin: 0 auto 40px auto;
+  position: relative;
+  z-index: 1;
+  --tilt-x: 0deg;
+  --tilt-y: 0deg;
+  transform-style: preserve-3d;
+  transform: perspective(1200px) rotateX(var(--tilt-x)) rotateY(var(--tilt-y));
+  transition: transform 0.2s ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .contentPanel {
+    transform: none;
+  }
+}
+
 /* Theme toggle — fixed to the top-right corner, above everything. */
 .themeToggle {
   position: fixed;
@@ -142,7 +176,7 @@
   transform: scale(1);
   transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1), background 0.15s ease,
     box-shadow 0.15s ease;
-  box-shadow: 0 4px 14px rgba(107, 140, 174, 0.25);
+  box-shadow: 0 4px 14px rgba(46, 109, 180, 0.25);
 }
 
 .generateButton:hover:not(:disabled) {

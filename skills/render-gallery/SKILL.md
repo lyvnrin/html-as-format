@@ -7,7 +7,7 @@ description: Renders the enriched slide JSON produced by the pptx image-extracti
 
 Takes the enriched slide array produced by the pptx image pipeline (`parseFile` → `captionImages`) and renders it as a masonry grid of cards, one per image.
 
-**Unlike the other renderer skills, this one does not consume the generic `transcript-to-html` extraction schema.** That schema only carries a text `image_description` field — the actual image never survives it. This format needs the real embedded image, so it must be given the raw enriched slide array directly: one object per slide, shaped `{ slide, heading, body[], images[] }`, where each entry in `images[]` is `{ base64, mime_type, caption }`.
+**This renderer needs the real embedded image, not just a text description of it.** It must be given the raw enriched slide array directly: one object per slide, shaped `{ slide, heading, body[], images[] }`, where each entry in `images[]` is `{ base64, mime_type, caption }`.
 
 ## Step 1: Read the enriched slide data
 
@@ -44,7 +44,7 @@ Takes the enriched slide array produced by the pptx image pipeline (`parseFile` 
 
 ## Step 4: Chrome
 
-Copy the toolbar HTML/CSS/JS verbatim from the existing templates (`timeline-template.html` or either `transcript-to-html` template) — do not rewrite it. 5-colour theme picker (blue, green, purple, orange, **red** — blue is the default; note this format uses red instead of the pink used elsewhere, that's intentional). Dark mode toggle. Download PDF button targets `#grid`, not the whole page (the toolbar shouldn't appear in the exported PDF).
+Copy the toolbar HTML/CSS/JS verbatim from the existing templates (`timeline-template.html` or `bubble-template.html`) — do not rewrite it. 5-colour theme picker (blue, green, purple, orange, **red** — blue is the default; note this format uses red instead of the pink used elsewhere, that's intentional). Dark mode toggle. Download PDF button targets `#grid`, not the whole page (the toolbar shouldn't appear in the exported PDF).
 
 Scrollbars are hidden everywhere on every renderer (the global `* { scrollbar-width: none; ... } *::-webkit-scrollbar { display: none; }` rule right after the box-sizing reset) — scrolling still works, there's just no visible track/thumb. Keep this rule intact.
 

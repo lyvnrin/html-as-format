@@ -16,7 +16,7 @@ This is a skills-based architecture rather than a hand-coded generator — the r
 
 Three renderers are active:
 
-- **Timeline:** interactive vertical timeline, one node per slide, alternating left/right with expandable detail panels. Best for sequential decks where slide order carries meaning. Uses the `transcript-to-html` extraction schema (text-only, no images).
+- **Timeline:** interactive vertical timeline, one node per slide, alternating left/right with expandable detail panels. Best for sequential decks where slide order carries meaning. Uses a standalone lean extraction call (text-only, no images).
 - **Magazine:** Pinterest-style masonry grid of image cards and solid accent tiles. Click a card to open a detail overlay with the full slide content. Best for image-heavy decks. Consumes the raw enriched slide array directly because it needs real embedded images.
 - **Bubble Map:** organically clustered bubble map where every slide is a parent bubble sized by content weight. Click to expand child bubbles (one per body paragraph, one per image). Best for exploring themes and relationships non-linearly. Also consumes the raw enriched slide array.
 
@@ -34,7 +34,6 @@ server/              Express API — file parsing, image captioning, Claude orch
     captionImages.js   image blobs → VLM-generated captions via Claude
   index.js             API routes, skill/template loading, renderer dispatch
 skills/              rendering logic — each skill is a SKILL.md + HTML template
-  transcript-to-html/   extraction skill — source content → structured JSON schema
   render-timeline/       timeline renderer
   render-magazine/       magazine renderer
   render-bubble/         bubble map renderer

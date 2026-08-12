@@ -18,7 +18,7 @@ This means adding a new output format is writing a new skill and template, not a
 
 Not all renderers consume the same input shape:
 
-- **Timeline** goes through the `transcript-to-html` extraction skill first, which produces a structured JSON schema (title, slides with headings/body/bullets, key moments, themes). This schema is text-only — `image_description` is a prose description, not an actual image. This works because Timeline doesn't display images.
+- **Timeline** goes through its own standalone lean extraction call (`extractTimelineContent`) first, which produces a small structured JSON schema (title, slides with headings/body/bullets/key stat, key moments). This schema is text-only, which works because Timeline doesn't display images.
 - **Magazine and Bubble Map** skip the extraction schema and consume the raw enriched slide array directly (`parseFile` → `captionImages` output), because they need the real embedded images as base64 data. The extraction schema's text-only `image_description` field isn't enough for formats that actually render photos.
 
 ## Frontend flow

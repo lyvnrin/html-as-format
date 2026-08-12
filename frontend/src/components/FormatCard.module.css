@@ -1,14 +1,11 @@
 .card {
-  /* Tilt (JS-driven on mousemove), selection scale, and hover lift all
-     compose into one `transform` via custom properties — three independent
-     sources can't each own the `transform` property directly without
-     stomping each other. perspective() is included in the transform chain
-     itself (rather than set on a parent) so the 3D tilt works self-contained
-     on the card. */
+  /* Selection scale and hover lift compose into one `transform` via custom
+     properties — two independent sources can't each own the `transform`
+     property directly without stomping each other. No tilt here — the
+     mouse-tracked 3D tilt lives on the page's glass content panel
+     (App.module.css .contentPanel) instead, not on individual cards. */
   --card-scale: 1;
   --card-lift: 0px;
-  --tilt-x: 0deg;
-  --tilt-y: 0deg;
   display: block;
   width: 100%;
   position: relative;
@@ -23,27 +20,16 @@
   cursor: pointer;
   font-family: inherit;
   opacity: 1;
-  transform-style: preserve-3d;
-  transform: perspective(800px) scale(var(--card-scale)) translateY(var(--card-lift))
-    rotateX(var(--tilt-x)) rotateY(var(--tilt-y));
+  transform: scale(var(--card-scale)) translateY(var(--card-lift));
   transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease,
     transform 0.3s ease-out;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  /* Tilt is one of the explicitly-listed effects to skip under reduced
-     motion — drop rotateX/rotateY from the composed transform entirely so
-     it has no visual effect even if FormatCard.jsx still sets the vars. */
-  .card {
-    transform: scale(var(--card-scale)) translateY(var(--card-lift));
-  }
 }
 
 .card:hover:not(.disabled) {
   --card-lift: -3px;
   background: var(--glass-bg-hover);
   border-color: var(--accent);
-  box-shadow: 0 8px 20px rgba(107, 140, 174, 0.14);
+  box-shadow: 0 8px 20px rgba(46, 109, 180, 0.14);
 }
 
 /* Selection morph: selected card scales up slightly and grows a thin accent
@@ -101,28 +87,6 @@
   display: block;
   width: 100%;
   height: auto;
-}
-
-/* Parallax preview layers — --parallax-x/--parallax-y are set on .card by
-   FormatCard.jsx's mousemove handler and inherit down through coverWrap into
-   the SVG's layer groups. Front shifts most, mid half as much, back stays
-   put, giving the cover a subtle sense of depth. */
-:global(.cover-layer-front) {
-  transform: translate(var(--parallax-x, 0px), var(--parallax-y, 0px));
-  transition: transform 0.15s ease-out;
-}
-
-:global(.cover-layer-mid) {
-  transform: translate(calc(var(--parallax-x, 0px) * 0.5), calc(var(--parallax-y, 0px) * 0.5));
-  transition: transform 0.15s ease-out;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  /* Parallax is explicitly in the reduced-motion skip list. */
-  :global(.cover-layer-front),
-  :global(.cover-layer-mid) {
-    transform: none;
-  }
 }
 
 .badge {
@@ -191,8 +155,8 @@
 /* Only animates opacity, not transform — a finite CSS animation with
    fill-mode `both` permanently overrides its animated property afterward
    (animation output outranks normal declarations in the cascade), which
-   would have silently pinned .card's transform and broken the tilt/scale/
-   lift system above for the rest of the page's life. */
+   would have silently pinned .card's transform and broken the scale/lift
+   system above for the rest of the page's life. */
 @keyframes cardIn {
   from {
     opacity: 0;

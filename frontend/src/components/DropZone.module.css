@@ -36,7 +36,7 @@
   border-radius: inherit;
   background: radial-gradient(
     300px circle at var(--glow-x, 50%) var(--glow-y, 50%),
-    rgba(107, 140, 174, 0.12),
+    rgba(46, 109, 180, 0.12),
     transparent 60%
   );
   opacity: 0;

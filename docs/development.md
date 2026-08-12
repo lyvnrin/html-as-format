@@ -8,7 +8,7 @@ Three formats are live in `formats.js`, all `active: true`:
 - **Magazine:** masonry grid of expandable photo cards. `contentType: 'image'`
 - **Bubble map:** clustered, non-linear map. `contentType: 'both'`
 
-`contentType` drives which pipeline path runs on the server. Magazine and bubble map need the actual embedded images, not just text descriptions, so they skip the generic extraction schema and consume the raw slide array straight out of the pptx parser (see Skills below). The frontend also uses `contentType` for the "Is your source file: Text-heavy / Image-heavy / Both" filter in `FormatPicker`, which highlights the recommended format for whatever the user uploaded.
+`contentType` drives which pipeline path runs on the server. Magazine and bubble map need the actual embedded images, not just text descriptions, so they skip any text-only extraction step and consume the raw slide array straight out of the pptx parser (see Skills below). The frontend also uses `contentType` for the "Is your source file: Text-heavy / Image-heavy / Both" filter in `FormatPicker`, which highlights the recommended format for whatever the user uploaded.
 
 ## 2. Extraction layer
 
@@ -67,23 +67,7 @@ If captioning fails for a single image (network blip, content filter), it logs a
 
 ## 3. Skills
 
-Five skills live under `/skills/`, each a `SKILL.md` read into a prompt at request time. Full prose isn't reproduced here; these carry a lot of hard-won prompt-engineering detail (rejected approaches, exact constraints, guard rails against common Claude mistakes) that's closer to source code than documentation. Duplicating it here would just mean every skill tweak needs a doc edit too.
-
-### transcript-to-html
-
-Generic extractor. Extraction-only mode (Step 2b in the skill) turns raw source text into a structured JSON contract:
-
-```json
-{
-  "source": { "filename", "type", "slide_count", "extracted_at" },
-  "meta": { "title", "subtitle", "author", "date", "topic", "summary" },
-  "slides": [{ "index", "heading", "subheading", "body", "bullets",
-               "speaker_notes", "key_stat", "image_description", "layout_hint" }],
-  "themes": [], "key_moments": [], "glossary": []
-}
-```
-
-`image_description` is text-only, so the real image never survives this schema. That's why magazine and bubble map bypass it entirely.
+Four skills live under `/skills/`, each a `SKILL.md` read into a prompt at request time. Full prose isn't reproduced here; these carry a lot of hard-won prompt-engineering detail (rejected approaches, exact constraints, guard rails against common Claude mistakes) that's closer to source code than documentation. Duplicating it here would just mean every skill tweak needs a doc edit too.
 
 ### extract-pdf
 
@@ -91,7 +75,7 @@ Instruction set for Claude to structure raw PDF page text into sections. The act
 
 ### render-timeline / render-magazine / render-bubble
 
-One renderer skill per format, each paired with an HTML template under `assets/`. Timeline consumes the generic JSON schema from `transcript-to-html`. Magazine and bubble both consume the raw enriched slide array from `parseFile → captionImages`, shaped `{ slide, heading, body[], images[] }`, since they need real image data.
+One renderer skill per format, each paired with an HTML template under `assets/`. Timeline runs its own standalone lean extraction call (`extractTimelineContent`) that returns a small JSON schema (title, slides, key moments). Magazine and bubble both consume the raw enriched slide array from `parseFile → captionImages`, shaped `{ slide, heading, body[], images[] }`, since they need real image data.
 
 Key implementation detail for image handling in magazine and bubble: Claude never sees the raw base64 data. The server replaces each image with a placeholder token (`__IMAGE_SLIDE_<n>__` for magazine, `__IMAGE_SLIDE_<slide>_<n>__` for bubble), Claude writes those tokens into the HTML, and a post-processing step in the server string-replaces each token with the real `data:` URI. This keeps the prompt size manageable and avoids Claude mangling base64 strings.
 
