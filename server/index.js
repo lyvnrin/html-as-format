@@ -419,18 +419,29 @@ function timelineNodeHtml(slide, index, isHighlight) {
           .join('\n            ')}\n          </ul>`
       : ''
 
-  return `      <div class="tl-node ${side}${isHighlight ? ' highlight' : ''}" data-index="${index}">
-        <div class="tl-node-detail">
+  const cardHtml = `<div class="tl-node-detail">
           <div class="detail-stat">${keyStat}</div>
           <h2 class="detail-heading">${heading}</h2>${subheadingHtml}
           ${bodyHtml}${bulletsHtml}
-        </div>
+        </div>`
+
+  // DOM order is always [slot][center][slot] — which slot gets the card
+  // (the other renders empty) is what drives the left/right side, via each
+  // slot's justify-content in the template's CSS. See timeline-template.html.
+  const leftSlot = side === 'side-left' ? cardHtml : ''
+  const rightSlot = side === 'side-right' ? cardHtml : ''
+
+  return `      <div class="tl-node ${side}${isHighlight ? ' highlight' : ''}" data-index="${index}">
+        <div class="tl-node-slot">${leftSlot}</div>
         <div class="tl-node-center">
           <button class="tl-dot" aria-label="Open node ${index}" aria-expanded="false"></button>
-          <span class="tl-node-index">${displayIndex}</span>
-          <button class="tl-node-label">${label}</button>
-          <span class="tl-node-stat">${keyStat}</span>
+          <div class="tl-node-meta">
+            <span class="tl-node-index">${displayIndex}</span>
+            <button class="tl-node-label">${label}</button>
+            <span class="tl-node-stat">${keyStat}</span>
+          </div>
         </div>
+        <div class="tl-node-slot">${rightSlot}</div>
       </div>`
 }
 
