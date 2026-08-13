@@ -13,6 +13,26 @@ const IMAGE_MIME_TYPES = {
   svg: 'image/svg+xml',
 }
 
+// <a:t> text is pulled out with a regex rather than a real XML parser (see
+// extractHeadingAndBody), so XML's own entity escaping never gets undone —
+// a slide titled "Meridian & Co." is stored in the XML as "Meridian &amp;
+// Co." and, without this, that literal "&amp;" would flow all the way
+// through to every renderer's escapeHtml(), which escapes the "&" a second
+// time into "&amp;amp;" (displayed as "&amp;"). Order matters: numeric
+// refs first, &amp; last, so a source string that legitimately contained
+// the literal text "&amp;" (rare, but XML permits it via "&amp;amp;")
+// doesn't get its already-decoded "&" re-matched by a later rule.
+function decodeXmlEntities(str) {
+  return str
+    .replace(/&#x([0-9a-fA-F]+);/g, (_, hex) => String.fromCodePoint(parseInt(hex, 16)))
+    .replace(/&#(\d+);/g, (_, dec) => String.fromCodePoint(parseInt(dec, 10)))
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&apos;/g, "'")
+    .replace(/&amp;/g, '&')
+}
+
 function slideNumber(slidePath) {
   const match = slidePath.match(/slide(\d+)\.xml$/)
   return match ? Number(match[1]) : 0
@@ -35,7 +55,7 @@ function extractHeadingAndBody(xml) {
   const shapes = xml.match(/<p:sp>[\s\S]*?<\/p:sp>/g) || []
   const shapeData = shapes.map((shape) => ({
     paragraphs: (shape.match(/<a:p>[\s\S]*?<\/a:p>/g) || [])
-      .map((p) => Array.from(p.matchAll(/<a:t>([^<]*)<\/a:t>/g), (m) => m[1]).join(''))
+      .map((p) => Array.from(p.matchAll(/<a:t>([^<]*)<\/a:t>/g), (m) => decodeXmlEntities(m[1])).join(''))
       .filter((text) => text.trim().length > 0),
     isTitle: /<p:ph[^>]*\btype="(title|ctrTitle)"/.test(shape),
   }))
