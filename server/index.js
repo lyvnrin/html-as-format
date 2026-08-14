@@ -329,8 +329,16 @@ function galleryImageCardHtml(slide, image, imageIndex, isPrimary) {
   const placeholder = galleryImagePlaceholder(slide.slide, imageIndex)
   const bodyHtml = isPrimary ? galleryBodyBlocksHtml(slide.body) : ''
   const captionText = isPrimary ? image.caption : slide.heading
+  // <details>/<summary> rather than a JS-driven toggle: the overlay panel
+  // clones this markup wholesale via cloneNode(true) (see the click handler
+  // in the template's <script>), which drops any addEventListener a custom
+  // button would need — <details> needs no listener, so it keeps working
+  // post-clone for free, and is keyboard-operable without extra work.
   const captionHtml = captionText
-    ? `\n            <p class="panel-caption">${escapeHtml(captionText)}</p>`
+    ? `\n            <details class="panel-caption-toggle">
+              <summary>Show image description</summary>
+              <p class="panel-caption">${escapeHtml(captionText)}</p>
+            </details>`
     : ''
 
   return `      <div class="card" data-index="${slide.slide}-${imageIndex}">
