@@ -22,6 +22,12 @@ Three renderers are active:
 
 All renderers share the same interactive chrome: a 5-colour theme picker (blue default), dark/light mode toggle, and a working PDF export button.
 
+## Design
+
+- **Fonts:** `Source Serif 4` for headings/titles, `IBM Plex Sans` for body and UI text — loaded from Google Fonts.
+- **Weights:** serif at 400/600/700 (plus italic 400/600) for editorial titles and index labels; sans at 400/500/600 (plus italic 400) for everything else, bold reserved for emphasis and active states.
+- **Palette:** five accent themes — blue (default), green, purple, orange, and pink or red depending on the renderer — each just a set of CSS custom properties (`--accent`, `--accent-soft`, `--accent-dark`) swapped on a `[data-theme]` attribute. Dark mode is the default surface; light mode overrides the `--bg`/`--text` tokens on `body[data-mode="light"]`.
+
 ## Project layout
 
 ```
