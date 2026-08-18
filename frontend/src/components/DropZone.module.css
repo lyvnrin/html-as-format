@@ -7,12 +7,20 @@
   margin-bottom: 4px;
 }
 
+:global(body[data-theme='dark']) .eyebrow {
+  color: #a8cbe8;
+}
+
 .heading {
   font-family: var(--font-serif);
   font-size: 17px;
   font-weight: 700;
   color: var(--ink);
   margin: 0 0 10px;
+}
+
+:global(body[data-theme='dark']) .heading {
+  color: #fafaf6;
 }
 
 .zone {
@@ -24,6 +32,11 @@
   padding: 13px 18px;
   cursor: pointer;
   transition: border-color 0.15s ease, background 0.15s ease, transform 0.15s ease;
+}
+
+:global(body[data-theme='dark']) .zone {
+  background: rgba(250, 250, 246, 0.06);
+  border-color: rgba(250, 250, 246, 0.15);
 }
 
 /* Cursor-tracked glow overlay — sits behind the zone's own content, fades
@@ -94,11 +107,19 @@
   color: var(--ink);
 }
 
+:global(body[data-theme='dark']) .prompt {
+  color: #fafaf6;
+}
+
 .hint {
   font-family: var(--font-sans);
   font-weight: 400;
   font-size: 12.5px;
   color: var(--muted);
+}
+
+:global(body[data-theme='dark']) .hint {
+  color: rgba(250, 250, 246, 0.55);
 }
 
 .chip {
@@ -125,12 +146,20 @@
   white-space: nowrap;
 }
 
+:global(body[data-theme='dark']) .filename {
+  color: #fafaf6;
+}
+
 .filesize {
   font-family: var(--font-sans);
   font-weight: 400;
   font-size: 12px;
   color: var(--muted);
   flex-shrink: 0;
+}
+
+:global(body[data-theme='dark']) .filesize {
+  color: rgba(250, 250, 246, 0.55);
 }
 
 .clearButton {

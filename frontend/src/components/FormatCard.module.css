@@ -9,7 +9,7 @@
   display: block;
   width: 100%;
   position: relative;
-  background: var(--glass-bg);
+  background: color-mix(in srgb, var(--paper) 92%, transparent);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   border: 0.5px solid var(--glass-border);
@@ -27,9 +27,18 @@
 
 .card:hover:not(.disabled) {
   --card-lift: -3px;
-  background: var(--glass-bg-hover);
+  background: color-mix(in srgb, var(--paper) 97%, transparent);
   border-color: var(--accent);
   box-shadow: 0 8px 20px rgba(46, 109, 180, 0.14);
+}
+
+:global(body[data-theme='dark']) .card {
+  background: rgba(250, 250, 246, 0.06);
+  border-color: rgba(250, 250, 246, 0.15);
+}
+
+:global(body[data-theme='dark']) .card:hover:not(.disabled) {
+  background: rgba(250, 250, 246, 0.1);
 }
 
 /* Selection morph: selected card scales up slightly and grows a thin accent
@@ -121,6 +130,10 @@
   color: var(--ink);
 }
 
+:global(body[data-theme='dark']) .label {
+  color: #fafaf6;
+}
+
 /* Recommended tag — amber-gold, not the accent blue, so it reads as a
    distinct highlight rather than blending into the accent-coloured hover/
    selection states. */
@@ -143,6 +156,10 @@
   font-size: 13.5px;
   color: var(--muted);
   line-height: 1.4;
+}
+
+:global(body[data-theme='dark']) .description {
+  color: rgba(250, 250, 246, 0.55);
 }
 
 @media (prefers-reduced-motion: no-preference) {
