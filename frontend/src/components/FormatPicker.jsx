@@ -18,7 +18,6 @@ export default function FormatPicker({ selectedFormat, onSelect }) {
 
   return (
     <section>
-      <div className={styles.eyebrow}>Step 2</div>
       <h2 className={styles.heading}>Choose a format</h2>
 
       <div className={styles.filterRow}>

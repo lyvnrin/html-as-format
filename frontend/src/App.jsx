@@ -196,8 +196,24 @@ export default function App() {
         </header>
 
         <main className={styles.main}>
-          <DropZone file={file} onFileSelect={setFile} />
-          <FormatPicker selectedFormat={selectedFormat} onSelect={setSelectedFormat} />
+          <div className={styles.step}>
+            <div className={styles.stepRail}>
+              <span className={styles.stepNumber}>1</span>
+              <span className={styles.stepLine} aria-hidden="true" />
+            </div>
+            <div className={styles.stepContent}>
+              <DropZone file={file} onFileSelect={setFile} />
+            </div>
+          </div>
+
+          <div className={styles.step}>
+            <div className={styles.stepRail}>
+              <span className={styles.stepNumber}>2</span>
+            </div>
+            <div className={styles.stepContent}>
+              <FormatPicker selectedFormat={selectedFormat} onSelect={setSelectedFormat} />
+            </div>
+          </div>
         </main>
 
         <div className={styles.actions}>
@@ -216,6 +232,8 @@ export default function App() {
             </button>
           )}
         </div>
+
+        <footer className={styles.footer}>Developed by Lavanya Kamble</footer>
       </div>
     </div>
   )
