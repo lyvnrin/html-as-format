@@ -26,26 +26,7 @@ All renderers share the same interactive chrome: a 5-colour theme picker (blue d
 
 - **Fonts:** `Source Serif 4` for headings/titles, `IBM Plex Sans` for body and UI text — loaded from Google Fonts.
 - **Weights:** serif at 400/600/700 (plus italic 400/600) for editorial titles and index labels; sans at 400/500/600 (plus italic 400) for everything else, bold reserved for emphasis and active states.
-- **Palette:** the frontend (landing page, drop zone, format picker) runs its own cream/blue/gold palette, defined as CSS custom properties in `frontend/src/index.css` and swapped between light and dark on `body[data-theme]`:
-
-  | Role | Light | Dark |
-  | --- | --- | --- |
-  | Paper (bg) | `--paper` `#fafaf6` | `--paper` `#1c1a17` |
-  | Paper shade | `--paper-shade` `#f3f2ed` | `--paper-shade` `#26231f` |
-  | Paper dim | `--paper-dim` `#e8e6df` | `--paper-dim` `#2f2c27` |
-  | Rule (borders) | `--rule` `#d4d1cb` | `--rule` `#3d3933` |
-  | Ink (text) | `--ink` `#2f2f2d` | `--ink` `#ede9e0` |
-  | Ink light | `--ink-light` `#43423f` | `--ink-light` `#c9c4b8` |
-  | Muted | `--muted` `#8a8780` | `--muted` `#8f8a7e` |
-  | Accent light (blue) | `--accent-light` `#a8cbe8` | `--accent-light` `#3d5570` |
-  | Accent mid (blue) | `--accent-mid` `#4a8ad4` | *(inherits light value)* |
-  | Accent (blue) | `--accent` `#2e6db4` | `--accent` `#7fa5c9` |
-  | Accent deep (blue) | `--accent-deep` `#1e5a96` | `--accent-deep` `#5c85ac` |
-  | Gold | `--gold` `#b86e3a` | `--gold` `#d9a352` |
-  | Gold light | `--gold-light` `#e8c4a0` | `--gold-light` `#4a3a20` |
-  | Gold dark | `--gold-dark` `#7a4420` | `--gold-dark` `#f0c98a` |
-
-  The `--accent-light → --accent-mid → --accent-deep` blue scale is also what drives the Grainient WebGL background on the landing page (light shade → mid → dark).
+- **Palette:** cream, blue, and gold, defined as CSS custom properties in `frontend/src/index.css` — `--paper` `#fafaf6` (cream bg), `--ink` `#2f2f2d` (text), `--accent-light` `#a8cbe8` / `--accent` `#2e6db4` / `--accent-deep` `#1e5a96` (blue scale), and `--gold` `#b86e3a`. Swapped for dark-mode equivalents on `body[data-theme]`.
 
   Separately, the **output templates** (Timeline/Magazine/Bubble Map) ship their own five accent themes — blue (default), green, purple, orange, and pink or red depending on the renderer — each a set of CSS custom properties (`--accent`, `--accent-soft`, `--accent-dark`) swapped on a `[data-theme]` attribute. Dark mode is the default surface there; light mode overrides the `--bg`/`--text` tokens on `body[data-mode="light"]`.
 
