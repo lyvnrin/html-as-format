@@ -27,8 +27,8 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 10px 14px;
-  margin-bottom: 14px;
+  gap: 8px 12px;
+  margin-bottom: 10px;
 }
 
 .filterLabel {
@@ -83,7 +83,7 @@
 .grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 14px;
+  gap: 12px;
 }
 
 @media (max-width: 900px) {

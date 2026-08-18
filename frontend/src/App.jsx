@@ -124,10 +124,7 @@ export default function App() {
         aria-hidden="true"
         style={{
           position: 'fixed',
-          top: 0,
-          left: 0,
-          width: '100vw',
-          height: '100vh',
+          inset: 0,
           zIndex: 0,
           pointerEvents: 'none',
         }}
@@ -188,10 +185,12 @@ export default function App() {
             ))}
           </div>
           <div className={styles.tagline}>
-            <p className={styles.taglineMain}>Internal tool — turn source documents into shareable HTML pages.</p>
+            <p className={styles.taglineMain}>
+              This internal tool turns your source documents into shareable HTML pages.
+            </p>
             <p className={styles.taglineSub}>
-              Drop a file, pick a layout, and generate a standalone page you can send anywhere — no
-              build step, no hosting required.
+              Drop a file, pick a layout, and click generate. The page downloads straight to your
+              device as a single HTML file, so there is no build step and nothing to host.
             </p>
           </div>
         </header>
@@ -200,23 +199,23 @@ export default function App() {
           <DropZone file={file} onFileSelect={setFile} />
           <FormatPicker selectedFormat={selectedFormat} onSelect={setSelectedFormat} />
         </main>
-      </div>
 
-      <div className={styles.footerBar}>
-        {error && <div className={styles.error}>{error}</div>}
-        <button
-          type="button"
-          className={styles.generateButton}
-          disabled={!canGenerate}
-          onClick={handleGenerate}
-        >
-          {isGenerating ? 'Generating…' : 'Generate page'}
-        </button>
-        {isGenerating && (
-          <button type="button" className={styles.cancelButton} onClick={handleCancel}>
-            Cancel
+        <div className={styles.actions}>
+          {error && <div className={styles.error}>{error}</div>}
+          <button
+            type="button"
+            className={styles.generateButton}
+            disabled={!canGenerate}
+            onClick={handleGenerate}
+          >
+            {isGenerating ? 'Generating…' : 'Generate page'}
           </button>
-        )}
+          {isGenerating && (
+            <button type="button" className={styles.cancelButton} onClick={handleCancel}>
+              Cancel
+            </button>
+          )}
+        </div>
       </div>
     </div>
   )
