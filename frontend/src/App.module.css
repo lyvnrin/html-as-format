@@ -8,7 +8,7 @@
 }
 
 /* Frosted glass panel around the header + main content so it stays legible
-   over the fixed DotField background. Sits above DotField's z-index: 0 via
+   over the fixed Grainient background. Sits above Grainient's z-index: 0 via
    .page's own stacking context (z-index: 1).
 
    Mouse-tracked tilt: --tilt-x/--tilt-y are set on this element by
@@ -16,7 +16,7 @@
    but capped much gentler at 1.5deg since this is a large surface, not a
    small card). perspective() is embedded directly in the transform chain
    (rather than set on the parent) so the panel tilts self-contained,
-   without pulling .page or DotField into a 3D stacking context. */
+   without pulling .page or Grainient into a 3D stacking context. */
 .contentPanel {
   background: rgba(255, 255, 255, 0.35);
   backdrop-filter: blur(20px);

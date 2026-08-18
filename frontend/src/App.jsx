@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import DropZone from './components/DropZone'
 import FormatPicker from './components/FormatPicker'
-import DotField from './components/DotField'
+import Grainient from './components/Grainient'
 import styles from './App.module.css'
 
 const LOGO_TEXT = 'HTML as a Format'
@@ -132,20 +132,13 @@ export default function App() {
           pointerEvents: 'none',
         }}
       >
-        <DotField
-          dotRadius={1.5}
-          dotSpacing={14}
-          bulgeStrength={67}
-          glowRadius={160}
-          sparkle={false}
-          waveAmplitude={0}
-          cursorRadius={500}
-          cursorForce={0.1}
-          bulgeOnly
-          gradientFrom="#D4D1CB"
-          gradientTo="#D4D1CB"
-          glowColor="rgba(46, 109, 180, 0.3)"
-          style={{ width: '100%', height: '100%' }}
+        <Grainient
+          color1="#a8cbe8"
+          color2="#4a8ad4"
+          color3="#1e5a96"
+          grainAmount={0.06}
+          contrast={1.2}
+          saturation={0.9}
         />
       </div>
 
