@@ -8,5 +8,6 @@ CREATE TABLE IF NOT EXISTS generation_logs (
   started_at TEXT NOT NULL,
   ended_at TEXT,
   status TEXT NOT NULL DEFAULT 'in_progress',
-  duration_ms INTEGER
+  duration_ms INTEGER,
+  html_content TEXT
 );

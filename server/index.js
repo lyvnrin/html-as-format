@@ -8,7 +8,14 @@ import multer from 'multer'
 import Anthropic from '@anthropic-ai/sdk'
 import { parseFile } from './lib/parseFile.js'
 import { captionImages } from './lib/captionImages.js'
-import { startGenerationLog, finishGenerationLog } from './lib/db.js'
+import {
+  startGenerationLog,
+  finishGenerationLog,
+  listGenerationLogs,
+  getGenerationHtml,
+  deleteGenerationLog,
+  deleteAllGenerationLogs,
+} from './lib/db.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const ROOT = path.resolve(__dirname, '..')
@@ -623,7 +630,7 @@ app.post('/api/generate', upload.single('file'), async (req, res) => {
       finishGenerationLog(log, 'cancelled')
       return
     }
-    finishGenerationLog(log, 'completed')
+    finishGenerationLog(log, 'completed', { html })
     res.json({ html })
   } catch (err) {
     if (signal.aborted) {
@@ -657,7 +664,7 @@ app.post('/api/render-gallery', upload.single('file'), async (req, res) => {
       finishGenerationLog(log, 'cancelled')
       return
     }
-    finishGenerationLog(log, 'completed')
+    finishGenerationLog(log, 'completed', { html })
     res.json({ html })
   } catch (err) {
     if (signal.aborted) {
@@ -692,7 +699,7 @@ app.post('/api/render-bubble', upload.single('file'), async (req, res) => {
       finishGenerationLog(log, 'cancelled')
       return
     }
-    finishGenerationLog(log, 'completed')
+    finishGenerationLog(log, 'completed', { html })
     res.json({ html })
   } catch (err) {
     if (signal.aborted) {
@@ -703,6 +710,28 @@ app.post('/api/render-bubble', upload.single('file'), async (req, res) => {
     finishGenerationLog(log, 'failed')
     res.status(500).json({ error: err.message || 'Bubble render failed.' })
   }
+})
+
+app.get('/api/editions', (req, res) => {
+  res.json(listGenerationLogs())
+})
+
+app.get('/api/editions/:id', (req, res) => {
+  const edition = getGenerationHtml(req.params.id)
+  if (!edition || !edition.html_content) {
+    return res.status(404).json({ error: 'Edition not found.' })
+  }
+  res.json({ html: edition.html_content, format: edition.format, sourceFilename: edition.source_filename })
+})
+
+app.delete('/api/editions/:id', (req, res) => {
+  deleteGenerationLog(req.params.id)
+  res.status(204).end()
+})
+
+app.delete('/api/editions', (req, res) => {
+  deleteAllGenerationLogs()
+  res.status(204).end()
 })
 
 const PORT = process.env.PORT || 3001

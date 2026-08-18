@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import DropZone from './components/DropZone'
 import FormatPicker from './components/FormatPicker'
 import Grainient from './components/Grainient'
+import PastEditions from './components/PastEditions'
 import styles from './App.module.css'
 
 const LOGO_TEXT = 'HTML as a Format'
@@ -31,6 +32,7 @@ export default function App() {
   const [isGenerating, setIsGenerating] = useState(false)
   const [error, setError] = useState(null)
   const [theme, setTheme] = useState(getInitialTheme)
+  const [activeTab, setActiveTab] = useState('generation')
   const abortControllerRef = useRef(null)
   const contentPanelRef = useRef(null)
 
@@ -195,43 +197,70 @@ export default function App() {
           </div>
         </header>
 
-        <main className={styles.main}>
-          <div className={styles.step}>
-            <div className={styles.stepRail}>
-              <span className={styles.stepNumber}>1</span>
-              <span className={styles.stepLine} aria-hidden="true" />
-            </div>
-            <div className={styles.stepContent}>
-              <DropZone file={file} onFileSelect={setFile} />
-            </div>
-          </div>
-
-          <div className={styles.step}>
-            <div className={styles.stepRail}>
-              <span className={styles.stepNumber}>2</span>
-            </div>
-            <div className={styles.stepContent}>
-              <FormatPicker selectedFormat={selectedFormat} onSelect={setSelectedFormat} />
-            </div>
-          </div>
-        </main>
-
-        <div className={styles.actions}>
-          {error && <div className={styles.error}>{error}</div>}
+        <div className={styles.tabs} role="tablist">
           <button
             type="button"
-            className={styles.generateButton}
-            disabled={!canGenerate}
-            onClick={handleGenerate}
+            role="tab"
+            aria-selected={activeTab === 'generation'}
+            className={`${styles.tab} ${activeTab === 'generation' ? styles.tabActive : ''}`}
+            onClick={() => setActiveTab('generation')}
           >
-            {isGenerating ? 'Generating…' : 'Generate page'}
+            Generation
           </button>
-          {isGenerating && (
-            <button type="button" className={styles.cancelButton} onClick={handleCancel}>
-              Cancel
-            </button>
-          )}
+          <button
+            type="button"
+            role="tab"
+            aria-selected={activeTab === 'past'}
+            className={`${styles.tab} ${activeTab === 'past' ? styles.tabActive : ''}`}
+            onClick={() => setActiveTab('past')}
+          >
+            Past Editions
+          </button>
         </div>
+
+        {activeTab === 'generation' ? (
+          <>
+            <main className={styles.main}>
+              <div className={styles.step}>
+                <div className={styles.stepRail}>
+                  <span className={styles.stepNumber}>1</span>
+                  <span className={styles.stepLine} aria-hidden="true" />
+                </div>
+                <div className={styles.stepContent}>
+                  <DropZone file={file} onFileSelect={setFile} />
+                </div>
+              </div>
+
+              <div className={styles.step}>
+                <div className={styles.stepRail}>
+                  <span className={styles.stepNumber}>2</span>
+                </div>
+                <div className={styles.stepContent}>
+                  <FormatPicker selectedFormat={selectedFormat} onSelect={setSelectedFormat} />
+                </div>
+              </div>
+            </main>
+
+            <div className={styles.actions}>
+              {error && <div className={styles.error}>{error}</div>}
+              <button
+                type="button"
+                className={styles.generateButton}
+                disabled={!canGenerate}
+                onClick={handleGenerate}
+              >
+                {isGenerating ? 'Generating…' : 'Generate page'}
+              </button>
+              {isGenerating && (
+                <button type="button" className={styles.cancelButton} onClick={handleCancel}>
+                  Cancel
+                </button>
+              )}
+            </div>
+          </>
+        ) : (
+          <PastEditions />
+        )}
 
         <footer className={styles.footer}>Developed by Lavanya Kamble</footer>
       </div>
