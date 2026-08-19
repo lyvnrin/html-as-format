@@ -295,11 +295,12 @@
      canvas's bottom-right corner. */
   .doc-meta { font-size: 10.5px; color: var(--text-faint); margin: 6px 0 0; }
 
-  /* Small "?" affordance pinned immediately left of the settings cog —
-     same visual style/size as .settings-toggle, just a second circle in
-     the same fixed row. Replaces the old always-visible .canvas-hint text:
-     the hint now lives in a dismissible tooltip instead of permanently
-     occupying canvas space. */
+  /* Info affordance pinned immediately left of the settings cog — same
+     visual style/size as .settings-toggle (stroke-based SVG glyph, not a
+     text character, so both corner buttons share one consistent icon
+     language), just a second circle in the same fixed row. Replaces the
+     old always-visible .canvas-hint text: the hint now lives in a
+     dismissible tooltip instead of permanently occupying canvas space. */
   .help-toggle {
     position: fixed;
     top: 20px;
@@ -311,8 +312,6 @@
     border: 1px solid var(--border);
     background: var(--surface-solid);
     color: var(--text);
-    font-size: 16px;
-    font-weight: 800;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -321,6 +320,7 @@
     transition: border-color .15s ease, transform .15s ease, background .15s ease;
   }
   .help-toggle:hover { border-color: var(--accent-glow); transform: translateY(-1px); }
+  .help-toggle svg { width: 18px; height: 18px; }
 
   .help-tooltip {
     position: fixed;
@@ -767,8 +767,14 @@
     </svg>
   </button>
 
-  <button class="help-toggle" id="help-toggle" aria-label="Help" aria-expanded="false">?</button>
-  <div class="help-tooltip" id="help-tooltip" hidden>drag to explore · click a bubble to expand · scroll or pinch to zoom</div>
+  <button class="help-toggle" id="help-toggle" aria-label="Help" aria-expanded="false">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <circle cx="12" cy="12" r="10"></circle>
+      <line x1="12" y1="16" x2="12" y2="12"></line>
+      <line x1="12" y1="8" x2="12.01" y2="8"></line>
+    </svg>
+  </button>
+  <div class="help-tooltip" id="help-tooltip" hidden>Drag to explore · Click a bubble to expand · Scroll or pinch to zoom.</div>
 
   <div class="settings-panel" id="settings-panel" hidden>
     <div class="theme-select" id="theme-select">

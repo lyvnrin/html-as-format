@@ -106,6 +106,35 @@
     margin-bottom: 10px;
   }
 
+  /* Deck info — a read-only summary, not a control, so it sits above the
+     Theme section with its own divider rather than looking like another
+     settings row. .deck-info-author:empty is what makes "author, if
+     stated" work with zero JS: the author placeholder fills in blank
+     whenever the source deck has no author, and an empty div collapses on
+     its own. (Not spelled out literally here — fillPlaceholder does a
+     whole-file string replace, so writing the actual token in this comment
+     would get clobbered by its own substitution.) */
+  .deck-info {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--border);
+  }
+  .deck-info-title {
+    font-family: var(--font-serif);
+    font-size: 14px;
+    font-weight: 700;
+    line-height: 1.3;
+    color: var(--text);
+  }
+  .deck-info-author,
+  .deck-info-count {
+    font-size: 11.5px;
+    color: var(--text-faint);
+  }
+  .deck-info-author:empty { display: none; }
+
   /* Theme dropdown — replaces the old row of clickable colour dots. The
      trigger's own text sits in var(--accent), so it re-colours for free
      whenever data-theme changes (no JS needed for that part); the menu
@@ -229,9 +258,11 @@
   body[data-mode="dark"] .mode-toggle-thumb .icon-sun { opacity: 0; transform: rotate(90deg) scale(.5); }
   body[data-mode="dark"] .mode-toggle-thumb .icon-moon { opacity: 1; transform: rotate(0deg) scale(1); }
 
-  /* Small "?" affordance pinned immediately left of the settings cog —
-     same visual style/size as .settings-toggle. Opens a dismissible
-     tooltip with the interaction hint instead of permanent on-page text. */
+  /* Info affordance pinned immediately left of the settings cog — same
+     visual style/size as .settings-toggle and .toc-toggle (stroke-based
+     SVG glyph, not a text character, so all three corner buttons share one
+     consistent icon language). Opens a dismissible tooltip with the
+     interaction hint instead of permanent on-page text. */
   .help-toggle {
     position: fixed;
     top: 20px;
@@ -243,8 +274,6 @@
     border: 1px solid var(--border);
     background: var(--surface-solid);
     color: var(--text);
-    font-size: 16px;
-    font-weight: 800;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -253,6 +282,7 @@
     transition: border-color .15s ease, transform .15s ease, background .15s ease;
   }
   .help-toggle:hover { border-color: var(--accent); transform: translateY(-1px); }
+  .help-toggle svg { width: 18px; height: 18px; }
   .help-tooltip {
     position: fixed;
     top: 70px;
@@ -724,8 +754,14 @@
     </svg>
   </button>
 
-  <button class="help-toggle" id="help-toggle" aria-label="Help" aria-expanded="false">?</button>
-  <div class="help-tooltip" id="help-tooltip" hidden>click a node's dot or label to expand its details</div>
+  <button class="help-toggle" id="help-toggle" aria-label="Help" aria-expanded="false">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <circle cx="12" cy="12" r="10"></circle>
+      <line x1="12" y1="16" x2="12" y2="12"></line>
+      <line x1="12" y1="8" x2="12.01" y2="8"></line>
+    </svg>
+  </button>
+  <div class="help-tooltip" id="help-tooltip" hidden>Click a node's dot or label to expand its details — or use the arrow keys to move through them.</div>
 
   <button class="toc-toggle" id="toc-toggle" aria-label="Contents" aria-haspopup="listbox" aria-expanded="false">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -740,6 +776,11 @@
   <div class="toc-panel" id="toc-panel" hidden role="listbox" aria-label="Timeline contents"></div>
 
   <div class="settings-panel" id="settings-panel" hidden>
+    <div class="deck-info">
+      <div class="deck-info-title">{{TIMELINE_TITLE}}</div>
+      <div class="deck-info-author">{{AUTHOR}}</div>
+      <div class="deck-info-count">{{TIMELINE_SUBTITLE}}</div>
+    </div>
     <div class="theme-select" id="theme-select">
       <div class="settings-label">Theme</div>
       <button class="theme-select-trigger" id="theme-select-trigger" aria-haspopup="listbox" aria-expanded="false">Change Theme</button>

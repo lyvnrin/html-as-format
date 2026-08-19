@@ -485,9 +485,11 @@ function renderTimelineHtml(extracted, filename) {
     .map((slide, i) => timelineNodeHtml(slide, i + 1, keyMoments.has(i + 1)))
     .join('\n\n')
   const title = escapeHtml(extracted.title || titleFromFilename(filename))
+  const subtitle = `${slides.length} slide${slides.length === 1 ? '' : 's'}`
 
   let html = TIMELINE_TEMPLATE
   html = fillPlaceholder(html, '{{TIMELINE_TITLE}}', title)
+  html = fillPlaceholder(html, '{{TIMELINE_SUBTITLE}}', subtitle)
   html = fillPlaceholder(html, '{{AUTHOR}}', '')
   html = fillPlaceholder(html, '{{TIMELINE_NODES}}', nodesHtml)
   return html

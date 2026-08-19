@@ -236,9 +236,11 @@
   body[data-mode="dark"] .mode-toggle-thumb .icon-sun { opacity: 0; transform: rotate(90deg) scale(.5); }
   body[data-mode="dark"] .mode-toggle-thumb .icon-moon { opacity: 1; transform: rotate(0deg) scale(1); }
 
-  /* Small "?" affordance pinned immediately left of the settings cog —
-     same visual style/size as .settings-toggle. Opens a dismissible
-     tooltip with the interaction hint instead of permanent on-page text. */
+  /* Info affordance pinned immediately left of the settings cog — same
+     visual style/size as .settings-toggle (stroke-based SVG glyph, not a
+     text character, so both corner buttons share one consistent icon
+     language). Opens a dismissible tooltip with the interaction hint
+     instead of permanent on-page text. */
   .help-toggle {
     position: fixed;
     top: 20px;
@@ -250,8 +252,6 @@
     border: 1px solid var(--border);
     background: var(--surface-solid);
     color: var(--text);
-    font-size: 16px;
-    font-weight: 800;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -260,6 +260,7 @@
     transition: border-color .15s ease, transform .15s ease, background .15s ease;
   }
   .help-toggle:hover { border-color: var(--accent-glow); transform: translateY(-1px); }
+  .help-toggle svg { width: 18px; height: 18px; }
   .help-tooltip {
     position: fixed;
     top: 70px;
@@ -515,8 +516,14 @@
     </svg>
   </button>
 
-  <button class="help-toggle" id="help-toggle" aria-label="Help" aria-expanded="false">?</button>
-  <div class="help-tooltip" id="help-tooltip" hidden>click a card to view details</div>
+  <button class="help-toggle" id="help-toggle" aria-label="Help" aria-expanded="false">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <circle cx="12" cy="12" r="10"></circle>
+      <line x1="12" y1="16" x2="12" y2="12"></line>
+      <line x1="12" y1="8" x2="12.01" y2="8"></line>
+    </svg>
+  </button>
+  <div class="help-tooltip" id="help-tooltip" hidden>Click a card to view details.</div>
 
   <div class="settings-panel" id="settings-panel" hidden>
     <div class="theme-select" id="theme-select">
