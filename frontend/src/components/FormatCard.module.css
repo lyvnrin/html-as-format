@@ -162,6 +162,20 @@
   color: rgba(250, 250, 246, 0.55);
 }
 
+.previewLink {
+  display: inline-block;
+  margin-top: 7px;
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.previewLink:hover {
+  text-decoration: underline;
+}
+
 @media (prefers-reduced-motion: no-preference) {
   .card {
     animation: cardIn 0.4s ease both;

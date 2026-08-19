@@ -1,0 +1,2072 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pitch Deck (sample)</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,wght@0,400;0,600;0,700;1,400;1,600&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --font-serif: 'Source Serif 4', Georgia, 'Iowan Old Style', 'Palatino Linotype', 'Times New Roman', serif;
+    --font-sans: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    --bg: #1c1a17;
+    --surface: rgba(255,255,255,0.05);
+    --surface-solid: #242327;
+    --surface-alt: rgba(255,255,255,0.08);
+    --border: rgba(255,255,255,0.12);
+    --text: #eef1f8;
+    --text-soft: #aab2c5;
+    --text-faint: #6e7690;
+    --accent: #3a5fa8;
+    --accent-soft: rgba(58,95,168,0.16);
+    --accent-glow: rgba(58,95,168,0.55);
+    --accent-dark: #24427e;
+    --radius: 16px;
+    --shadow: 0 8px 32px rgba(0,0,0,0.45);
+    --blur: 18px;
+    --ease: cubic-bezier(.2,.8,.2,1);
+    /* Slight overshoot ("back out") curve — used only for slide bubbles
+       clearing space around an expanding neighbor (see .slide-bubble and
+       relaxNeighbors() in the script). Deliberately different from --ease:
+       that calm curve is for chrome/fades: this one is for bubbles
+       physically nudging each other aside, which is supposed to read as
+       organic/springy, not smooth. Don't use this for panel/dot fades. */
+    --spring-ease: cubic-bezier(.34, 1.56, .64, 1);
+    --connector-opacity: 0.35;
+    --connector-dim-opacity: 0.1;
+    --connector-active-opacity: 0.6;
+  }
+
+  [data-theme="blue"]   { --accent: #3a5fa8; --accent-soft: rgba(58,95,168,0.16); --accent-glow: rgba(58,95,168,0.55); --accent-dark: #24427e; }
+  [data-theme="green"]  { --accent: #1f8a5c; --accent-soft: rgba(31,138,92,0.16); --accent-glow: rgba(31,138,92,0.55); --accent-dark: #146341; }
+  [data-theme="purple"] { --accent: #6b46c8; --accent-soft: rgba(107,70,200,0.16); --accent-glow: rgba(107,70,200,0.55); --accent-dark: #4c2f94; }
+  [data-theme="orange"] { --accent: #c2703a; --accent-soft: rgba(194,112,58,0.16); --accent-glow: rgba(194,112,58,0.55); --accent-dark: #8f4f24; }
+  [data-theme="red"]    { --accent: #a8342f; --accent-soft: rgba(168,52,47,0.16); --accent-glow: rgba(168,52,47,0.55); --accent-dark: #7a231f; }
+
+  body[data-mode="light"] {
+    --bg: #fafaf6;
+    --surface: rgba(255,255,255,0.7);
+    --surface-solid: #ffffff;
+    --surface-alt: rgba(20,23,31,0.04);
+    --border: rgba(20,23,31,0.1);
+    --text: #181a20;
+    --text-soft: #565d6e;
+    --text-faint: #8990a3;
+    --shadow: 0 8px 28px rgba(20,30,60,0.12);
+    --connector-opacity: 0.35;
+    --connector-dim-opacity: 0.1;
+    --connector-active-opacity: 0.6;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+
+  /* Hide scrollbars everywhere — scrolling still works, just no visible track/thumb.
+     Part of the shared chrome; keep this block in every template. */
+  * { scrollbar-width: none; -ms-overflow-style: none; }
+  *::-webkit-scrollbar { display: none; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-sans);
+    transition: background-color .25s ease, color .25s ease;
+    min-height: 100vh;
+    overflow: hidden;
+  }
+
+  .settings-toggle {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 100;
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    border: 1px solid var(--border);
+    background: var(--surface-solid);
+    color: var(--text);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    box-shadow: var(--shadow);
+    transition: border-color .15s ease, transform .15s ease, background .15s ease;
+  }
+  .settings-toggle:hover { border-color: var(--accent-glow); transform: translateY(-1px); }
+  .settings-toggle svg { width: 18px; height: 18px; }
+
+  .settings-panel {
+    position: fixed;
+    top: 70px;
+    right: 20px;
+    z-index: 100;
+    width: 224px;
+    background: var(--surface-solid);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  .settings-panel[hidden] { display: none; }
+
+  .settings-label {
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: var(--text-faint);
+    margin-bottom: 10px;
+  }
+
+  /* Theme dropdown — replaces the old row of clickable colour dots. The
+     trigger's own text sits in var(--accent), so it re-colours for free
+     whenever data-theme changes (no JS needed for that part); the menu
+     stays a plain toggle+outside-click pattern, same as .settings-panel's
+     own open/close. */
+  .theme-select { position: relative; }
+  .theme-select-trigger {
+    display: flex; align-items: center; justify-content: space-between; gap: 6px;
+    width: 100%;
+    font-size: 13px; font-weight: 700;
+    padding: 9px 14px; border-radius: 10px;
+    border: 1px solid var(--border);
+    background: var(--surface-alt);
+    color: var(--accent);
+    cursor: pointer;
+    transition: background .15s ease, transform .1s ease, color .2s ease;
+  }
+  .theme-select-trigger:hover { background: var(--accent-soft); transform: translateY(-1px); }
+  .theme-select-trigger::after { content: "\25be"; font-size: 11px; opacity: .7; }
+  .theme-select-menu {
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 0;
+    right: 0;
+    z-index: 10;
+    background: var(--surface-solid);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    box-shadow: var(--shadow);
+    padding: 6px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .theme-select-menu[hidden] { display: none; }
+  .theme-select-option {
+    display: flex; align-items: center; gap: 8px;
+    width: 100%;
+    font-size: 13px; font-weight: 600;
+    padding: 7px 10px; border-radius: 8px;
+    border: none;
+    background: none;
+    color: var(--text);
+    text-align: left;
+    cursor: pointer;
+    transition: background .15s ease;
+  }
+  .theme-select-option:hover { background: var(--surface-alt); }
+  .theme-select-option.active { color: var(--accent); font-weight: 800; }
+  .theme-select-option::before { content: ""; width: 10px; height: 10px; border-radius: 50%; flex: none; }
+  .theme-select-option[data-t="blue"]::before   { background: #3a5fa8; }
+  .theme-select-option[data-t="green"]::before  { background: #1f8a5c; }
+  .theme-select-option[data-t="purple"]::before { background: #6b46c8; }
+  .theme-select-option[data-t="orange"]::before { background: #c2703a; }
+  .theme-select-option[data-t="red"]::before    { background: #a8342f; }
+
+  .settings-panel button.tool-btn {
+    display: flex; align-items: center; justify-content: center; gap: 6px;
+    width: 100%;
+    font-size: 13px; font-weight: 600;
+    padding: 9px 14px; border-radius: 10px;
+    border: 1px solid var(--border);
+    background: var(--surface-alt);
+    color: var(--text);
+    cursor: pointer;
+    transition: background .15s ease, transform .1s ease;
+  }
+  .settings-panel button.tool-btn:hover { background: var(--accent-soft); transform: translateY(-1px); }
+  .settings-panel button.tool-btn.primary {
+    background: var(--accent); color: #0a0c12; border-color: var(--accent);
+    box-shadow: 0 0 18px var(--accent-glow);
+  }
+  .settings-panel button.tool-btn.primary:hover { background: var(--accent-dark); }
+
+  /* PDF download disabled for now — kept in the DOM/wiring as-is, just
+     visually and functionally inert. */
+  #pdf-btn { opacity: 0.4; pointer-events: none; cursor: not-allowed; }
+
+  /* Dark/light switch — an iOS-style sliding pill instead of a plain text
+     button, so toggling reads as one continuous motion (thumb slides,
+     sun/moon cross-fade+rotate into each other) rather than an instant
+     swap. The row's label text keeps the original button's semantics: it
+     names the action a click performs (e.g. "Dark" while mode is light),
+     not the current state — aria-pressed on the button carries the actual
+     state for assistive tech. */
+  .mode-toggle {
+    display: flex; align-items: center; justify-content: space-between; gap: 10px;
+    width: 100%;
+    font-size: 13px; font-weight: 600;
+    padding: 9px 14px; border-radius: 10px;
+    border: 1px solid var(--border);
+    background: var(--surface-alt);
+    color: var(--text);
+    cursor: pointer;
+    transition: background .15s ease, transform .1s ease;
+  }
+  .mode-toggle:hover { background: var(--accent-soft); transform: translateY(-1px); }
+  .mode-toggle-switch {
+    position: relative;
+    flex: none;
+    width: 38px; height: 22px;
+    border-radius: 999px;
+    background: var(--border);
+    transition: background .35s ease;
+  }
+  body[data-mode="dark"] .mode-toggle-switch { background: var(--accent-dark); }
+  .mode-toggle-thumb {
+    position: absolute;
+    top: 2px; left: 2px;
+    width: 18px; height: 18px;
+    border-radius: 50%;
+    background: var(--surface-solid);
+    box-shadow: 0 1px 3px rgba(0,0,0,.35);
+    display: flex; align-items: center; justify-content: center;
+    transition: transform .35s var(--spring-ease, ease);
+  }
+  body[data-mode="dark"] .mode-toggle-thumb { transform: translateX(16px); }
+  .mode-toggle-thumb svg {
+    position: absolute;
+    width: 12px; height: 12px;
+    transition: opacity .3s ease, transform .4s ease;
+  }
+  .mode-toggle-thumb .icon-sun { color: #e8a63c; opacity: 1; transform: rotate(0deg) scale(1); }
+  .mode-toggle-thumb .icon-moon { color: #7c93c9; opacity: 0; transform: rotate(-90deg) scale(.5); }
+  body[data-mode="dark"] .mode-toggle-thumb .icon-sun { opacity: 0; transform: rotate(90deg) scale(.5); }
+  body[data-mode="dark"] .mode-toggle-thumb .icon-moon { opacity: 1; transform: rotate(0deg) scale(1); }
+
+  #doc { position: relative; height: 100vh; overflow: hidden; }
+
+  /* A small floating card, not a text block competing with the map for
+     room — capped to a fixed width well short of a third of the viewport
+     and given a real (but modest) surface/border/shadow, like every other
+     piece of floating chrome (.settings-panel), rather than a wide column
+     of text with just a soft scrim behind it. */
+  .doc-header {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    z-index: 5;
+    width: 240px;
+    max-width: 32vw;
+    text-align: left;
+    pointer-events: none;
+    background: var(--surface-solid);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 12px 14px;
+  }
+  .doc-eyebrow {
+    display: inline-block;
+    font-size: 9px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase;
+    color: var(--accent);
+    background: var(--accent-soft);
+    border: 1px solid var(--accent-glow);
+    padding: 3px 10px;
+    border-radius: 999px;
+    margin-bottom: 7px;
+  }
+  .doc-title { font-family: var(--font-serif); font-size: 15px; font-weight: 800; margin: 0 0 4px; line-height: 1.25; letter-spacing: -.01em; }
+  .doc-subtitle {
+    font-size: 11.5px; color: var(--text-soft); margin: 0; line-height: 1.4;
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+  }
+
+  /* Author/source line — now a metadata row inside .doc-header itself
+     (see the markup below) rather than a separate element pinned to the
+     canvas's bottom-right corner. */
+  .doc-meta { font-size: 10.5px; color: var(--text-faint); margin: 6px 0 0; }
+
+  /* Info affordance pinned immediately left of the settings cog — same
+     visual style/size as .settings-toggle (stroke-based SVG glyph, not a
+     text character, so both corner buttons share one consistent icon
+     language), just a second circle in the same fixed row. Replaces the
+     old always-visible .canvas-hint text: the hint now lives in a
+     dismissible tooltip instead of permanently occupying canvas space. */
+  .help-toggle {
+    position: fixed;
+    top: 20px;
+    right: 72px;
+    z-index: 100;
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    border: 1px solid var(--border);
+    background: var(--surface-solid);
+    color: var(--text);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    box-shadow: var(--shadow);
+    transition: border-color .15s ease, transform .15s ease, background .15s ease;
+  }
+  .help-toggle:hover { border-color: var(--accent-glow); transform: translateY(-1px); }
+  .help-toggle svg { width: 18px; height: 18px; }
+
+  .help-tooltip {
+    position: fixed;
+    top: 70px;
+    right: 72px;
+    z-index: 100;
+    width: 208px;
+    background: var(--surface-solid);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 12px 14px;
+    font-size: 12.5px;
+    line-height: 1.45;
+    color: var(--text-soft);
+  }
+  .help-tooltip[hidden] { display: none; }
+
+  /* Scrollable viewport onto the (usually much larger) canvas. Scrollbars are
+     hidden by the sitewide rule above — click-and-drag panning (wired in JS)
+     is the discoverable way to explore a map bigger than the viewport. */
+  /* NOT display:flex + align-items/justify-content:center — that combo on
+     a scrollable (overflow:auto) container is a real CSS trap: once the
+     child is bigger than the wrap (which is the normal case once a deck
+     has more than a handful of slides), flex's default ("unsafe") center
+     alignment lets the child overflow equally on both sides, but negative
+     scroll offsets don't exist — so the overflow on the leading side
+     (roughly the top-left of the canvas) becomes permanently unreachable,
+     clipped and unscrollable. That's what "bubbles overflowing off
+     screen and unreachable" was. Plain block layout has no such trap:
+     the canvas sits at (0,0) inside the wrap and every pixel of it is
+     reachable across the full scroll range. The "starts centered on
+     load" look is achieved entirely by the JS setting scrollLeft/scrollTop
+     after layout (see layoutBubbles()) — don't reintroduce flex centering
+     here to try to get that for free, it's what breaks reachability. */
+  #canvas-wrap {
+    position: absolute;
+    inset: 0;
+    overflow: auto;
+    cursor: grab;
+    /* Hands wheel/pinch fully to our own zoom handlers (see enablePinchZoom()
+       and the wheel listener in the script) instead of letting the browser's
+       native touch-scroll/pinch-zoom fight them. */
+    touch-action: none;
+  }
+  #canvas-wrap.dragging { cursor: grabbing; }
+
+  /* #canvas is sized in JS to exactly fit the computed layout (2x the
+     outermost bubble radius, plus margin). Every bubble inside is an
+     absolutely-positioned sibling placed via the --cx/--cy/--d custom
+     properties computed by layoutBubbles() — never hand-place one. */
+  /* The eased transition here is a camera zoom (collapsed overview <->
+     expanded slide), so it uses the calm --ease like other chrome/fades —
+     never --spring-ease, which is reserved for bubbles physically
+     displacing each other (see .slide-bubble). */
+  #canvas { position: relative; transition: transform .45s var(--ease), width .45s var(--ease), height .45s var(--ease); }
+
+  /* Theme connector lines — pure structure, not chrome. One thin SVG
+     layer sized to the canvas, inserted as #canvas's first child (z-index
+     0; bubbles are 1+), so lines always render behind every bubble, never
+     over label text or images. Coordinates are the same raw --cx/--cy
+     centres the bubbles themselves use (see buildConnectors() in the
+     script), so the whole layer pans/scales for free with #canvas's
+     existing transform and #canvas-wrap's scroll — nothing here
+     duplicates that math. */
+  #connectors {
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 0;
+    overflow: visible;
+    pointer-events: none;
+  }
+  .connector-line {
+    fill: none;
+    stroke: var(--accent);
+    stroke-width: 3;
+    stroke-linecap: round;
+    opacity: var(--connector-opacity);
+    transition: opacity .3s ease, stroke .25s ease;
+  }
+  /* Set when a slide is active — see updateConnectorEmphasis() in the
+     script. Bubbles themselves never dim (see SKILL.md's "neighbors clear
+     space but do NOT dim"), so this is the graph's only "focus" signal
+     while one slide is open. Applied to .connector-pulse too (not just
+     .connector-line) — otherwise the crawling highlight overlay, which
+     sits on top of the line and is always brighter, would keep showing
+     its own fixed opacity and mask the line's dim/active state entirely.
+     The #connectors prefix isn't for scoping (both classes only ever
+     apply inside it) — it's to out-specificity the body[data-mode="light"]
+     .connector-pulse opacity override below, which would otherwise win
+     in light mode since it has one more selector segment. */
+  #connectors .connector-line.connector-dim,
+  #connectors .connector-pulse.connector-dim { opacity: var(--connector-dim-opacity); }
+  #connectors .connector-line.connector-active,
+  #connectors .connector-pulse.connector-active { opacity: var(--connector-active-opacity); }
+
+  /* Idle ambient pulse — a short bright dash "travels" the length of each
+     line on a loop (stroke-dasharray sized in JS so only one dash is ever
+     visible at once; animating stroke-dashoffset by exactly one dash+gap
+     cycle, see --pulse-cycle, loops it seamlessly with no visible reset).
+     Duration/delay are randomized per line in buildConnectors() so the
+     crawl reads as 8-12s and staggered across the map, not one uniform
+     pulse. Paused (not removed — resumes mid-cycle, doesn't restart) via
+     .connectors-paused on #connectors whenever a slide is expanded or the
+     canvas is being dragged, so ambient motion never competes with a
+     gesture the user is already tracking. */
+  .connector-pulse {
+    fill: none;
+    stroke: var(--accent);
+    stroke-width: 3;
+    stroke-linecap: round;
+    opacity: .6;
+    animation-name: connector-pulse-crawl;
+    animation-timing-function: linear;
+    animation-iteration-count: infinite;
+  }
+  body[data-mode="light"] .connector-pulse { opacity: .5; }
+  #connectors.connectors-paused .connector-pulse { animation-play-state: paused; }
+  @keyframes connector-pulse-crawl {
+    from { stroke-dashoffset: 0; }
+    to { stroke-dashoffset: var(--pulse-cycle, -400px); }
+  }
+
+  .bubble {
+    position: absolute;
+    left: var(--cx);
+    top: var(--cy);
+    width: var(--d);
+    height: var(--d);
+    /* Static fallback for when the breathing animation below is disabled
+       (prefers-reduced-motion, or .is-panning) — keeps the bubble centred
+       on its --cx/--cy anchor even with no animation running. */
+    transform: translate(-50%, -50%);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    cursor: pointer;
+    user-select: none;
+    transition: width .4s var(--ease), height .4s var(--ease), border-radius .4s var(--ease),
+                opacity .3s ease, box-shadow .3s ease, background .2s ease;
+    /* Ambient "breathing" — every bubble (parent slide bubbles AND image-dot
+       children, both share this class) very slowly scales 1.0 -> 1.03 and
+       back on a sine-like wave. A CSS `animation`, not a JS rAF loop driving
+       inline transforms: animations take priority over transitions on the
+       same property while running (per spec), so this coexists with
+       .image-dot's own `transition: transform ...` without a conflict, and
+       it's GPU-composited for free instead of triggering a style write on
+       every bubble every frame. Each bubble's animation-delay (see
+       layoutBubbles()/selectSlide() in the script) is a negative offset
+       derived from its index, which is what staggers the phase — the
+       animation itself is identical for every bubble. */
+    animation: bubble-breathe 3.6s ease-in-out infinite;
+  }
+  @keyframes bubble-breathe {
+    0%, 100% { transform: translate(-50%, -50%) scale(1); }
+    50% { transform: translate(-50%, -50%) scale(1.03); }
+  }
+  /* Set on <body> for the duration of a canvas pan-drag (see enableDragPan
+     in the script) — the only "drag" interaction this renderer has, since
+     individual bubbles aren't draggable. Pausing (not stopping) means it
+     resumes from wherever it was rather than jumping. */
+  body.is-panning .bubble { animation-play-state: paused; }
+  @media (prefers-reduced-motion: reduce) {
+    .bubble { animation: none; }
+    .idle-halo { display: none; }
+  }
+
+  /* Idle spotlight — a single reusable halo (see startIdleCycle() in the
+     script), repositioned/resized to whichever parent slide bubble's turn
+     it is via the same --cx/--cy/--d custom properties setGeometry() uses
+     for bubbles, just sized ~20px of radius larger. z-index 0, same layer
+     as #connectors, so it always sits behind every bubble (z-index 1+) —
+     never drawn on top of a bubble's own text/image. Only ever positioned
+     onto a parent (.slide-bubble); child image-dots never get one.
+
+     The gradient stops matter more than they look like they should: the
+     bubble sitting on top of this element (same centre, ~13-27% smaller
+     radius depending on bubble size) covers roughly the inner 73-87% of
+     THIS element's own radius — only the outer sliver beyond the bubble's
+     own edge is ever actually visible, the rest is hidden behind the
+     opaque bubble regardless of what's drawn there. A gradient that fades
+     to transparent by 70% (i.e. peaks in the center, which sounds like
+     the obvious way to draw a "glow") puts ALL of its colour inside that
+     always-covered inner region — the halo would exist in the DOM and be
+     fully opaque per computed style, and still be completely invisible
+     on screen. Peaking at 88% and fading out again by 100% instead keeps
+     the colour in that outer sliver, regardless of which bubble it's
+     currently sized to, so the ring is actually visible peeking out from
+     behind every bubble it lights up. */
+  .idle-halo {
+    position: absolute;
+    left: var(--cx);
+    top: var(--cy);
+    width: var(--d);
+    height: var(--d);
+    transform: translate(-50%, -50%);
+    border-radius: 50%;
+    z-index: 0;
+    pointer-events: none;
+    background: radial-gradient(circle, transparent 55%, var(--accent) 88%, transparent 100%);
+    opacity: 0;
+    transition: opacity .6s ease;
+  }
+  .idle-halo.visible { opacity: .25; }
+  /* Level 1 — slide bubbles, the main unit of the map (one per slide, not
+     per theme — see SKILL.md). Packed edge-to-edge by the force-relaxation
+     packer in the script, never orbiting a ring around a parent, so there
+     are no big empty gaps between clusters. Every bubble gets the same flat
+     --accent-dark fill at rest (see .slide-bubble below), lifted off the
+     canvas with var(--shadow) rather than shaded with an internal gradient
+     — no border, showing its (truncated) heading — sized relative to the
+     bubble's own diameter, but only down to a point: updateLabelSizing() in
+     the script hides the label entirely once its RENDERED (post-zoom)
+     diameter drops below LABEL_HIDE_BELOW_D rather than shrinking it into
+     illegible mush, since the same heading is one click away in the expand
+     panel regardless. */
+  .slide-bubble {
+    z-index: 1;
+    /* Flat fill, not the earlier off-centre-highlight lit-sphere gradient —
+       depth now reads entirely from var(--shadow) (the same elevation
+       language every other floating surface on the page uses: settings
+       panel, help tooltip, etc.) rather than from shading baked into the
+       fill itself. */
+    background: var(--accent-dark);
+    box-shadow: var(--shadow);
+    border: none;
+    flex-direction: column;
+    gap: 4px;
+    padding: 14px;
+    /* Overrides .bubble's base transition list to add left/top with a
+       springy overshoot curve (neighbors nudged aside by relaxNeighbors()
+       settle with an organic wobble, not a flat glide) while keeping
+       width/height/background on the calm --ease curve — growing into the
+       active state is a deliberate camera-like zoom, not bubble physics. */
+    transition: left .55s var(--spring-ease), top .55s var(--spring-ease),
+                width .4s var(--ease), height .4s var(--ease),
+                background .3s ease, opacity .3s ease, box-shadow .3s ease;
+  }
+  /* Fixed light text, not var(--text) — the resting fill is always a dark,
+     saturated gradient (built off --accent-dark) regardless of light/dark
+     page mode, so the label needs to stay light in both modes, not flip
+     with the page.
+     Hidden once active (see .slide-bubble.active .slide-label below) —
+     the active state shows .active-heading/.active-body instead, sized
+     for the bubble's grown diameter rather than its resting one.
+     font-size here is only the pre-JS fallback (natural/unscaled diameter,
+     scale 1) — updateLabelSizing() overrides it inline on every scale
+     change with a value that accounts for the canvas's current zoom, so
+     the RENDERED size never drops below LABEL_MIN_FONT; it also toggles
+     `display` per-bubble once rendered diameter drops below
+     LABEL_HIDE_BELOW_D. Don't rely on this rule alone to reason about what
+     a label looks like on screen. */
+  .slide-label {
+    font-family: var(--font-serif);
+    font-weight: 800; line-height: 1.22;
+    font-size: clamp(14px, calc(var(--d) * 0.15), 22px);
+    color: #f4f6fb;
+  }
+  .slide-bubble.active .slide-label { display: none; }
+  /* The active bubble lightens (a washed-out tint of --accent, not a dark
+     fill) and grows — see ACTIVE_SCALE/ACTIVE_MIN_D/ACTIVE_MAX_D in the
+     script — so it reads unmistakably as "the one that's open" even
+     before its content loads in. Dark, fixed text colour (not var(--text))
+     because this light tint stays light regardless of page mode. */
+  .slide-bubble.active {
+    background: color-mix(in srgb, var(--accent) 42%, white 58%);
+    box-shadow: var(--shadow), 0 0 0 4px var(--accent-soft), 0 0 30px var(--accent-glow);
+    z-index: 40;
+    color: #1b1e26;
+    cursor: default;
+    /* Rare-case safety net, not a visible affordance — ACTIVE_MIN_D/MAX_D
+       and BODY_PREVIEW_MAX_CHARS (see script) are sized to fit a typical
+       heading + short preview without this ever engaging, but an unusually
+       long heading in the smallest (ACTIVE_MIN_D) bubble could still
+       overflow the circle. No scrollbar-width/::-webkit-scrollbar override
+       here, so it inherits the sitewide hidden-scrollbar rule like
+       everything else — a visible scrollbar on a circle reads as broken. */
+    overflow-y: auto;
+  }
+  .active-heading { font-family: var(--font-serif); font-weight: 800; line-height: 1.22; font-size: 15px; }
+  .active-body { font-weight: 500; line-height: 1.4; font-size: 12.5px; opacity: .82; }
+
+  /* Level 2 — image thumbnails only (no more per-paragraph text bubbles;
+     a slide's body text now lives inside the active bubble itself, see
+     .active-body above). Built fresh at click time (see selectSlide in
+     the script) around whatever size the parent just grew to, clustered
+     organically via packChildrenAroundParent() (SKILL.md Step 3). Never a
+     rectangle card — an earlier version anchored a rounded-rect panel to
+     the bubble's edge and it still read as a disconnected modal in
+     practice, however tightly it was anchored. Don't bring back a
+     rectangle for content, ever, at any level. */
+  .childcluster[hidden] { display: none; }
+
+  /* Image children stay small thumbnails at rest; clicking one opens a
+     third, standalone level — a full circular bubble overlay centred on
+     the viewport (see .image-bubble below), not an in-place zoom of the
+     dot itself. An earlier version scaled the dot up in place with its
+     caption fading in as a sibling label beneath it; that read fine for a
+     thumbnail near the middle of the cluster but put the enlarged image
+     and its caption in an arbitrary, sometimes off-screen spot for a
+     thumbnail out near the edge. Centring on the viewport instead means
+     the image is always fully visible regardless of where its thumbnail
+     landed. */
+  .image-dot {
+    z-index: 46;
+    /* Same flat-fill-plus-lift treatment as .slide-bubble, one shade
+       lighter overall (--accent, not --accent-dark) so children read as
+       softer than their parent. --accent-soft isn't used here despite the
+       name similarity — it's a low-alpha rgba in this codebase (meant for
+       translucent tint backgrounds), so using it as a fill would leave
+       children looking washed-out/see-through instead of solid. */
+    background: var(--accent);
+    box-shadow: var(--shadow);
+    border: 2px solid var(--surface-solid);
+    overflow: hidden;
+    transition: transform .4s var(--ease), box-shadow .3s ease, opacity .3s ease;
+  }
+  .image-dot img { display: block; width: 100%; height: 100%; object-fit: cover; border-radius: 50%; }
+  .image-dot:hover { box-shadow: var(--shadow), 0 0 0 4px var(--accent-soft); }
+
+  /* Level 3 — the "Russian doll" image bubble: clicking a Level 2 image
+     thumbnail opens this, a full circle centred on the viewport (fixed
+     positioning, independent of canvas scroll/scale) rather than growing
+     the small thumbnail itself. Still a circle — same "never a rectangle"
+     rule as every other level — but a frosted/glass fill (translucent
+     --accent + backdrop-filter blur) instead of the flat fill every
+     resting map bubble uses, since this one floats above the whole page
+     rather than sitting flush in the packed cluster. Dismissing it
+     (backdrop click or Escape) returns to the slide-expanded state, not a
+     full collapseAll() — see closeImageBubble()/dismissImageBubbleOnEscape
+     in the script. */
+  .image-bubble-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 200;
+    background: rgba(0, 0, 0, 0.3);
+    opacity: 0;
+    transition: opacity .4s var(--ease);
+  }
+  .image-bubble-backdrop.visible { opacity: 1; }
+
+  .image-bubble {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    width: 420px;
+    height: 420px;
+    border-radius: 50%;
+    background: color-mix(in srgb, var(--accent) 55%, transparent);
+    backdrop-filter: blur(var(--blur));
+    -webkit-backdrop-filter: blur(var(--blur));
+    box-shadow: var(--shadow), 0 0 0 1px rgba(255, 255, 255, 0.15) inset;
+    z-index: 201;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    padding: 32px;
+    transform: translate(-50%, -50%) scale(.85);
+    opacity: 0;
+    pointer-events: none;
+    /* Same calm --ease every other camera/panel-style transition in this
+       file uses (see #canvas's zoom transition and .active-heading's
+       parent growing into place) — never --spring-ease, which is reserved
+       for bubbles physically displacing each other, not for a standalone
+       overlay animating in. Keeps the motion language consistent across
+       every nesting level instead of introducing a fourth easing curve. */
+    transition: transform .4s var(--ease), opacity .4s var(--ease);
+  }
+  .image-bubble.visible {
+    transform: translate(-50%, -50%) scale(1);
+    opacity: 1;
+    pointer-events: auto;
+  }
+  .image-bubble img {
+    display: block;
+    max-width: 100%;
+    max-height: 68%;
+    object-fit: contain;
+    border-radius: 10px;
+  }
+  .image-bubble-caption {
+    color: #fff;
+    text-align: center;
+    font-size: 13px;
+    line-height: 1.4;
+    max-width: 100%;
+    /* Line-clamp, not an ellipsis-on-overflow single line — a caption is
+       often more than one line at 13px inside a 420px circle, so this
+       caps it at 3 full lines instead of truncating after the first. */
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  /* Bottom-left pill, same chrome language as .settings-toggle/.help-toggle
+     (surface-solid + border + shadow). Unlike the timeline/gallery
+     templates' "back to top" pill, this one has no scroll to key visibility
+     off of — the map's "current focus" (pan + zoom) can drift the moment
+     you touch the canvas, so it stays visible at all times rather than
+     fading in past a threshold. */
+  .recenter-btn {
+    position: fixed;
+    bottom: 24px;
+    left: 24px;
+    z-index: 90;
+    padding: 10px 18px;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    background: var(--surface-solid);
+    color: var(--text);
+    font-family: var(--font-sans);
+    font-size: 13px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    cursor: pointer;
+    box-shadow: var(--shadow);
+    transition: border-color .15s ease, color .15s ease, transform .15s ease;
+  }
+  .recenter-btn:hover { border-color: var(--accent); color: var(--accent); transform: translateY(-1px); }
+  .recenter-btn svg { width: 14px; height: 14px; flex: none; }
+
+  @media print {
+    .settings-toggle, .settings-panel, .help-toggle, .help-tooltip { display: none; }
+    .recenter-btn { display: none; }
+    #canvas-wrap { overflow: visible; position: static; }
+    body, #doc { overflow: visible; height: auto; }
+  }
+</style>
+</head>
+<body data-theme="blue" data-mode="light">
+
+  <button class="settings-toggle" id="settings-toggle" aria-label="Settings" aria-expanded="false">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <circle cx="12" cy="12" r="3"></circle>
+      <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z"></path>
+    </svg>
+  </button>
+
+  <button class="help-toggle" id="help-toggle" aria-label="Help" aria-expanded="false">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <circle cx="12" cy="12" r="10"></circle>
+      <line x1="12" y1="16" x2="12" y2="12"></line>
+      <line x1="12" y1="8" x2="12.01" y2="8"></line>
+    </svg>
+  </button>
+  <div class="help-tooltip" id="help-tooltip" hidden>Drag to explore · Click a bubble to expand · Scroll or pinch to zoom.</div>
+
+  <div class="settings-panel" id="settings-panel" hidden>
+    <div class="theme-select" id="theme-select">
+      <div class="settings-label">Theme</div>
+      <button class="theme-select-trigger" id="theme-select-trigger" aria-haspopup="listbox" aria-expanded="false">Change Theme</button>
+      <div class="theme-select-menu" id="theme-select-menu" hidden role="listbox">
+        <button class="theme-select-option active" data-t="blue" role="option" aria-selected="true">Blue</button>
+        <button class="theme-select-option" data-t="green" role="option" aria-selected="false">Green</button>
+        <button class="theme-select-option" data-t="purple" role="option" aria-selected="false">Purple</button>
+        <button class="theme-select-option" data-t="orange" role="option" aria-selected="false">Orange</button>
+        <button class="theme-select-option" data-t="red" role="option" aria-selected="false">Red</button>
+      </div>
+    </div>
+    <button class="mode-toggle" id="mode-toggle" aria-pressed="false">
+      <span id="mode-toggle-label">Dark</span>
+      <span class="mode-toggle-switch" aria-hidden="true">
+        <span class="mode-toggle-thumb">
+          <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="5"></circle>
+            <line x1="12" y1="1" x2="12" y2="3"></line>
+            <line x1="12" y1="21" x2="12" y2="23"></line>
+            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+            <line x1="1" y1="12" x2="3" y2="12"></line>
+            <line x1="21" y1="12" x2="23" y2="12"></line>
+            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+          </svg>
+          <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+          </svg>
+        </span>
+      </span>
+    </button>
+    <button class="tool-btn primary" id="pdf-btn">⬇ Download PDF</button>
+  </div>
+
+  <button class="recenter-btn" id="recenter-btn" aria-label="Recenter map">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <circle cx="12" cy="12" r="3"></circle>
+      <path d="M12 2v4M12 18v4M2 12h4M18 12h4"></path>
+    </svg>
+    Recenter
+  </button>
+
+  <div class="image-bubble-backdrop" id="image-bubble-backdrop" hidden></div>
+  <div class="image-bubble" id="image-bubble" hidden>
+    <img id="image-bubble-img" src="" alt="">
+    <div class="image-bubble-caption" id="image-bubble-caption"></div>
+  </div>
+
+  <div id="doc">
+
+    <div class="doc-header">
+      <div class="doc-eyebrow">Bubble Map</div>
+      <h1 class="doc-title">Pitch Deck (sample)</h1>
+      <p class="doc-subtitle">7 slides</p>
+      <p class="doc-meta">Preview sample</p>
+    </div>
+
+    <div id="canvas-wrap">
+      <div id="canvas"></div>
+    </div>
+
+  </div>
+
+  <script type="application/json" id="bubble-data">{"themes":[{"name":"Market","slides":[{"index":1,"heading":"Problem","body":["Teams export decks to PDF and nobody opens them again."]},{"index":2,"heading":"Market size","body":["$4.2B","Document tooling spend, 2025"],"images":[{"src":"data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI2NDAiIGhlaWdodD0iNDgwIj48cmVjdCB3aWR0aD0iNjQwIiBoZWlnaHQ9IjQ4MCIgZmlsbD0iIzNiNmVhNSIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmb250LWZhbWlseT0ic2Fucy1zZXJpZiIgZm9udC1zaXplPSIyOCIgZmlsbD0icmdiYSgyNTUsMjU1LDI1NSwwLjg1KSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZG9taW5hbnQtYmFzZWxpbmU9Im1pZGRsZSI+TWFya2V0PC90ZXh0Pjwvc3ZnPg==","caption":"Market sizing chart, source: internal research."}]}]},{"name":"Product","slides":[{"index":3,"heading":"Three formats","body":["Timeline, Gallery, and Bubble map cover most source decks."]},{"index":4,"heading":"No build step","body":["Everything ships as one self-contained HTML file."]},{"index":5,"heading":"Under the hood","body":["Extraction, then deterministic rendering — the model only groups content, never lays out pixels."]}]},{"name":"Traction","slides":[{"index":6,"heading":"Growth","body":["50,000+","Documents rendered"],"images":[{"src":"data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI2NDAiIGhlaWdodD0iNDgwIj48cmVjdCB3aWR0aD0iNjQwIiBoZWlnaHQ9IjQ4MCIgZmlsbD0iIzdhOGI1YSIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmb250LWZhbWlseT0ic2Fucy1zZXJpZiIgZm9udC1zaXplPSIyOCIgZmlsbD0icmdiYSgyNTUsMjU1LDI1NSwwLjg1KSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZG9taW5hbnQtYmFzZWxpbmU9Im1pZGRsZSI+R3Jvd3RoPC90ZXh0Pjwvc3ZnPg==","caption":"Monthly render volume, last 12 months."}]},{"index":7,"heading":"What's next","body":["More formats, and a way to compare two editions side by side."]}]}]}</script>
+
+<script>
+  (function () {
+    var body = document.body;
+
+    var settingsToggle = document.getElementById('settings-toggle');
+    var settingsPanel = document.getElementById('settings-panel');
+    settingsToggle.addEventListener('click', function (e) {
+      e.stopPropagation();
+      var willOpen = settingsPanel.hidden;
+      settingsPanel.hidden = !willOpen;
+      settingsToggle.setAttribute('aria-expanded', String(willOpen));
+    });
+    document.addEventListener('click', function (e) {
+      if (!settingsPanel.hidden && !settingsPanel.contains(e.target) && !settingsToggle.contains(e.target)) {
+        settingsPanel.hidden = true;
+        settingsToggle.setAttribute('aria-expanded', 'false');
+      }
+    });
+
+    var helpToggle = document.getElementById('help-toggle');
+    var helpTooltip = document.getElementById('help-tooltip');
+    helpToggle.addEventListener('click', function (e) {
+      e.stopPropagation();
+      var willOpen = helpTooltip.hidden;
+      helpTooltip.hidden = !willOpen;
+      helpToggle.setAttribute('aria-expanded', String(willOpen));
+    });
+    document.addEventListener('click', function (e) {
+      if (!helpTooltip.hidden && !helpTooltip.contains(e.target) && !helpToggle.contains(e.target)) {
+        helpTooltip.hidden = true;
+        helpToggle.setAttribute('aria-expanded', 'false');
+      }
+    });
+
+    var themeTrigger = document.getElementById('theme-select-trigger');
+    var themeMenu = document.getElementById('theme-select-menu');
+    var themeOptions = document.querySelectorAll('.theme-select-option');
+    themeTrigger.addEventListener('click', function (e) {
+      e.stopPropagation();
+      var willOpen = themeMenu.hidden;
+      themeMenu.hidden = !willOpen;
+      themeTrigger.setAttribute('aria-expanded', String(willOpen));
+    });
+    document.addEventListener('click', function (e) {
+      if (!themeMenu.hidden && !themeMenu.contains(e.target) && !themeTrigger.contains(e.target)) {
+        themeMenu.hidden = true;
+        themeTrigger.setAttribute('aria-expanded', 'false');
+      }
+    });
+    themeOptions.forEach(function (opt) {
+      opt.addEventListener('click', function () {
+        body.setAttribute('data-theme', opt.getAttribute('data-t'));
+        themeOptions.forEach(function (o) {
+          o.classList.remove('active');
+          o.setAttribute('aria-selected', 'false');
+        });
+        opt.classList.add('active');
+        opt.setAttribute('aria-selected', 'true');
+        themeMenu.hidden = true;
+        themeTrigger.setAttribute('aria-expanded', 'false');
+      });
+    });
+
+    var modeBtn = document.getElementById('mode-toggle');
+    var modeLabel = document.getElementById('mode-toggle-label');
+    modeBtn.addEventListener('click', function () {
+      var isLight = body.getAttribute('data-mode') === 'light';
+      var newMode = isLight ? 'dark' : 'light';
+      body.setAttribute('data-mode', newMode);
+      modeBtn.setAttribute('aria-pressed', String(newMode === 'dark'));
+      modeLabel.textContent = isLight ? 'Light' : 'Dark';
+    });
+
+    var pdfBtn = document.getElementById('pdf-btn');
+    pdfBtn.addEventListener('click', function () {
+      var el = document.getElementById('canvas');
+      var opt = {
+        margin: 0.4,
+        filename: 'Pitch Deck (sample).pdf',
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 2, useCORS: true },
+        jsPDF: { unit: 'in', format: 'letter', orientation: 'landscape' }
+      };
+      html2pdf().set(opt).from(el).save();
+    });
+
+    // collapseAll()/zoomToOverview() are defined below (layout engine /
+    // camera sections) but hoisted as function declarations, so wiring the
+    // button here alongside the other floating chrome is safe — both are
+    // only ever called at click time, well after the rest of this IIFE
+    // (including the initial layoutBubbles() call) has run.
+    var recenterBtn = document.getElementById('recenter-btn');
+    recenterBtn.addEventListener('click', function () {
+      collapseAll();
+      zoomToOverview();
+    });
+
+    // ---- Layout engine -------------------------------------------------------
+
+    // Deterministic pseudo-random in [0,1) from an integer seed (mulberry32-
+    // style hash). Used everywhere a bubble needs to look randomly placed —
+    // NOT `Math.random()`, because this template's JS reruns on every page
+    // load: a real-random seed would reshuffle the whole map (and every
+    // slide's child cluster) on every reload, which reads as glitchy rather
+    // than alive. A seeded hash gives the same "organic" arrangement every
+    // time the same data is rendered.
+    function seededRandom(seed) {
+      var t = (seed + 0x6D2B79F5) | 0;
+      t = Math.imul(t ^ (t >>> 15), t | 1);
+      t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    }
+
+    // Every slide bubble is a flat, single-colour circle at rest — colour
+    // here has no hierarchy role anymore (see .slide-bubble/.slide-bubble
+    // .active in the CSS): resting bubbles are plain var(--accent), the
+    // active one lightens via a color-mix() formula in CSS directly. Kept
+    // out of JS entirely so switching the theme picker just re-resolves
+    // the custom property with no DOM rebuild needed.
+
+    // SLIDE_MIN_D has real headroom, not just visual weight — every
+    // resting bubble shows its (truncated) heading (see .slide-label in
+    // the CSS, clamp()'d relative to --d), so the smallest bubble still
+    // needs to be big enough for a short label to read cleanly.
+    // SLIDE_GAP is deliberately large (a graph-view read needs the
+    // connector lines between bubbles to look like lines, not hairline
+    // cracks between two touching circles) — this is the resting edge-to-
+    // edge gap every pairwise collision check in the packer enforces, not
+    // just a visual nudge.
+    var SLIDE_MIN_D = 110, SLIDE_MAX_D = 280, SLIDE_GAP = 80;
+    // A slide bubble grows into its active state rather than swapping for
+    // a separate panel — ACTIVE_MIN_D/MAX_D bound that growth so a tiny
+    // resting bubble still ends up roomy enough to hold a heading + short
+    // body preview, and a huge one doesn't swallow the whole map.
+    var ACTIVE_SCALE = 1.8, ACTIVE_MIN_D = 210, ACTIVE_MAX_D = 380;
+    var BODY_PREVIEW_MAX_CHARS = 130;
+    var IMAGE_MIN_D = 38, IMAGE_MAX_D = 92, IMAGE_FRAC = 0.28;
+    var CHILD_GAP = 12, CHILD_PARENT_GAP = 20;
+    // The Level 3 image bubble's own diameter (420px) is fixed in CSS on
+    // .image-bubble, not here — it's viewport-centred and independent of
+    // any thumbnail's size, so it has no packing/layout math to drive.
+    // Generous enough that an image cluster blooming out around the
+    // largest possible EXPANDED bubble still lands inside the canvas
+    // instead of being clipped by its bounding box.
+    var CANVAS_MARGIN = 60 + ACTIVE_MAX_D / 2 + IMAGE_MAX_D + CHILD_PARENT_GAP;
+    var PACK_ITERATIONS = 400;
+
+    // Force-relaxation circle packer: seed every slide bubble on a
+    // randomly jittered cloud (deterministic, see seededRandom — NOT a
+    // grid), then repeatedly (a) pull all of them a little toward their
+    // shared centroid and (b) push apart any pair that overlaps. A grid
+    // seed still converges to a valid non-overlapping packing, but it
+    // visibly kept its row/column structure even after relaxation — the
+    // pull-to-centroid force is uniform and gentle, so it closes gaps
+    // without actually reshuffling who's next to whom, and the result
+    // read as "sequentially spread out" rather than a native, organically
+    // clustered blob. Seeding from a random cloud instead means there's
+    // no underlying grid for the relaxation to preserve — the same family
+    // of technique bubble-chart libraries use (a small physics sim),
+    // simpler to hand-roll than true front-chain circle packing and
+    // plenty accurate for a layout computed once at load. See SKILL.md
+    // Step 3. Themes play no part in this positioning — sizing and
+    // packing are per-slide, and themes have no colour role at all.
+    function packCircles(items) {
+      var n = items.length;
+      if (n === 0) return items;
+      var spread = (SLIDE_MAX_D + SLIDE_GAP) * Math.sqrt(n) * 0.9;
+      items.forEach(function (it, i) {
+        var a = seededRandom(i * 2 + 1) * Math.PI * 2;
+        var rad = seededRandom(i * 2 + 2) * spread;
+        it.x = Math.cos(a) * rad;
+        it.y = Math.sin(a) * rad;
+      });
+      if (n === 1) return items;
+      for (var iter = 0; iter < PACK_ITERATIONS; iter++) {
+        var cx = 0, cy = 0;
+        items.forEach(function (it) { cx += it.x; cy += it.y; });
+        cx /= n; cy /= n;
+        // Decay the pull to zero over the run so collision resolution gets
+        // the final say — a constant-strength pull left a small chronic
+        // overlap (the pull re-introducing it faster than one collision
+        // sweep per iteration could clear), even after hundreds of iterations.
+        var pull = 0.02 * (1 - iter / PACK_ITERATIONS);
+        items.forEach(function (it) {
+          it.x += (cx - it.x) * pull;
+          it.y += (cy - it.y) * pull;
+        });
+        for (var i = 0; i < n; i++) {
+          for (var j = i + 1; j < n; j++) {
+            var a = items[i], b = items[j];
+            var dx = b.x - a.x, dy = b.y - a.y;
+            var dist = Math.sqrt(dx * dx + dy * dy) || 0.01;
+            var minDist = a.r + b.r + SLIDE_GAP;
+            if (dist < minDist) {
+              var overlap = (minDist - dist) / 2;
+              var ux = dx / dist, uy = dy / dist;
+              a.x -= ux * overlap; a.y -= uy * overlap;
+              b.x += ux * overlap; b.y += uy * overlap;
+            }
+          }
+        }
+      }
+      return items;
+    }
+
+    // Clusters child circles ORGANICALLY around a fixed parent circle —
+    // used per expanded slide to bloom its image thumbnails (built fresh
+    // at click time in selectSlide, once the parent's grown/active size is
+    // known) around it. An earlier version placed every child on one perfectly
+    // even ring (same radius, angles spaced by exactly 2π/n) — mathematically
+    // collision-free, but it read as mechanical/"sequentially spread out"
+    // rather than native bubbles nestling together. This instead seeds each
+    // child at a random angle and a near-minimum distance from the parent
+    // (deterministic, see seededRandom), then runs a short relaxation: pull
+    // every child weakly toward the parent's center, re-clamp it to just
+    // outside the parent's surface if that pull put it inside, and resolve
+    // pairwise overlaps between children. The net effect is children settling
+    // at varying distances and angles — some hugging the parent directly,
+    // others nested a little further out behind a sibling — the way real
+    // bubbles cluster against a larger one, not one uniform halo.
+    function packChildrenAroundParent(parentX, parentY, parentR, children, gap, seedBase) {
+      var n = children.length;
+      if (n === 0) return children;
+      children.forEach(function (c, i) {
+        var a = seededRandom(seedBase + i * 2 + 1) * Math.PI * 2;
+        var rad = parentR + c.r + gap + seededRandom(seedBase + i * 2 + 2) * c.r;
+        c.x = parentX + Math.cos(a) * rad;
+        c.y = parentY + Math.sin(a) * rad;
+      });
+      var iterations = 160;
+      for (var iter = 0; iter < iterations; iter++) {
+        var pull = 0.05 * (1 - (iter / iterations) * 0.6);
+        children.forEach(function (c) {
+          c.x += (parentX - c.x) * pull;
+          c.y += (parentY - c.y) * pull;
+          var dx = c.x - parentX, dy = c.y - parentY;
+          var dist = Math.sqrt(dx * dx + dy * dy) || 0.01;
+          var minDist = parentR + c.r + gap;
+          if (dist < minDist) {
+            var ux = dx / dist, uy = dy / dist;
+            c.x = parentX + ux * minDist;
+            c.y = parentY + uy * minDist;
+          }
+        });
+        for (var i = 0; i < n; i++) {
+          for (var j = i + 1; j < n; j++) {
+            var a = children[i], b = children[j];
+            var dx = b.x - a.x, dy = b.y - a.y;
+            var dist = Math.sqrt(dx * dx + dy * dy) || 0.01;
+            var minDist = a.r + b.r + gap;
+            if (dist < minDist) {
+              var overlap = (minDist - dist) / 2;
+              var ux = dx / dist, uy = dy / dist;
+              a.x -= ux * overlap; a.y -= uy * overlap;
+              b.x += ux * overlap; b.y += uy * overlap;
+            }
+          }
+        }
+      }
+      return children;
+    }
+
+    function el(tag, className) {
+      var e = document.createElement(tag);
+      if (className) e.className = className;
+      return e;
+    }
+
+    function setGeometry(node, cx, cy, d) {
+      node.style.setProperty('--cx', cx + 'px');
+      node.style.setProperty('--cy', cy + 'px');
+      node.style.setProperty('--d', d + 'px');
+    }
+
+    function escapeHtml(str) {
+      var d = document.createElement('div');
+      d.textContent = str == null ? '' : String(str);
+      return d.innerHTML;
+    }
+
+    // ---- Interaction state --------------------------------------------------
+
+    var allSlideEls = [];
+    var expandedSlide = null;
+    var RELAX_ITERATIONS = 200;
+
+    // ---- Theme connector lines -----------------------------------------------
+    // See buildConnectors()/animateConnectors() below. connectors holds one
+    // entry per same-theme slide pair; svgConnectorsEl is the <svg> layer
+    // they live in (created once in layoutBubbles). connectorsPausedByX
+    // are two independent reasons the idle pulse can be paused (a slide is
+    // expanded, or the canvas is mid-drag) — tracked separately since either
+    // can end while the other is still true.
+    var SVG_NS = 'http://www.w3.org/2000/svg';
+    var connectors = [];
+    var svgConnectorsEl = null;
+    var connectorsPausedByExpand = false, connectorsPausedByDrag = false;
+    var connectorAnimToken = 0;
+    // Matches .slide-bubble's own left/top transition duration exactly (see
+    // CSS) — connector endpoints are meant to visually stick to the bubble
+    // centres they're anchored to as those bubbles get pushed aside/spring
+    // back, not just eventually arrive at the same place.
+    var CONNECTOR_MOVE_MS = 550;
+
+    // Applies both pause reasons as one class — called after either one
+    // changes rather than tracked as a single boolean, since drag can end
+    // while a slide is still expanded (and vice versa: collapsing while a
+    // drag happens to be mid-gesture), and the pulse should only resume
+    // once BOTH are clear.
+    function refreshConnectorsPaused() {
+      if (!svgConnectorsEl) return;
+      svgConnectorsEl.classList.toggle('connectors-paused', connectorsPausedByExpand || connectorsPausedByDrag);
+    }
+
+    // JS mirror of --spring-ease (cubic-bezier(.34, 1.56, .64, 1)), i.e.
+    // the canonical "easeOutBack" formula. Needed because SVG <line>'s
+    // x1/y1/x2/y2 aren't CSS-animatable geometry properties the way a
+    // <circle>'s cx/cy/r are — a plain `transition: x1 ...` on
+    // .connector-line is silently a no-op, so endpoint motion has to be
+    // driven by hand, on the same curve/duration .slide-bubble already
+    // uses for left/top, or lines would visibly lag or lead the bubbles
+    // they're anchored to.
+    function easeOutBack(t) {
+      var c1 = 1.70158, c3 = c1 + 1;
+      return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2);
+    }
+
+    // Re-animates every connector's endpoints from wherever they currently
+    // are to each connector's two slides' current x/y — called right after
+    // relaxNeighbors()/resetPositions() write new x/y onto those slides.
+    // A monotonically increasing token (not a boolean) guards against two
+    // overlapping calls (e.g. a fast reopen firing resetPositions() then
+    // relaxNeighbors() within the same duration): only the most recent
+    // call's frame loop keeps running, earlier ones quietly stop rather
+    // than fighting over the same DOM attributes.
+    function animateConnectors() {
+      if (connectors.length === 0) return;
+      connectors.forEach(function (c) {
+        c.fromX1 = parseFloat(c.lineEl.getAttribute('x1'));
+        c.fromY1 = parseFloat(c.lineEl.getAttribute('y1'));
+        c.fromX2 = parseFloat(c.lineEl.getAttribute('x2'));
+        c.fromY2 = parseFloat(c.lineEl.getAttribute('y2'));
+      });
+      var token = ++connectorAnimToken;
+      var start = null;
+      function frame(ts) {
+        if (token !== connectorAnimToken) return;
+        if (start === null) start = ts;
+        var t = Math.min(1, (ts - start) / CONNECTOR_MOVE_MS);
+        var e = easeOutBack(t);
+        connectors.forEach(function (c) {
+          var x1 = c.fromX1 + (c.a.x - c.fromX1) * e;
+          var y1 = c.fromY1 + (c.a.y - c.fromY1) * e;
+          var x2 = c.fromX2 + (c.b.x - c.fromX2) * e;
+          var y2 = c.fromY2 + (c.b.y - c.fromY2) * e;
+          c.lineEl.setAttribute('x1', x1); c.lineEl.setAttribute('y1', y1);
+          c.lineEl.setAttribute('x2', x2); c.lineEl.setAttribute('y2', y2);
+          c.pulseEl.setAttribute('x1', x1); c.pulseEl.setAttribute('y1', y1);
+          c.pulseEl.setAttribute('x2', x2); c.pulseEl.setAttribute('y2', y2);
+        });
+        if (t < 1) requestAnimationFrame(frame);
+      }
+      requestAnimationFrame(frame);
+    }
+
+    // Marks which connectors touch the newly active slide (see
+    // .connector-active/.connector-dim in the CSS) — called once a slide
+    // finishes expanding. Touches both lineEl and pulseEl (never the
+    // bubbles themselves — see the CSS comment on .connector-dim for why):
+    // the pulse overlay needs the same class so its opacity converges with
+    // the line's instead of staying fixed and masking the dim/active state.
+    function updateConnectorEmphasis(activeSlide) {
+      connectors.forEach(function (c) {
+        var touches = c.a === activeSlide || c.b === activeSlide;
+        c.lineEl.classList.toggle('connector-active', touches);
+        c.lineEl.classList.toggle('connector-dim', !touches);
+        c.pulseEl.classList.toggle('connector-active', touches);
+        c.pulseEl.classList.toggle('connector-dim', !touches);
+      });
+    }
+
+    function clearConnectorEmphasis() {
+      connectors.forEach(function (c) {
+        c.lineEl.classList.remove('connector-active', 'connector-dim');
+        c.pulseEl.classList.remove('connector-active', 'connector-dim');
+      });
+    }
+
+    // Builds one <line> (+ one animated .connector-pulse overlay) per
+    // same-theme slide pair, into svgConnectorsEl. themeGroups is an array
+    // aligned with the JSON's themes array, each entry the list of that
+    // theme's slide entries in the same order they were laid out — see the
+    // call site in layoutBubbles(). Only ever wires slide-level bubbles to
+    // each other, never Level 2/3 (image) bubbles, since those are built
+    // fresh per-expansion and aren't part of the theme grouping.
+    function buildConnectors(themeGroups) {
+      connectors = [];
+      themeGroups.forEach(function (group, groupIdx) {
+        for (var i = 0; i < group.length; i++) {
+          for (var j = i + 1; j < group.length; j++) {
+            var a = group[i], b = group[j];
+
+            var lineEl = document.createElementNS(SVG_NS, 'line');
+            lineEl.setAttribute('class', 'connector-line');
+            lineEl.setAttribute('x1', a.baseX); lineEl.setAttribute('y1', a.baseY);
+            lineEl.setAttribute('x2', b.baseX); lineEl.setAttribute('y2', b.baseY);
+            svgConnectorsEl.appendChild(lineEl);
+
+            // Dash pattern sized off this pair's own resting distance so
+            // exactly one bright dash is ever visible per line, regardless
+            // of how short or long it is: a gap smaller than the line's
+            // length would let a second copy of the dash peek in from the
+            // other end mid-crawl.
+            var length = Math.hypot(b.baseX - a.baseX, b.baseY - a.baseY);
+            var dashLen = Math.max(14, length * 0.08);
+            var gapLen = length + 260;
+            var cycle = dashLen + gapLen;
+
+            var pulseEl = document.createElementNS(SVG_NS, 'line');
+            pulseEl.setAttribute('class', 'connector-pulse');
+            pulseEl.setAttribute('x1', a.baseX); pulseEl.setAttribute('y1', a.baseY);
+            pulseEl.setAttribute('x2', b.baseX); pulseEl.setAttribute('y2', b.baseY);
+            pulseEl.setAttribute('stroke-dasharray', dashLen.toFixed(1) + ' ' + gapLen.toFixed(1));
+            pulseEl.style.setProperty('--pulse-cycle', (-cycle).toFixed(1) + 'px');
+            // Deterministic (see seededRandom) — an 8-12s duration and a
+            // negative delay (starts the loop already mid-cycle) spread
+            // across each line's own seed, so the whole map's pulses read
+            // as staggered rather than breathing in unison.
+            var seed = groupIdx * 5000 + i * 97 + j * 13 + 3;
+            var duration = 8 + seededRandom(seed) * 4;
+            var delay = -(seededRandom(seed + 1) * duration);
+            pulseEl.style.animationDuration = duration.toFixed(2) + 's';
+            pulseEl.style.animationDelay = delay.toFixed(2) + 's';
+            svgConnectorsEl.appendChild(pulseEl);
+
+            connectors.push({ a: a, b: b, lineEl: lineEl, pulseEl: pulseEl });
+          }
+        }
+      });
+    }
+
+    // ---- Ambient animations (bubble breathing + idle spotlight) --------------
+    // Both are purely decorative — neither reads nor writes any layout,
+    // packing, or interaction state (allSlideEls entries are only read
+    // here, never mutated). See BUBBLE_BREATHE_PERIOD_MS for the breathing
+    // wave itself (CSS-driven, see @keyframes bubble-breathe); everything
+    // below is the idle spotlight, which is JS-driven since it has to walk
+    // between different bubbles over time rather than repeat one fixed
+    // motion in place.
+    var prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    // Matches the `3.6s` in .bubble's `animation` shorthand (CSS) — used
+    // only to derive each bubble's phase offset here in JS, not to drive
+    // the animation itself (that's the browser's job once animation-delay
+    // is set once at creation).
+    var BUBBLE_BREATHE_PERIOD_S = 3.6;
+    // Golden-angle stepping (in the same units as the CSS animation-delay,
+    // i.e. seconds within one period) — an irrational fraction of the
+    // period, so no two bubbles' phases collide or fall into a small
+    // repeating pattern the way a simple index/N spacing could for
+    // specific bubble counts. Deterministic (pure function of index), not
+    // random — see seededRandom()'s own header comment for why this
+    // template never uses Math.random().
+    var BREATHE_PHASE_STEP_S = BUBBLE_BREATHE_PERIOD_S * 0.6180339887;
+
+    function breathePhaseSeconds(index) {
+      return (index * BREATHE_PHASE_STEP_S) % BUBBLE_BREATHE_PERIOD_S;
+    }
+
+    // A negative animation-delay starts the animation that many seconds
+    // into its cycle immediately, rather than waiting — this is what
+    // actually staggers the phase; every bubble otherwise runs the exact
+    // same `bubble-breathe` animation (see CSS).
+    function applyBreathePhase(node, index) {
+      if (prefersReducedMotion) return;
+      node.style.animationDelay = (-breathePhaseSeconds(index)).toFixed(3) + 's';
+    }
+
+    var IDLE_TIMEOUT_MS = 4000;
+    var HALO_FADE_MS = 600;
+    var HALO_HOLD_MS = 800;
+    var idleTimer = null;
+    var haloCycleTimer = null;
+    var haloIndex = -1;
+    var haloEl = null;
+
+    // Removes the halo instantly, with no fade — used when a real user
+    // interaction interrupts the idle cycle (see resetIdleTimer below),
+    // since "the halo disappears immediately" on interaction is a
+    // different, faster motion than its normal cycle-to-cycle fade-out.
+    // Briefly zeroing the transition and forcing a reflow (offsetWidth) is
+    // what makes the opacity change apply instantly instead of picking up
+    // .idle-halo's own `transition: opacity .6s ease`.
+    function clearHalo() {
+      clearTimeout(haloCycleTimer);
+      haloCycleTimer = null;
+      if (!haloEl) return;
+      haloEl.style.transition = 'none';
+      haloEl.classList.remove('visible');
+      void haloEl.offsetWidth;
+      haloEl.style.transition = '';
+    }
+
+    // One step of the idle cycle: light up the next parent bubble (never a
+    // child — only allSlideEls entries are ever used here, image-dots live
+    // elsewhere), hold, fade out, then schedule the next step. Cycle order
+    // is arbitrary (see SKILL.md-style acceptance criteria for this
+    // feature) — walking allSlideEls in order is simplest and still reads
+    // as "cycling through them" since that order is itself unrelated to
+    // on-screen position.
+    function stepHalo() {
+      if (!haloEl || allSlideEls.length === 0) return;
+      haloIndex = (haloIndex + 1) % allSlideEls.length;
+      var entry = allSlideEls[haloIndex];
+      setGeometry(haloEl, entry.baseX, entry.baseY, entry.d + 40);
+      requestAnimationFrame(function () {
+        if (haloEl) haloEl.classList.add('visible');
+      });
+      haloCycleTimer = setTimeout(function () {
+        if (haloEl) haloEl.classList.remove('visible');
+        haloCycleTimer = setTimeout(stepHalo, HALO_FADE_MS);
+      }, HALO_FADE_MS + HALO_HOLD_MS);
+    }
+
+    function startIdleCycle() {
+      if (prefersReducedMotion) return;
+      stepHalo();
+    }
+
+    // Called on every tracked interaction AND once at load to arm the
+    // first countdown. Clearing the halo here (not just the countdown) is
+    // what makes "disappears immediately" true even if the interaction
+    // lands mid-cycle rather than during the 4s wait.
+    function resetIdleTimer() {
+      clearTimeout(idleTimer);
+      clearHalo();
+      if (prefersReducedMotion) return;
+      idleTimer = setTimeout(startIdleCycle, IDLE_TIMEOUT_MS);
+    }
+
+    if (!prefersReducedMotion) {
+      ['mousedown', 'pointermove', 'wheel', 'keydown'].forEach(function (evt) {
+        document.addEventListener(evt, resetIdleTimer, { passive: true });
+      });
+    }
+
+    // Set by layoutBubbles() once the map's real size is known. mapEl/
+    // wrapEl/mapCanvasW/mapCanvasH describe the canvas at its natural,
+    // unscaled size (the size ACTIVE_MIN_D/MAX_D etc. were actually tuned
+    // for); restScale is how far that's shrunk (or grown) to fill the
+    // target fraction of the viewport at rest (see TARGET_FILL below).
+    // Expanding a slide zooms to scale 1 (full, natural size) centered on
+    // that slide, because shrinking its grown, content-bearing bubble along
+    // with the rest of the map made its text illegible — readability while
+    // inspecting one slide matters more than keeping the whole map in view
+    // at that moment. `scale` is the single source of truth for whatever the
+    // camera is actually showing right now (rest, slide, or mid-gesture) —
+    // gesture zoom (wheel/pinch, below) reads and writes it directly rather
+    // than layering a separate multiplier on top.
+    var mapEl, wrapEl, mapCanvasW, mapCanvasH, restScale = 1, scale = 1;
+
+    // Cluster fills ~70-75% of the smaller viewport dimension at rest (not
+    // edge-to-edge) — see restScale's computation in layoutBubbles(). Gesture
+    // zoom (wheel/pinch) is clamped to the same [ZOOM_MIN, ZOOM_MAX] range.
+    var TARGET_FILL = 1.7;
+    var ZOOM_MIN = 0.4, ZOOM_MAX = 3;
+
+    // Max pointerdown->pointerup displacement (px) still counted as a tap
+    // rather than a drag — see the bubble pointerdown/pointerup handlers
+    // in layoutBubbles() below.
+    var TAP_MAX_DISPLACEMENT = 8;
+
+    // #canvas keeps its natural (unscaled) width/height always — children
+    // are absolutely positioned via raw --cx/--cy px (see setGeometry) and
+    // #canvas has no overflow:hidden, so shrinking its own declared box
+    // does nothing to where they paint; the transform below is the only
+    // thing that actually scales the rendered map.
+    function setCanvasScale() {
+      mapEl.style.width = mapCanvasW + 'px';
+      mapEl.style.height = mapCanvasH + 'px';
+    }
+
+    // Applies `s` as the canvas's actual scale, keeps the map centred via a
+    // translate whenever it's smaller than the viewport, and refreshes every
+    // resting bubble's label visibility/size for the new scale (see
+    // updateLabelSizing). Returns the translate offsets used, so callers
+    // doing their own scroll math (zoomAtPoint) can reuse them instead of
+    // recomputing.
+    //
+    // Centering can't be done via scrollLeft/scrollTop alone: once the
+    // scaled map is SMALLER than the viewport (the common case at rest), the
+    // target scroll offset comes out negative, the browser clamps it to 0,
+    // and the map just sits flush at #canvas's untransformed (0,0) origin —
+    // flush top-left, not centered, with a big dead gutter on the right/
+    // bottom. (This was a real bug: "the map won't center.") The fix is to
+    // compute how much smaller the rendered map is than the viewport and
+    // bake that gap into the transform itself as a translate, not to lean
+    // harder on scroll offsets that can't go negative.
+    function applyCanvasTransform(s) {
+      scale = s;
+      setCanvasScale();
+      var renderedW = mapCanvasW * s, renderedH = mapCanvasH * s;
+      var offsetX = Math.max(0, (wrapEl.clientWidth - renderedW) / 2);
+      var offsetY = Math.max(0, (wrapEl.clientHeight - renderedH) / 2);
+      mapEl.style.transform = 'translate(' + offsetX + 'px, ' + offsetY + 'px) scale(' + s + ')';
+      updateLabelSizing(s);
+      return { offsetX: offsetX, offsetY: offsetY };
+    }
+
+    // The two discrete camera states: overview (whole map, fit to
+    // TARGET_FILL) and zoomed-in-on-one-slide (full natural scale, so that
+    // slide's child bubbles render at the size their own content-based
+    // sizing assumed). Both re-center via applyCanvasTransform.
+    function zoomToOverview() {
+      applyCanvasTransform(restScale);
+      var renderedW = mapCanvasW * restScale, renderedH = mapCanvasH * restScale;
+      wrapEl.scrollLeft = Math.max(0, (renderedW - wrapEl.clientWidth) / 2);
+      wrapEl.scrollTop = Math.max(0, (renderedH - wrapEl.clientHeight) / 2);
+    }
+
+    function zoomToSlide(slide) {
+      applyCanvasTransform(1);
+      wrapEl.scrollLeft = slide.baseX - wrapEl.clientWidth / 2;
+      wrapEl.scrollTop = slide.baseY - wrapEl.clientHeight / 2;
+    }
+
+    // Below this rendered diameter (px, post-scale) a slide's resting label
+    // is dropped entirely rather than shrunk into illegible mush — its full
+    // heading is still one click away via the expand panel, nothing is
+    // actually lost. At or above it, the label's font-size is floored at
+    // LABEL_MIN_FONT rendered px regardless of the bubble's own radius (the
+    // unscaled font-size is inflated by 1/scale so the ON-SCREEN result
+    // never dips below the floor even when zoomed out).
+    var LABEL_HIDE_BELOW_D = 52, LABEL_MIN_FONT = 13;
+
+    function updateLabelSizing(s) {
+      allSlideEls.forEach(function (entry) {
+        var labelEl = entry.bubbleEl.querySelector('.slide-label');
+        if (!labelEl) return; // active bubble shows heading/body instead, no .slide-label present
+        var renderedD = entry.d * s;
+        if (renderedD < LABEL_HIDE_BELOW_D) {
+          labelEl.style.display = 'none';
+          return;
+        }
+        labelEl.style.display = '';
+        var naturalPx = Math.min(22, Math.max(14, entry.d * 0.15));
+        var renderedFont = Math.max(LABEL_MIN_FONT, naturalPx * s);
+        labelEl.style.fontSize = (renderedFont / s) + 'px';
+      });
+    }
+
+    // ---- Gesture zoom (wheel + two-finger pinch) ----------------------------
+    // Scales the cluster around the pointer/pinch midpoint as the focal
+    // point (not the canvas centre) — the point under the cursor/fingers
+    // stays fixed on screen as the scale changes, which is what makes it
+    // feel natural rather than a re-centering jump.
+
+    // Discrete camera jumps (click-to-expand/collapse) keep #canvas's eased
+    // CSS transition; a continuous gesture needs to track the pointer 1:1,
+    // so transitions are suspended for the duration of the gesture and
+    // restored shortly after it ends.
+    var gestureTransitionTimer = null;
+    function suspendTransitionDuringGesture() {
+      mapEl.style.transition = 'none';
+      clearTimeout(gestureTransitionTimer);
+      gestureTransitionTimer = setTimeout(function () { mapEl.style.transition = ''; }, 150);
+    }
+
+    // (px, py) is the focal point in #canvas-wrap viewport coordinates.
+    function zoomAtPoint(newScale, px, py) {
+      newScale = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, newScale));
+      var oldScale = scale;
+      var renderedW0 = mapCanvasW * oldScale, renderedH0 = mapCanvasH * oldScale;
+      var offsetX0 = Math.max(0, (wrapEl.clientWidth - renderedW0) / 2);
+      var offsetY0 = Math.max(0, (wrapEl.clientHeight - renderedH0) / 2);
+
+      // Content-space (raw, unscaled) point currently under the focal point.
+      var contentX = (px - offsetX0 + wrapEl.scrollLeft) / oldScale;
+      var contentY = (py - offsetY0 + wrapEl.scrollTop) / oldScale;
+
+      var applied = applyCanvasTransform(newScale);
+      wrapEl.scrollLeft = contentX * newScale + applied.offsetX - px;
+      wrapEl.scrollTop = contentY * newScale + applied.offsetY - py;
+    }
+
+    // Attached directly to the DOM element (not `wrapEl`, which layoutBubbles()
+    // only assigns once the map's first layout pass runs) — safe, since a
+    // user can't actually wheel/pinch before that initial synchronous pass
+    // has already completed and populated wrapEl/mapCanvasW/etc.
+    (function enableWheelZoom() {
+      var wrap = document.getElementById('canvas-wrap');
+      wrap.addEventListener('wheel', function (e) {
+        e.preventDefault();
+        suspendTransitionDuringGesture();
+        var rect = wrap.getBoundingClientRect();
+        var px = e.clientX - rect.left, py = e.clientY - rect.top;
+        var factor = Math.exp(-e.deltaY * 0.0015);
+        zoomAtPoint(scale * factor, px, py);
+      }, { passive: false });
+    })();
+
+    (function enablePinchZoom() {
+      var wrap = document.getElementById('canvas-wrap');
+      var pointers = {}; // pointerId -> {x, y}
+      var pinchStartDist = null, pinchStartScale = null;
+
+      function dist(a, b) { return Math.hypot(a.x - b.x, a.y - b.y); }
+      function midpoint(a, b) { return { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 }; }
+
+      function clearPointer(e) {
+        delete pointers[e.pointerId];
+        if (Object.keys(pointers).length < 2) {
+          pinchStartDist = null;
+          pinchStartScale = null;
+        }
+      }
+
+      wrap.addEventListener('pointerdown', function (e) {
+        pointers[e.pointerId] = { x: e.clientX, y: e.clientY };
+      });
+
+      wrap.addEventListener('pointermove', function (e) {
+        if (!(e.pointerId in pointers)) return;
+        pointers[e.pointerId] = { x: e.clientX, y: e.clientY };
+        var ids = Object.keys(pointers);
+        if (ids.length !== 2) return;
+        e.preventDefault();
+
+        var a = pointers[ids[0]], b = pointers[ids[1]];
+        var d = dist(a, b);
+        var mid = midpoint(a, b);
+        var rect = wrap.getBoundingClientRect();
+        var px = mid.x - rect.left, py = mid.y - rect.top;
+
+        if (pinchStartDist == null) {
+          pinchStartDist = d;
+          pinchStartScale = scale;
+          return;
+        }
+        suspendTransitionDuringGesture();
+        zoomAtPoint(pinchStartScale * (d / pinchStartDist), px, py);
+      });
+
+      wrap.addEventListener('pointerup', clearPointer);
+      wrap.addEventListener('pointercancel', clearPointer);
+      wrap.addEventListener('pointerleave', clearPointer);
+    })();
+
+    // Moves every slide bubble back to its resting (packed) position —
+    // the mirror image of relaxNeighbors() below.
+    function resetPositions() {
+      allSlideEls.forEach(function (s) {
+        s.x = s.baseX; s.y = s.baseY;
+        setGeometry(s.bubbleEl, s.x, s.y, s.d);
+      });
+      animateConnectors();
+    }
+
+    // Clears free space around `active` by nudging every OTHER slide
+    // bubble outside its footprint circle (own radius + however far its
+    // child ring blooms out, see footprintR at build time) — so an
+    // expanded cluster never sits on top of a neighbor, it displaces it.
+    // `active` itself never moves; it's the fixed anchor everything else
+    // clears away from. This is a one-shot relaxation (obstacle push +
+    // pairwise collision + a weak pull back toward each bubble's own
+    // resting spot), computed once per click, not a live physics loop —
+    // the CSS spring easing on left/top (see .slide-bubble) is what
+    // supplies the organic, slightly overshooting settle, not per-frame
+    // simulation. Same family of technique as packCircles(), just
+    // relative to a fixed obstacle instead of a shared centroid.
+    function relaxNeighbors(active) {
+      var others = allSlideEls.filter(function (s) { return s !== active; });
+      var cx = active.baseX, cy = active.baseY, footR = active.footprintR;
+
+      function pushOutsideFootprint(s) {
+        var dx = s.x - cx, dy = s.y - cy;
+        var dist = Math.sqrt(dx * dx + dy * dy) || 0.01;
+        var minDist = footR + s.d / 2 + SLIDE_GAP;
+        if (dist < minDist) {
+          var ux = dx / dist, uy = dy / dist;
+          s.x = cx + ux * minDist;
+          s.y = cy + uy * minDist;
+        }
+      }
+
+      others.forEach(function (s) { s.x = s.baseX; s.y = s.baseY; pushOutsideFootprint(s); });
+
+      for (var iter = 0; iter < RELAX_ITERATIONS; iter++) {
+        var pull = 0.03 * (1 - iter / RELAX_ITERATIONS);
+        others.forEach(function (s) {
+          s.x += (s.baseX - s.x) * pull;
+          s.y += (s.baseY - s.y) * pull;
+        });
+        for (var i = 0; i < others.length; i++) {
+          for (var j = i + 1; j < others.length; j++) {
+            var a = others[i], b = others[j];
+            var dx = b.x - a.x, dy = b.y - a.y;
+            var dist = Math.sqrt(dx * dx + dy * dy) || 0.01;
+            var minDist = a.d / 2 + b.d / 2 + SLIDE_GAP;
+            if (dist < minDist) {
+              var overlap = (minDist - dist) / 2;
+              var ux = dx / dist, uy = dy / dist;
+              a.x -= ux * overlap; a.y -= uy * overlap;
+              b.x += ux * overlap; b.y += uy * overlap;
+            }
+          }
+        }
+        others.forEach(pushOutsideFootprint);
+      }
+
+      others.forEach(function (s) { setGeometry(s.bubbleEl, s.x, s.y, s.d); });
+      animateConnectors();
+    }
+
+    // Tears down whatever the active slide built (its grown size, its
+    // heading/body text, its image cluster) — the image cluster is
+    // removed from the DOM entirely rather than just hidden, since
+    // selectSlide() below rebuilds it fresh against whatever size the
+    // newly-active bubble grows to.
+    function collapseAll() {
+      closeImageBubble();
+      allSlideEls.forEach(function (s) {
+        s.bubbleEl.classList.remove('active');
+        s.bubbleEl.innerHTML = '<div class="slide-label">' + escapeHtml(s.shortLabel) + '</div>';
+        if (s.childClusterEl) { s.childClusterEl.remove(); s.childClusterEl = null; }
+        s.imagePairs = [];
+      });
+      resetPositions();
+      expandedSlide = null;
+      clearConnectorEmphasis();
+      connectorsPausedByExpand = false;
+      refreshConnectorsPaused();
+    }
+
+    function truncate(str, max) {
+      if (!str || str.length <= max) return str || '';
+      return str.slice(0, max - 1).trim() + '…';
+    }
+
+    // No separate panel here — selecting a slide grows that bubble itself
+    // (see ACTIVE_SCALE/ACTIVE_MIN_D/ACTIVE_MAX_D), lightens its fill (see
+    // CSS), and reveals its heading + a short body preview directly inside
+    // it. Any images bloom out as small thumbnails around the now-bigger
+    // bubble (built fresh here, since their cluster radius depends on the
+    // size the bubble just grew to). Every other slide bubble clears space
+    // by nudging out of the way — see relaxNeighbors.
+    function selectSlide(slide) {
+      var reopening = expandedSlide === slide;
+      collapseAll();
+      if (reopening) { zoomToOverview(); return; }
+
+      var expandedD = Math.min(Math.max(slide.d * ACTIVE_SCALE, ACTIVE_MIN_D), ACTIVE_MAX_D);
+      var expandedR = expandedD / 2;
+
+      slide.bubbleEl.classList.add('active');
+      setGeometry(slide.bubbleEl, slide.baseX, slide.baseY, expandedD);
+      slide.bubbleEl.innerHTML =
+        '<div class="active-heading">' + escapeHtml(slide.heading) + '</div>' +
+        (slide.bodyPreview ? '<div class="active-body">' + escapeHtml(slide.bodyPreview) + '</div>' : '');
+
+      slide.footprintR = expandedR;
+
+      if (slide.images.length > 0) {
+        var childCluster = el('div', 'childcluster');
+        mapEl.appendChild(childCluster);
+        childCluster.addEventListener('click', function (e) { e.stopPropagation(); });
+        slide.childClusterEl = childCluster;
+
+        var children = slide.images.map(function (image) {
+          var imgD = Math.max(IMAGE_MIN_D, Math.min(IMAGE_MAX_D, expandedD * IMAGE_FRAC));
+          return { image: image, r: imgD / 2 };
+        });
+        packChildrenAroundParent(slide.baseX, slide.baseY, expandedR, children, CHILD_GAP, (slide.index || 0) * 1000 + 1);
+
+        var maxExtent = Math.max.apply(null, children.map(function (c) {
+          return Math.hypot(c.x - slide.baseX, c.y - slide.baseY) + c.r;
+        }));
+        slide.footprintR = maxExtent + 6;
+
+        children.forEach(function (child) {
+          var cd = child.r * 2;
+          var dotEl = el('div', 'bubble image-dot');
+          setGeometry(dotEl, child.x, child.y, cd);
+          // Shares its parent's exact phase (see applyBreathePhase()) rather
+          // than computing its own — "child bubbles breathe at the same
+          // rate ... can share the same phase" (no requirement they vary
+          // independently, unlike parents).
+          dotEl.style.animationDelay = slide.bubbleEl.style.animationDelay;
+          dotEl.innerHTML = '<img src="' + child.image.src + '" alt="">';
+          childCluster.appendChild(dotEl);
+
+          var imgPair = { dot: dotEl, image: child.image };
+          slide.imagePairs.push(imgPair);
+          dotEl.addEventListener('click', function (e) {
+            e.stopPropagation();
+            openImageBubble(child.image);
+          });
+        });
+      }
+
+      relaxNeighbors(slide);
+      expandedSlide = slide;
+      updateConnectorEmphasis(slide);
+      connectorsPausedByExpand = true;
+      refreshConnectorsPaused();
+      zoomToSlide(slide);
+    }
+
+    // ---- Level 3: the image bubble overlay -----------------------------------
+    // Clicking a Level 2 image thumbnail opens this — a standalone circle
+    // fixed to the viewport (independent of the canvas's own scroll/scale),
+    // not an in-place zoom of the small thumbnail. See the CSS notes above
+    // .image-bubble for why. Dismissing it (backdrop click or Escape) closes
+    // only this overlay, returning to the slide-expanded state underneath —
+    // never a full collapseAll(), which is a distinct, separate action
+    // (clicking the canvas background or the active bubble itself).
+    var imageBubbleEl = document.getElementById('image-bubble');
+    var imageBubbleBackdropEl = document.getElementById('image-bubble-backdrop');
+    var imageBubbleImgEl = document.getElementById('image-bubble-img');
+    var imageBubbleCaptionEl = document.getElementById('image-bubble-caption');
+    // Matches the CSS transition duration on .image-bubble/.image-bubble-backdrop
+    // — used to defer re-hiding them until the closing animation finishes.
+    var IMAGE_BUBBLE_TRANSITION_MS = 400;
+    var imageBubbleHideTimer = null;
+
+    function openImageBubble(image) {
+      clearTimeout(imageBubbleHideTimer);
+      imageBubbleImgEl.src = image.src;
+      imageBubbleCaptionEl.textContent = image.caption || '';
+      imageBubbleBackdropEl.hidden = false;
+      imageBubbleEl.hidden = false;
+      // Force a reflow between un-hiding and adding .visible so the browser
+      // actually animates the transition instead of jumping straight to the
+      // end state (both style changes would otherwise land in the same frame).
+      void imageBubbleEl.offsetWidth;
+      imageBubbleBackdropEl.classList.add('visible');
+      imageBubbleEl.classList.add('visible');
+    }
+
+    function isImageBubbleOpen() {
+      return !imageBubbleEl.hidden;
+    }
+
+    function closeImageBubble() {
+      if (!isImageBubbleOpen()) return;
+      imageBubbleBackdropEl.classList.remove('visible');
+      imageBubbleEl.classList.remove('visible');
+      clearTimeout(imageBubbleHideTimer);
+      imageBubbleHideTimer = setTimeout(function () {
+        imageBubbleBackdropEl.hidden = true;
+        imageBubbleEl.hidden = true;
+      }, IMAGE_BUBBLE_TRANSITION_MS);
+    }
+
+    imageBubbleBackdropEl.addEventListener('click', closeImageBubble);
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape' && isImageBubbleOpen()) closeImageBubble();
+    });
+
+    // ---- Build ---------------------------------------------------------------
+
+    function layoutBubbles(data) {
+      var canvas = document.getElementById('canvas');
+      var wrap = document.getElementById('canvas-wrap');
+      var themes = data.themes || [];
+      if (themes.length === 0) return;
+
+      // Flatten themes -> slides. Every slide is laid out as an
+      // independent, equally first-class bubble alongside every other
+      // slide in the deck — themes drive neither position, size, nor
+      // colour; they exist purely to organize the input JSON.
+      var slides = [];
+      // Parallel to `slides` — which theme (by index into `themes`) each
+      // flattened slide came from. Kept only so the connector layer can
+      // regroup slide entries by theme after they're built below (see
+      // themeGroups); layout/sizing itself never looks at this, same as
+      // before.
+      var slideThemeIdx = [];
+      themes.forEach(function (theme, themeIdx) {
+        theme.slides.forEach(function (slide) { slides.push(slide); slideThemeIdx.push(themeIdx); });
+      });
+      if (slides.length === 0) return;
+
+      // Size each bubble by how much content it carries (body length +
+      // image count), area-proportional like every other renderer's
+      // count-driven sizing — a slide with ~4x the weight of another gets
+      // ~2x the diameter, not 4x, so relative size reads at a glance
+      // without one slide swallowing the whole canvas.
+      var weights = slides.map(function (slide) {
+        var bodyLen = (slide.body || []).join(' ').length;
+        return 1 + bodyLen / 220 + (slide.images || []).length * 1.4;
+      });
+      var maxWeight = Math.max.apply(null, weights);
+
+      var items = slides.map(function (slide, i) {
+        var d = SLIDE_MIN_D + (SLIDE_MAX_D - SLIDE_MIN_D) * Math.sqrt(weights[i] / maxWeight);
+        return { slide: slide, r: d / 2 };
+      });
+
+      packCircles(items);
+
+      // Bounding box of the packed cluster -> canvas size, then shift every
+      // circle so the whole cluster sits inside positive canvas coordinates.
+      var minX = Math.min.apply(null, items.map(function (it) { return it.x - it.r; }));
+      var maxX = Math.max.apply(null, items.map(function (it) { return it.x + it.r; }));
+      var minY = Math.min.apply(null, items.map(function (it) { return it.y - it.r; }));
+      var maxY = Math.max.apply(null, items.map(function (it) { return it.y + it.r; }));
+      var offsetX = CANVAS_MARGIN - minX;
+      var offsetY = CANVAS_MARGIN - minY;
+      var canvasW = (maxX - minX) + CANVAS_MARGIN * 2;
+      var canvasH = (maxY - minY) + CANVAS_MARGIN * 2;
+
+      // Scale the whole map to fill ~TARGET_FILL of the smaller viewport
+      // dimension on load — not a bare Math.min(1, ...) edge-to-edge fit,
+      // which for most decks left the cluster looking like a small clump
+      // with a big dead margin around it (or, for a huge deck, packed
+      // flush to the very edges). A transform (not resizing individual
+      // bubbles) so every fixed-pixel relationship in this file (child
+      // clusters, the image caption's `+108px` offset, etc.) stays correct
+      // at any scale, since it scales the whole rendered subtree uniformly.
+      // Using Math.min across both axes (not scaling each independently)
+      // guarantees neither dimension ever overflows the viewport. Labels
+      // that would go illegible at the resulting scale are handled per-
+      // bubble by updateLabelSizing(), not by a floor on this scale.
+      var fitScale = Math.min(
+        (wrap.clientWidth * TARGET_FILL) / canvasW,
+        (wrap.clientHeight * TARGET_FILL) / canvasH
+      );
+      fitScale = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, fitScale));
+
+      mapEl = canvas; wrapEl = wrap; mapCanvasW = canvasW; mapCanvasH = canvasH; restScale = fitScale;
+      canvas.style.transformOrigin = '0 0';
+      // Children below are positioned in raw (unscaled) px via --cx/--cy —
+      // zoomToOverview() (called at the end of this function) applies the
+      // actual scale/centering transform, so nothing further is needed here.
+
+      // Inserted before any bubble is appended so it's #canvas's first
+      // child (belt-and-suspenders alongside its explicit z-index: 0 —
+      // see the CSS). Sized to the same raw canvasW/canvasH the bubbles'
+      // own --cx/--cy coordinates are computed in, so connector endpoints
+      // need no separate scaling: they ride #canvas's existing transform
+      // for free, same as every bubble does.
+      svgConnectorsEl = document.createElementNS(SVG_NS, 'svg');
+      svgConnectorsEl.setAttribute('id', 'connectors');
+      svgConnectorsEl.setAttribute('width', canvasW);
+      svgConnectorsEl.setAttribute('height', canvasH);
+      canvas.appendChild(svgConnectorsEl);
+
+      // Single reusable idle-spotlight halo (see stepHalo()) — repositioned
+      // onto whichever parent bubble's turn it is rather than one element
+      // per bubble, since only one is ever lit at a time. z-index 0 (see
+      // CSS), so DOM position relative to bubbles doesn't matter, but it's
+      // appended here alongside the other canvas-level decoration layer for
+      // the same reason #connectors is.
+      haloEl = document.createElement('div');
+      haloEl.className = 'idle-halo';
+      canvas.appendChild(haloEl);
+
+      var themeGroups = themes.map(function () { return []; });
+
+      items.forEach(function (item, slideIdx) {
+        item.x += offsetX;
+        item.y += offsetY;
+
+        var slideData = item.slide;
+        var d = item.r * 2;
+
+        // Resting label: heading truncated to ~6 words, sized relative to
+        // this bubble's own diameter (see .slide-label in the CSS) so it
+        // stays legible even on a small bubble. Full heading + body preview
+        // only render once this bubble becomes active (see selectSlide) —
+        // restored back to this resting label on collapse, not left blank.
+        var shortLabel = (slideData.heading || '').split(/\s+/).slice(0, 6).join(' ');
+        var bubbleEl = el('div', 'bubble slide-bubble');
+        bubbleEl.title = slideData.heading || '';
+        setGeometry(bubbleEl, item.x, item.y, d);
+        applyBreathePhase(bubbleEl, slideIdx);
+        bubbleEl.innerHTML = '<div class="slide-label">' + escapeHtml(shortLabel) + '</div>';
+        canvas.appendChild(bubbleEl);
+
+        var bodyParagraphs = slideData.body || [];
+
+        // baseX/baseY is this bubble's packed resting position (never
+        // changes); x/y is its current, possibly-relaxed position —
+        // resetPositions()/relaxNeighbors() read and write x/y, always
+        // relative back to baseX/baseY. footprintR defaults to just this
+        // bubble's own radius and is widened by selectSlide() once it
+        // knows the bubble's active (grown) size and image cluster extent.
+        var slideEntry = {
+          bubbleEl: bubbleEl, childClusterEl: null, imagePairs: [],
+          baseX: item.x, baseY: item.y, x: item.x, y: item.y, d: d, footprintR: item.r,
+          index: slideIdx + 1,
+          shortLabel: shortLabel,
+          heading: slideData.heading || '(untitled)',
+          bodyPreview: truncate(bodyParagraphs.join(' '), BODY_PREVIEW_MAX_CHARS),
+          images: slideData.images || []
+        };
+        allSlideEls.push(slideEntry);
+        themeGroups[slideThemeIdx[slideIdx]].push(slideEntry);
+
+        // Pointer-based tap detection, not a bare 'click' listener — a
+        // native 'click' still fires after ANY mouseup on this element
+        // regardless of how far the pointer moved in between (browsers are
+        // inconsistent about suppressing it for a drag, and it fires
+        // identically for touch), so a drag that happened to end on top of
+        // a bubble could fire selectSlide() as if it were a tap. Tracking
+        // displacement ourselves between pointerdown and pointerup and
+        // gating on TAP_MAX_DISPLACEMENT fixes that uniformly for mouse and
+        // touch. stopPropagation on both is immediate and unconditional —
+        // these must never reach #canvas-wrap's own pointerdown/pointermove
+        // listeners (see enablePinchZoom), which track pointers for pinch-
+        // zoom; letting a bubble's pointer events leak into that tracker is
+        // what let a single tap on a bubble occasionally get misread as
+        // part of a pinch gesture and trigger a large, spurious zoom jump
+        // instead of opening the bubble. Do NOT also keep a 'click'
+        // listener here — selectSlide() toggles, so both firing for the
+        // same tap would open and instantly re-close it.
+        var tapStartX = 0, tapStartY = 0;
+        bubbleEl.addEventListener('pointerdown', function (e) {
+          e.stopPropagation();
+          tapStartX = e.clientX;
+          tapStartY = e.clientY;
+        });
+        bubbleEl.addEventListener('pointerup', function (e) {
+          e.stopPropagation();
+          if (Math.hypot(e.clientX - tapStartX, e.clientY - tapStartY) < TAP_MAX_DISPLACEMENT) {
+            selectSlide(slideEntry);
+          }
+        });
+      });
+
+      buildConnectors(themeGroups);
+      zoomToOverview();
+    }
+
+    var raw = document.getElementById('bubble-data').textContent;
+    layoutBubbles(JSON.parse(raw));
+    resetIdleTimer();
+
+    document.getElementById('canvas-wrap').addEventListener('click', function (e) {
+      if (e.target.id === 'canvas-wrap' || e.target.id === 'canvas') {
+        var wasExpanded = expandedSlide !== null;
+        collapseAll();
+        if (wasExpanded) zoomToOverview();
+      }
+    });
+
+    // Click-and-drag panning, free in both axes from ANY starting point —
+    // including on top of a bubble. An earlier version bailed out of
+    // starting a pan whenever the mousedown target was inside a `.bubble`
+    // (to leave room for bubbles' own click-to-select), which worked back
+    // when bubbles were small with visible gaps between them. Once bubbles
+    // got bigger and packed edge-to-edge (see Step 3), there was often no
+    // bare canvas background left to grab at all — nearly every mousedown
+    // landed on a bubble, panning simply couldn't start, and what the
+    // pointer did instead was fire that bubble's ordinary click (select/
+    // dim), over and over, for every bubble the pointer happened to land
+    // on. That's the "just keeps highlighting each object instead of
+    // moving through the space" bug. The fix is to always start tracking
+    // on mousedown regardless of target, then decide AFTER the fact, using
+    // DRAG_THRESHOLD px of movement, whether this was a drag (pan) or a
+    // click (select) — and if it was a drag, swallow the click event that
+    // would otherwise still fire on mouseup so whatever's under the
+    // pointer (a bubble, or the canvas background's own collapseAll
+    // listener above) doesn't also react to what was really a pan.
+    (function enableDragPan() {
+      var wrap = document.getElementById('canvas-wrap');
+      var DRAG_THRESHOLD = 6;
+      var isDown = false, dragging = false, startX, startY, startLeft, startTop;
+
+      wrap.addEventListener('mousedown', function (e) {
+        isDown = true;
+        dragging = false;
+        startX = e.pageX; startY = e.pageY;
+        startLeft = wrap.scrollLeft; startTop = wrap.scrollTop;
+      });
+
+      window.addEventListener('mousemove', function (e) {
+        if (!isDown) return;
+        var dx = e.pageX - startX, dy = e.pageY - startY;
+        if (!dragging && Math.hypot(dx, dy) > DRAG_THRESHOLD) {
+          dragging = true;
+          wrap.classList.add('dragging');
+          connectorsPausedByDrag = true;
+          refreshConnectorsPaused();
+          document.body.classList.add('is-panning');
+        }
+        if (dragging) {
+          e.preventDefault();
+          wrap.scrollLeft = startLeft - dx;
+          wrap.scrollTop = startTop - dy;
+        }
+      });
+
+      window.addEventListener('mouseup', function () {
+        isDown = false;
+        wrap.classList.remove('dragging');
+        // Fallback reset in case no click event follows this mouseup (e.g.
+        // the pointer was released outside #canvas-wrap) — the capturing
+        // click listener below normally consumes `dragging` first, since
+        // click dispatch happens synchronously before this timeout runs.
+        if (dragging) setTimeout(function () { dragging = false; }, 0);
+        connectorsPausedByDrag = false;
+        refreshConnectorsPaused();
+        document.body.classList.remove('is-panning');
+      });
+
+      // Registered on `document`, not `wrap` — a capture-phase listener on
+      // a genuine ANCESTOR of every click target (bubbles, #canvas-wrap
+      // itself) is guaranteed to run before ALL of their listeners,
+      // regardless of registration order. A capture listener placed on
+      // `wrap` itself would only reliably beat DESCENDANTS (bubbles); it
+      // wouldn't reliably beat wrap's OWN collapseAll listener above,
+      // since same-element listeners fire in registration order. This is
+      // what makes the suppression cover every click target uniformly.
+      document.addEventListener('click', function (e) {
+        if (dragging) {
+          e.stopPropagation();
+          e.preventDefault();
+          dragging = false;
+        }
+      }, true);
+    })();
+  })();
+</script>
+
+</body>
+</html>

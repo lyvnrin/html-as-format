@@ -10,6 +10,7 @@ export const formats = [
     active: true,
     contentType: 'text',
     Cover: TimelineCover,
+    previewUrl: '/demos/timeline.html',
   },
   {
     id: 'gallery',
@@ -18,6 +19,7 @@ export const formats = [
     active: true,
     contentType: 'image',
     Cover: GalleryCover,
+    previewUrl: '/demos/gallery.html',
   },
   {
     id: 'bubble-map',
@@ -26,5 +28,6 @@ export const formats = [
     active: true,
     contentType: 'both',
     Cover: BubbleMapCover,
+    previewUrl: '/demos/bubble-map.html',
   },
 ]

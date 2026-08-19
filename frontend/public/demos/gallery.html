@@ -1,0 +1,859 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Trip Report (sample)</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,wght@0,400;0,600;0,700;1,400;1,600&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --font-serif: 'Source Serif 4', Georgia, 'Iowan Old Style', 'Palatino Linotype', 'Times New Roman', serif;
+    --font-sans: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    --bg: #1c1a17;
+    --surface: rgba(255,255,255,0.05);
+    --surface-solid: #242327;
+    --surface-alt: rgba(255,255,255,0.08);
+    --border: rgba(255,255,255,0.12);
+    --text: #eef1f8;
+    --text-soft: #aab2c5;
+    --text-faint: #6e7690;
+    --accent: #3a5fa8;
+    --accent-soft: rgba(58,95,168,0.16);
+    --accent-glow: rgba(58,95,168,0.55);
+    --accent-dark: #24427e;
+    --radius: 16px;
+    --shadow: 0 8px 32px rgba(0,0,0,0.45);
+    --blur: 18px;
+  }
+
+  [data-theme="blue"]   { --accent: #3a5fa8; --accent-soft: rgba(58,95,168,0.16); --accent-glow: rgba(58,95,168,0.55); --accent-dark: #24427e; }
+  [data-theme="green"]  { --accent: #1f8a5c; --accent-soft: rgba(31,138,92,0.16); --accent-glow: rgba(31,138,92,0.55); --accent-dark: #146341; }
+  [data-theme="purple"] { --accent: #6b46c8; --accent-soft: rgba(107,70,200,0.16); --accent-glow: rgba(107,70,200,0.55); --accent-dark: #4c2f94; }
+  [data-theme="orange"] { --accent: #c2703a; --accent-soft: rgba(194,112,58,0.16); --accent-glow: rgba(194,112,58,0.55); --accent-dark: #8f4f24; }
+  [data-theme="red"]    { --accent: #a8342f; --accent-soft: rgba(168,52,47,0.16); --accent-glow: rgba(168,52,47,0.55); --accent-dark: #7a231f; }
+
+  body[data-mode="light"] {
+    --bg: #fafaf6;
+    --surface: rgba(255,255,255,0.7);
+    --surface-solid: #ffffff;
+    --surface-alt: rgba(20,23,31,0.04);
+    --border: rgba(20,23,31,0.1);
+    --text: #181a20;
+    --text-soft: #565d6e;
+    --text-faint: #8990a3;
+    --shadow: 0 8px 28px rgba(20,30,60,0.12);
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+
+  /* Hide scrollbars everywhere — scrolling still works, just no visible track/thumb.
+     Part of the shared chrome; keep this block in every template. */
+  * { scrollbar-width: none; -ms-overflow-style: none; }
+  *::-webkit-scrollbar { display: none; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-sans);
+    transition: background-color .25s ease, color .25s ease;
+    min-height: 100vh;
+  }
+
+  .settings-toggle {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 100;
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    border: 1px solid var(--border);
+    background: var(--surface-solid);
+    color: var(--text);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    box-shadow: var(--shadow);
+    transition: border-color .15s ease, transform .15s ease, background .15s ease;
+  }
+  .settings-toggle:hover { border-color: var(--accent-glow); transform: translateY(-1px); }
+  .settings-toggle svg { width: 18px; height: 18px; }
+
+  .settings-panel {
+    position: fixed;
+    top: 70px;
+    right: 20px;
+    z-index: 100;
+    width: 224px;
+    background: var(--surface-solid);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  .settings-panel[hidden] { display: none; }
+
+  .settings-label {
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: var(--text-faint);
+    margin-bottom: 10px;
+  }
+
+  /* Theme dropdown — replaces the old row of clickable colour dots. The
+     trigger's own text sits in var(--accent), so it re-colours for free
+     whenever data-theme changes (no JS needed for that part); the menu
+     stays a plain toggle+outside-click pattern, same as .settings-panel's
+     own open/close. */
+  .theme-select { position: relative; }
+  .theme-select-trigger {
+    display: flex; align-items: center; justify-content: space-between; gap: 6px;
+    width: 100%;
+    font-size: 13px; font-weight: 700;
+    padding: 9px 14px; border-radius: 10px;
+    border: 1px solid var(--border);
+    background: var(--surface-alt);
+    color: var(--accent);
+    cursor: pointer;
+    transition: background .15s ease, transform .1s ease, color .2s ease;
+  }
+  .theme-select-trigger:hover { background: var(--accent-soft); transform: translateY(-1px); }
+  .theme-select-trigger::after { content: "\25be"; font-size: 11px; opacity: .7; }
+  .theme-select-menu {
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 0;
+    right: 0;
+    z-index: 10;
+    background: var(--surface-solid);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    box-shadow: var(--shadow);
+    padding: 6px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .theme-select-menu[hidden] { display: none; }
+  .theme-select-option {
+    display: flex; align-items: center; gap: 8px;
+    width: 100%;
+    font-size: 13px; font-weight: 600;
+    padding: 7px 10px; border-radius: 8px;
+    border: none;
+    background: none;
+    color: var(--text);
+    text-align: left;
+    cursor: pointer;
+    transition: background .15s ease;
+  }
+  .theme-select-option:hover { background: var(--surface-alt); }
+  .theme-select-option.active { color: var(--accent); font-weight: 800; }
+  .theme-select-option::before { content: ""; width: 10px; height: 10px; border-radius: 50%; flex: none; }
+  .theme-select-option[data-t="blue"]::before   { background: #3a5fa8; }
+  .theme-select-option[data-t="green"]::before  { background: #1f8a5c; }
+  .theme-select-option[data-t="purple"]::before { background: #6b46c8; }
+  .theme-select-option[data-t="orange"]::before { background: #c2703a; }
+  .theme-select-option[data-t="red"]::before    { background: #a8342f; }
+
+  .settings-panel button.tool-btn {
+    display: flex; align-items: center; justify-content: center; gap: 6px;
+    width: 100%;
+    font-size: 13px; font-weight: 600;
+    padding: 9px 14px; border-radius: 10px;
+    border: 1px solid var(--border);
+    background: var(--surface-alt);
+    color: var(--text);
+    cursor: pointer;
+    transition: background .15s ease, transform .1s ease;
+  }
+  .settings-panel button.tool-btn:hover { background: var(--accent-soft); transform: translateY(-1px); }
+  .settings-panel button.tool-btn.primary {
+    background: var(--accent); color: #0a0c12; border-color: var(--accent);
+    box-shadow: 0 0 18px var(--accent-glow);
+  }
+  .settings-panel button.tool-btn.primary:hover { background: var(--accent-dark); }
+
+  /* PDF download disabled for now — kept in the DOM/wiring as-is, just
+     visually and functionally inert. */
+  #pdf-btn { opacity: 0.4; pointer-events: none; cursor: not-allowed; }
+
+  /* Dark/light switch — an iOS-style sliding pill instead of a plain text
+     button, so toggling reads as one continuous motion (thumb slides,
+     sun/moon cross-fade+rotate into each other) rather than an instant
+     swap. Label text keeps the original button's semantics: it names the
+     action a click performs, not the current state — aria-pressed carries
+     the actual state for assistive tech. */
+  .mode-toggle {
+    display: flex; align-items: center; justify-content: space-between; gap: 10px;
+    width: 100%;
+    font-size: 13px; font-weight: 600;
+    padding: 9px 14px; border-radius: 10px;
+    border: 1px solid var(--border);
+    background: var(--surface-alt);
+    color: var(--text);
+    cursor: pointer;
+    transition: background .15s ease, transform .1s ease;
+  }
+  .mode-toggle:hover { background: var(--accent-soft); transform: translateY(-1px); }
+  .mode-toggle-switch {
+    position: relative;
+    flex: none;
+    width: 38px; height: 22px;
+    border-radius: 999px;
+    background: var(--border);
+    transition: background .35s ease;
+  }
+  body[data-mode="dark"] .mode-toggle-switch { background: var(--accent-dark); }
+  .mode-toggle-thumb {
+    position: absolute;
+    top: 2px; left: 2px;
+    width: 18px; height: 18px;
+    border-radius: 50%;
+    background: var(--surface-solid);
+    box-shadow: 0 1px 3px rgba(0,0,0,.35);
+    display: flex; align-items: center; justify-content: center;
+    transition: transform .35s cubic-bezier(.34, 1.56, .64, 1);
+  }
+  body[data-mode="dark"] .mode-toggle-thumb { transform: translateX(16px); }
+  .mode-toggle-thumb svg {
+    position: absolute;
+    width: 12px; height: 12px;
+    transition: opacity .3s ease, transform .4s ease;
+  }
+  .mode-toggle-thumb .icon-sun { color: #e8a63c; opacity: 1; transform: rotate(0deg) scale(1); }
+  .mode-toggle-thumb .icon-moon { color: #7c93c9; opacity: 0; transform: rotate(-90deg) scale(.5); }
+  body[data-mode="dark"] .mode-toggle-thumb .icon-sun { opacity: 0; transform: rotate(90deg) scale(.5); }
+  body[data-mode="dark"] .mode-toggle-thumb .icon-moon { opacity: 1; transform: rotate(0deg) scale(1); }
+
+  /* Info affordance pinned immediately left of the settings cog — same
+     visual style/size as .settings-toggle (stroke-based SVG glyph, not a
+     text character, so both corner buttons share one consistent icon
+     language). Opens a dismissible tooltip with the interaction hint
+     instead of permanent on-page text. */
+  .help-toggle {
+    position: fixed;
+    top: 20px;
+    right: 72px;
+    z-index: 100;
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    border: 1px solid var(--border);
+    background: var(--surface-solid);
+    color: var(--text);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    box-shadow: var(--shadow);
+    transition: border-color .15s ease, transform .15s ease, background .15s ease;
+  }
+  .help-toggle:hover { border-color: var(--accent-glow); transform: translateY(-1px); }
+  .help-toggle svg { width: 18px; height: 18px; }
+  .help-tooltip {
+    position: fixed;
+    top: 70px;
+    right: 72px;
+    z-index: 100;
+    width: 208px;
+    background: var(--surface-solid);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 12px 14px;
+    font-size: 12.5px;
+    line-height: 1.45;
+    color: var(--text-soft);
+  }
+  .help-tooltip[hidden] { display: none; }
+
+  #doc {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 40px 24px 100px;
+  }
+
+  .doc-header { margin-bottom: 28px; text-align: left; }
+  .doc-eyebrow {
+    display: inline-block;
+    font-size: 11px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase;
+    color: var(--accent);
+    background: var(--accent-soft);
+    border: 1px solid var(--accent-glow);
+    padding: 5px 14px;
+    border-radius: 999px;
+    margin-bottom: 14px;
+  }
+  .doc-title {
+    font-family: var(--font-serif);
+    font-size: clamp(28px, 4vw, 42px); font-weight: 800; margin: 0 0 10px; line-height: 1.15;
+    letter-spacing: -.01em;
+  }
+  .doc-subtitle { font-size: 16px; color: var(--text-soft); margin: 0; line-height: 1.5; max-width: 640px; }
+  .doc-meta { font-size: 12px; color: var(--text-faint); margin: 10px 0 0; }
+
+  /* Masonry grid — CSS columns, not CSS grid. Varied card heights are the point. */
+  #grid {
+    column-count: 4;
+    column-gap: 18px;
+  }
+  @media (max-width: 1100px) { #grid { column-count: 3; } }
+  @media (max-width: 780px)  { #grid { column-count: 2; } }
+  @media (max-width: 480px)  { #grid { column-count: 1; } }
+
+  .card {
+    break-inside: avoid;
+    margin-bottom: 18px;
+    border-radius: var(--radius);
+    /* Clips .card-image's hover zoom to the card's own rounded corners —
+       the zoom below relies on this already being here. */
+    overflow: hidden;
+    cursor: pointer;
+    position: relative;
+    background: var(--surface-solid);
+    box-shadow: var(--shadow);
+    border: 1px solid var(--border);
+    transition: transform .2s ease, border-color .2s ease;
+    /* Ambient "breathing" so the grid feels alive even before anyone
+       touches it — animation-delay is set per-card in JS from each card's
+       DOM position (see the script below), negative so the very first
+       cards on screen are already mid-breath on load rather than sitting
+       motionless for up to a full cycle. Only border-color animates here,
+       never transform — .card:hover already owns transform (the lift) and
+       a running CSS animation always wins that fight over a plain hover
+       rule, which would otherwise make the hover lift flicker against the
+       ambient loop. A large blurred box-shadow glow was tried here first
+       and cut — too loud, especially with several cards mid-breath at once
+       across a packed masonry grid; a crisp border-colour shift reads as
+       "alive" without the haze. */
+    animation: card-breathe 6s ease-in-out infinite;
+  }
+  @keyframes card-breathe {
+    0%, 100% { border-color: var(--border); }
+    50% { border-color: var(--accent); }
+  }
+  /* -4px (was a flat -2px) — the lift needed more presence to actually
+     read as "this card is reacting to you" rather than a faint wobble.
+     animation: none here for the same reason the ambient loop only
+     touches border-color above: hover needs its own border-color to
+     actually win instead of fighting the running animation for the same
+     property. */
+  .card:hover {
+    animation: none;
+    transform: translateY(-4px);
+    border-color: var(--accent);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .card { animation: none; }
+  }
+
+  .card-image-wrap { position: relative; overflow: hidden; }
+  .card-image {
+    display: block;
+    width: 100%;
+    transition: transform .35s ease;
+  }
+  .card:hover .card-image { transform: scale(1.05); }
+  .card-title {
+    padding: 12px 16px 16px;
+    font-family: var(--font-serif);
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--text);
+    line-height: 1.35;
+  }
+
+  .card-solid {
+    aspect-ratio: 4 / 3;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    background: var(--accent);
+  }
+  .card-heading-solid {
+    font-family: var(--font-serif);
+    color: #fff;
+    font-weight: 700;
+    font-size: 19px;
+    text-align: center;
+    line-height: 1.3;
+  }
+
+  /* Detail overlay */
+  .overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 90;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(6,7,10,0.6);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    padding: 24px;
+  }
+  .overlay[hidden] { display: none; }
+
+  .panel {
+    display: flex;
+    max-width: 960px;
+    width: 100%;
+    max-height: calc(100vh - 80px);
+    background: var(--surface-solid);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+    box-shadow: var(--shadow), 0 0 0 1px var(--accent-soft);
+  }
+  .panel-media { flex: 1 1 45%; min-width: 0; background: var(--accent); display: flex; align-items: center; justify-content: center; }
+  .panel-media img { display: block; width: 100%; height: 100%; object-fit: cover; }
+  /* flex column so .panel-caption-toggle (margin-top: auto, below) can pin
+     itself to the bottom of the box instead of sitting wherever the last
+     content block happens to end. */
+  .panel-content { flex: 1 1 55%; padding: 32px 34px; overflow-y: auto; display: flex; flex-direction: column; }
+  /* This box can legitimately have more content below the fold — unlike the
+     page-level scroll (hidden everywhere else in the shared chrome), this one
+     needs a visible cue or the truncation reads as a bug. Override the global
+     hide-scrollbar rule just for this element. */
+  .panel-content { scrollbar-width: thin; scrollbar-color: var(--accent-glow) transparent; }
+  .panel-content::-webkit-scrollbar { display: block; width: 5px; }
+  .panel-content::-webkit-scrollbar-thumb { background: var(--accent-glow); border-radius: 6px; }
+  .panel-content h2 { font-family: var(--font-serif); margin: 0 0 18px; font-size: 24px; font-weight: 800; }
+
+  /* Fallback only — current output never emits a <ul class="panel-body-list">
+     (see the content-block styles below), kept in case a future direct
+     template edit needs a plain bullet list. */
+  .panel-body-list { margin: 0 0 18px; padding-left: 20px; }
+  .panel-body-list li { font-size: 16px; line-height: 1.6; color: var(--text); margin-bottom: 8px; }
+
+  /* Content blocks — the detail panel's body[] is grouped server-side into
+     typed blocks (stat / steps / prose) instead of one uniform bullet list.
+     See galleryBodyBlocksHtml() in server/index.js for the grouping logic. */
+  .block-stat { display: grid; grid-template-columns: 1fr 1fr; gap: 16px 24px; margin: 0 0 18px; }
+  .stat-item { }
+  .stat-value { font-size: 28px; font-weight: 700; color: var(--accent); line-height: 1.2; }
+  .stat-label { font-size: 13px; color: var(--text-faint); margin-top: 2px; }
+
+  .block-steps { margin: 0 0 18px; }
+  .step { display: flex; gap: 12px; align-items: baseline; margin-bottom: 12px; }
+  .step-num { font-size: 12px; font-weight: 700; color: var(--accent); flex-shrink: 0; min-width: 20px; }
+  .step-label { font-weight: 600; margin-right: 6px; white-space: nowrap; }
+  .step-desc { font-size: 15px; color: var(--text); }
+
+  .block-prose { margin: 0 0 18px; }
+  .block-prose p { font-size: 15px; line-height: 1.6; color: var(--text); margin: 0 0 10px; }
+
+  /* Image description defaults to collapsed — the slide's own heading/body
+     is the primary content of the panel, the VLM-generated image caption is
+     secondary reference material, not something that should compete for
+     attention above the fold. margin-top: auto (relying on .panel-content
+     being a flex column, above) pins it to the bottom of the box regardless
+     of how little content precedes it, rather than trailing right after
+     the last content block; opacity dials down the whole toggle — trigger
+     and revealed caption alike — since neither is meant to read as
+     important as the slide's own content. */
+  .panel-caption-toggle {
+    margin-top: auto;
+    padding-top: 14px;
+    border-top: 1px solid var(--border);
+    opacity: .55;
+  }
+  .panel-caption-toggle summary {
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-faint);
+    list-style: none;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    transition: color .15s ease;
+  }
+  .panel-caption-toggle summary::-webkit-details-marker { display: none; }
+  .panel-caption-toggle summary:hover { color: var(--accent); }
+  .panel-caption-toggle summary::before {
+    content: "";
+    width: 7px; height: 7px;
+    border-right: 1.5px solid currentColor;
+    border-bottom: 1.5px solid currentColor;
+    transform: rotate(-45deg);
+    transition: transform .15s ease;
+    flex: none;
+  }
+  .panel-caption-toggle[open] summary::before { transform: rotate(45deg); }
+  .panel-caption-toggle[open] summary { margin-bottom: 10px; }
+  .panel-caption {
+    font-size: 13px; font-style: italic; color: var(--text-faint);
+    margin: 0;
+  }
+
+  @media (max-width: 680px) {
+    .panel { flex-direction: column; max-height: calc(100vh - 48px); overflow-y: auto; }
+    .panel-media { flex: 0 0 auto; aspect-ratio: 16 / 9; }
+    .panel { scrollbar-width: thin; scrollbar-color: var(--accent-glow) transparent; }
+    .panel::-webkit-scrollbar { display: block; width: 5px; }
+    .panel::-webkit-scrollbar-thumb { background: var(--accent-glow); border-radius: 6px; }
+  }
+
+  /* Simple fade-up affordance, bottom-left — hidden below a scroll
+     threshold set in JS rather than always shown, since it's meaningless
+     at the top of the page. Opacity/transform, not display:none, so it can
+     transition in/out instead of popping. A labelled pill rather than a
+     bare icon button, same treatment as the timeline template's. */
+  .back-to-top {
+    position: fixed;
+    bottom: 24px;
+    left: 24px;
+    z-index: 90;
+    padding: 10px 18px;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    background: var(--surface-solid);
+    color: var(--text);
+    font-family: var(--font-sans);
+    font-size: 13px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    box-shadow: var(--shadow);
+    opacity: 0;
+    pointer-events: none;
+    transform: translateY(8px);
+    transition: opacity .25s ease, transform .25s ease, border-color .15s ease, color .15s ease;
+  }
+  .back-to-top.visible { opacity: 1; pointer-events: auto; transform: translateY(0); }
+  .back-to-top:hover { border-color: var(--accent); color: var(--accent); }
+
+  @media print {
+    .settings-toggle, .settings-panel, .help-toggle, .help-tooltip { display: none; }
+    .back-to-top { display: none; }
+  }
+</style>
+</head>
+<body data-theme="blue" data-mode="light">
+
+  <button class="settings-toggle" id="settings-toggle" aria-label="Settings" aria-expanded="false">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <circle cx="12" cy="12" r="3"></circle>
+      <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z"></path>
+    </svg>
+  </button>
+
+  <button class="help-toggle" id="help-toggle" aria-label="Help" aria-expanded="false">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <circle cx="12" cy="12" r="10"></circle>
+      <line x1="12" y1="16" x2="12" y2="12"></line>
+      <line x1="12" y1="8" x2="12.01" y2="8"></line>
+    </svg>
+  </button>
+  <div class="help-tooltip" id="help-tooltip" hidden>Click a card to view details.</div>
+
+  <div class="settings-panel" id="settings-panel" hidden>
+    <div class="theme-select" id="theme-select">
+      <div class="settings-label">Theme</div>
+      <button class="theme-select-trigger" id="theme-select-trigger" aria-haspopup="listbox" aria-expanded="false">Change Theme</button>
+      <div class="theme-select-menu" id="theme-select-menu" hidden role="listbox">
+        <button class="theme-select-option active" data-t="blue" role="option" aria-selected="true">Blue</button>
+        <button class="theme-select-option" data-t="green" role="option" aria-selected="false">Green</button>
+        <button class="theme-select-option" data-t="purple" role="option" aria-selected="false">Purple</button>
+        <button class="theme-select-option" data-t="orange" role="option" aria-selected="false">Orange</button>
+        <button class="theme-select-option" data-t="red" role="option" aria-selected="false">Red</button>
+      </div>
+    </div>
+    <button class="mode-toggle" id="mode-toggle" aria-pressed="false">
+      <span id="mode-toggle-label">Dark</span>
+      <span class="mode-toggle-switch" aria-hidden="true">
+        <span class="mode-toggle-thumb">
+          <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="5"></circle>
+            <line x1="12" y1="1" x2="12" y2="3"></line>
+            <line x1="12" y1="21" x2="12" y2="23"></line>
+            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+            <line x1="1" y1="12" x2="3" y2="12"></line>
+            <line x1="21" y1="12" x2="23" y2="12"></line>
+            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+          </svg>
+          <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+          </svg>
+        </span>
+      </span>
+    </button>
+    <button class="tool-btn primary" id="pdf-btn">⬇ Download PDF</button>
+  </div>
+
+  <button class="back-to-top" id="back-to-top">Back to top</button>
+
+  <div id="doc">
+
+    <div class="doc-header">
+      <div class="doc-eyebrow">Gallery</div>
+      <h1 class="doc-title">Trip Report (sample)</h1>
+      <p class="doc-subtitle">4 slides</p>
+      <p class="doc-meta">Preview sample</p>
+    </div>
+
+    <div id="grid">
+      <div class="card" data-index="1">
+        <div class="card-face">
+          <div class="card-image-wrap">
+            <img class="card-image" src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI2NDAiIGhlaWdodD0iNDgwIj48cmVjdCB3aWR0aD0iNjQwIiBoZWlnaHQ9IjQ4MCIgZmlsbD0iIzNiNmVhNSIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmb250LWZhbWlseT0ic2Fucy1zZXJpZiIgZm9udC1zaXplPSIyOCIgZmlsbD0icmdiYSgyNTUsMjU1LDI1NSwwLjg1KSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZG9taW5hbnQtYmFzZWxpbmU9Im1pZGRsZSI+QmFzZWNhbXA8L3RleHQ+PC9zdmc+" alt="Basecamp">
+          </div>
+          <div class="card-title">Basecamp</div>
+        </div>
+        <div class="card-detail" hidden>
+          <div class="panel-media"><img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI2NDAiIGhlaWdodD0iNDgwIj48cmVjdCB3aWR0aD0iNjQwIiBoZWlnaHQ9IjQ4MCIgZmlsbD0iIzNiNmVhNSIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmb250LWZhbWlseT0ic2Fucy1zZXJpZiIgZm9udC1zaXplPSIyOCIgZmlsbD0icmdiYSgyNTUsMjU1LDI1NSwwLjg1KSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZG9taW5hbnQtYmFzZWxpbmU9Im1pZGRsZSI+QmFzZWNhbXA8L3RleHQ+PC9zdmc+" alt="Basecamp"></div>
+          <div class="panel-content">
+            <h2>Basecamp</h2>
+            <div class="block-stat">
+  <div class="stat-item">
+    <div class="stat-value">4,200m</div>
+    <div class="stat-label">Elevation</div>
+  </div>
+</div>
+<div class="block-prose">
+  <p>The first stretch is mostly flat — save your legs for what comes after.</p>
+</div>
+            <details class="panel-caption-toggle">
+              <summary>Show image description</summary>
+              <p class="panel-caption">Sunrise over the ridge from base camp, tents in the foreground.</p>
+            </details>
+          </div>
+        </div>
+      </div>
+
+      <div class="card" data-index="2">
+        <div class="card-face">
+          <div class="card-image-wrap">
+            <img class="card-image" src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI2NDAiIGhlaWdodD0iNDgwIj48cmVjdCB3aWR0aD0iNjQwIiBoZWlnaHQ9IjQ4MCIgZmlsbD0iIzdhOGI1YSIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmb250LWZhbWlseT0ic2Fucy1zZXJpZiIgZm9udC1zaXplPSIyOCIgZmlsbD0icmdiYSgyNTUsMjU1LDI1NSwwLjg1KSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZG9taW5hbnQtYmFzZWxpbmU9Im1pZGRsZSI+VGhlIHN3aXRjaGJhY2tzPC90ZXh0Pjwvc3ZnPg==" alt="The switchbacks">
+          </div>
+          <div class="card-title">The switchbacks</div>
+        </div>
+        <div class="card-detail" hidden>
+          <div class="panel-media"><img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI2NDAiIGhlaWdodD0iNDgwIj48cmVjdCB3aWR0aD0iNjQwIiBoZWlnaHQ9IjQ4MCIgZmlsbD0iIzdhOGI1YSIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmb250LWZhbWlseT0ic2Fucy1zZXJpZiIgZm9udC1zaXplPSIyOCIgZmlsbD0icmdiYSgyNTUsMjU1LDI1NSwwLjg1KSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZG9taW5hbnQtYmFzZWxpbmU9Im1pZGRsZSI+VGhlIHN3aXRjaGJhY2tzPC90ZXh0Pjwvc3ZnPg==" alt="The switchbacks"></div>
+          <div class="panel-content">
+            <h2>The switchbacks</h2>
+            <div class="block-steps">
+  <div class="step">
+    <span class="step-num">01</span>
+    <span class="step-label">Warm up</span>
+    <span class="step-desc">Fifteen minutes of easy walking to find your rhythm.</span>
+  </div>
+  <div class="step">
+    <span class="step-num">02</span>
+    <span class="step-label">Push</span>
+    <span class="step-desc">Ninety minutes of steady switchbacks — this is the grind.</span>
+  </div>
+</div>
+            <details class="panel-caption-toggle">
+              <summary>Show image description</summary>
+              <p class="panel-caption">Zig-zag trail cut into the scree slope.</p>
+            </details>
+          </div>
+        </div>
+      </div>
+
+      <div class="card" data-index="3">
+        <div class="card-face">
+          <div class="card-image-wrap">
+            <img class="card-image" src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI2NDAiIGhlaWdodD0iNDgwIj48cmVjdCB3aWR0aD0iNjQwIiBoZWlnaHQ9IjQ4MCIgZmlsbD0iI2I1NzkzYiIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmb250LWZhbWlseT0ic2Fucy1zZXJpZiIgZm9udC1zaXplPSIyOCIgZmlsbD0icmdiYSgyNTUsMjU1LDI1NSwwLjg1KSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZG9taW5hbnQtYmFzZWxpbmU9Im1pZGRsZSI+UmlkZ2UgY2FtcDwvdGV4dD48L3N2Zz4=" alt="Ridge camp">
+          </div>
+          <div class="card-title">Ridge camp</div>
+        </div>
+        <div class="card-detail" hidden>
+          <div class="panel-media"><img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI2NDAiIGhlaWdodD0iNDgwIj48cmVjdCB3aWR0aD0iNjQwIiBoZWlnaHQ9IjQ4MCIgZmlsbD0iI2I1NzkzYiIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmb250LWZhbWlseT0ic2Fucy1zZXJpZiIgZm9udC1zaXplPSIyOCIgZmlsbD0icmdiYSgyNTUsMjU1LDI1NSwwLjg1KSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZG9taW5hbnQtYmFzZWxpbmU9Im1pZGRsZSI+UmlkZ2UgY2FtcDwvdGV4dD48L3N2Zz4=" alt="Ridge camp"></div>
+          <div class="panel-content">
+            <h2>Ridge camp</h2>
+            <div class="block-prose">
+  <p>Wind picks up fast above the treeline — the ridge camp is where most people put their shell on for good.</p>
+</div>
+            <details class="panel-caption-toggle">
+              <summary>Show image description</summary>
+              <p class="panel-caption">Camp perched on the exposed ridge line at dusk.</p>
+            </details>
+          </div>
+        </div>
+      </div>
+
+      <div class="card" data-index="4">
+        <div class="card-face">
+          <div class="card-image-wrap">
+            <img class="card-image" src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI2NDAiIGhlaWdodD0iNDgwIj48cmVjdCB3aWR0aD0iNjQwIiBoZWlnaHQ9IjQ4MCIgZmlsbD0iI2E1NGE0YSIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmb250LWZhbWlseT0ic2Fucy1zZXJpZiIgZm9udC1zaXplPSIyOCIgZmlsbD0icmdiYSgyNTUsMjU1LDI1NSwwLjg1KSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZG9taW5hbnQtYmFzZWxpbmU9Im1pZGRsZSI+U3VtbWl0PC90ZXh0Pjwvc3ZnPg==" alt="Summit">
+          </div>
+          <div class="card-title">Summit</div>
+        </div>
+        <div class="card-detail" hidden>
+          <div class="panel-media"><img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI2NDAiIGhlaWdodD0iNDgwIj48cmVjdCB3aWR0aD0iNjQwIiBoZWlnaHQ9IjQ4MCIgZmlsbD0iI2E1NGE0YSIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmb250LWZhbWlseT0ic2Fucy1zZXJpZiIgZm9udC1zaXplPSIyOCIgZmlsbD0icmdiYSgyNTUsMjU1LDI1NSwwLjg1KSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZG9taW5hbnQtYmFzZWxpbmU9Im1pZGRsZSI+U3VtbWl0PC90ZXh0Pjwvc3ZnPg==" alt="Summit"></div>
+          <div class="panel-content">
+            <h2>Summit</h2>
+            <div class="block-stat">
+  <div class="stat-item">
+    <div class="stat-value">5,895m</div>
+    <div class="stat-label">Summit</div>
+  </div>
+  <div class="stat-item">
+    <div class="stat-value">8</div>
+    <div class="stat-label">Hours from ridge camp</div>
+  </div>
+</div>
+            <details class="panel-caption-toggle">
+              <summary>Show image description</summary>
+              <p class="panel-caption">First light hitting the summit marker.</p>
+            </details>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="overlay" id="overlay" hidden>
+    <div class="panel" id="panel"></div>
+  </div>
+
+<script>
+  (function () {
+    var body = document.body;
+
+    var settingsToggle = document.getElementById('settings-toggle');
+    var settingsPanel = document.getElementById('settings-panel');
+    settingsToggle.addEventListener('click', function (e) {
+      e.stopPropagation();
+      var willOpen = settingsPanel.hidden;
+      settingsPanel.hidden = !willOpen;
+      settingsToggle.setAttribute('aria-expanded', String(willOpen));
+    });
+    document.addEventListener('click', function (e) {
+      if (!settingsPanel.hidden && !settingsPanel.contains(e.target) && !settingsToggle.contains(e.target)) {
+        settingsPanel.hidden = true;
+        settingsToggle.setAttribute('aria-expanded', 'false');
+      }
+    });
+
+    var helpToggle = document.getElementById('help-toggle');
+    var helpTooltip = document.getElementById('help-tooltip');
+    helpToggle.addEventListener('click', function (e) {
+      e.stopPropagation();
+      var willOpen = helpTooltip.hidden;
+      helpTooltip.hidden = !willOpen;
+      helpToggle.setAttribute('aria-expanded', String(willOpen));
+    });
+    document.addEventListener('click', function (e) {
+      if (!helpTooltip.hidden && !helpTooltip.contains(e.target) && !helpToggle.contains(e.target)) {
+        helpTooltip.hidden = true;
+        helpToggle.setAttribute('aria-expanded', 'false');
+      }
+    });
+
+    var themeTrigger = document.getElementById('theme-select-trigger');
+    var themeMenu = document.getElementById('theme-select-menu');
+    var themeOptions = document.querySelectorAll('.theme-select-option');
+    themeTrigger.addEventListener('click', function (e) {
+      e.stopPropagation();
+      var willOpen = themeMenu.hidden;
+      themeMenu.hidden = !willOpen;
+      themeTrigger.setAttribute('aria-expanded', String(willOpen));
+    });
+    document.addEventListener('click', function (e) {
+      if (!themeMenu.hidden && !themeMenu.contains(e.target) && !themeTrigger.contains(e.target)) {
+        themeMenu.hidden = true;
+        themeTrigger.setAttribute('aria-expanded', 'false');
+      }
+    });
+    themeOptions.forEach(function (opt) {
+      opt.addEventListener('click', function () {
+        body.setAttribute('data-theme', opt.getAttribute('data-t'));
+        themeOptions.forEach(function (o) {
+          o.classList.remove('active');
+          o.setAttribute('aria-selected', 'false');
+        });
+        opt.classList.add('active');
+        opt.setAttribute('aria-selected', 'true');
+        themeMenu.hidden = true;
+        themeTrigger.setAttribute('aria-expanded', 'false');
+      });
+    });
+
+    var modeBtn = document.getElementById('mode-toggle');
+    var modeLabel = document.getElementById('mode-toggle-label');
+    modeBtn.addEventListener('click', function () {
+      var isLight = body.getAttribute('data-mode') === 'light';
+      var newMode = isLight ? 'dark' : 'light';
+      body.setAttribute('data-mode', newMode);
+      modeBtn.setAttribute('aria-pressed', String(newMode === 'dark'));
+      modeLabel.textContent = isLight ? 'Light' : 'Dark';
+    });
+
+    var pdfBtn = document.getElementById('pdf-btn');
+    pdfBtn.addEventListener('click', function () {
+      var el = document.getElementById('grid');
+      var opt = {
+        margin: 0.4,
+        filename: 'Trip Report (sample).pdf',
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 2, useCORS: true },
+        jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' }
+      };
+      html2pdf().set(opt).from(el).save();
+    });
+
+    var overlay = document.getElementById('overlay');
+    var panel = document.getElementById('panel');
+    var cards = Array.prototype.slice.call(document.querySelectorAll('.card'));
+
+    // Negative delay (not positive) — see the card-breathe animation's own
+    // comment in <style>: this puts each card at a different point in the
+    // cycle immediately, rather than a reveal-cascade that sweeps in on load.
+    cards.forEach(function (card, i) {
+      card.style.animationDelay = (-(i * 0.4)) + 's';
+    });
+
+    cards.forEach(function (card) {
+      card.addEventListener('click', function () {
+        var detail = card.querySelector('.card-detail');
+        if (!detail) return;
+        panel.innerHTML = '';
+        Array.prototype.slice.call(detail.children).forEach(function (child) {
+          var clone = child.cloneNode(true);
+          clone.hidden = false;
+          panel.appendChild(clone);
+        });
+        overlay.hidden = false;
+      });
+    });
+
+    overlay.addEventListener('click', function (event) {
+      if (event.target === overlay) {
+        overlay.hidden = true;
+        panel.innerHTML = '';
+      }
+    });
+
+    var backToTop = document.getElementById('back-to-top');
+    window.addEventListener('scroll', function () {
+      backToTop.classList.toggle('visible', window.scrollY > 400);
+    });
+    backToTop.addEventListener('click', function () {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+  })();
+</script>
+
+</body>
+</html>

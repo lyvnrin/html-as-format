@@ -1,0 +1,1183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Company Timeline (sample)</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,wght@0,400;0,600;0,700;1,400;1,600&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #1c1a17;
+    --surface-solid: #242327;
+    --surface-alt: rgba(255,255,255,0.08);
+    --border: rgba(255,255,255,0.14);
+    --text: #eef1f8;
+    --text-soft: #aab2c5;
+    --text-faint: #6e7690;
+    --accent: #3a5fa8;
+    --accent-soft: rgba(58,95,168,0.16);
+    --accent-dark: #24427e;
+    --radius: 14px;
+    --shadow: 0 8px 32px rgba(0,0,0,0.45);
+    --font-serif: 'Source Serif 4', Georgia, 'Iowan Old Style', 'Palatino Linotype', 'Times New Roman', serif;
+    --font-sans: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  }
+
+  [data-theme="blue"]   { --accent: #3a5fa8; --accent-soft: rgba(58,95,168,0.16); --accent-dark: #24427e; }
+  [data-theme="green"]  { --accent: #1f8a5c; --accent-soft: rgba(31,138,92,0.16); --accent-dark: #146341; }
+  [data-theme="purple"] { --accent: #6b46c8; --accent-soft: rgba(107,70,200,0.16); --accent-dark: #4c2f94; }
+  [data-theme="orange"] { --accent: #c2703a; --accent-soft: rgba(194,112,58,0.16); --accent-dark: #8f4f24; }
+  [data-theme="pink"]   { --accent: #b5476f; --accent-soft: rgba(181,71,111,0.16); --accent-dark: #7d2f4d; }
+
+  body[data-mode="light"] {
+    --bg: #fafaf6;
+    --surface-solid: #ffffff;
+    --surface-alt: rgba(20,23,31,0.04);
+    --border: rgba(20,23,31,0.12);
+    --text: #21201c;
+    --text-soft: #5b5750;
+    --text-faint: #8c877d;
+    --shadow: 0 8px 28px rgba(20,30,60,0.1);
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+
+  /* Hide scrollbars everywhere — scrolling still works, just no visible track/thumb.
+     Part of the shared chrome; keep this block in every template. */
+  * { scrollbar-width: none; -ms-overflow-style: none; }
+  *::-webkit-scrollbar { display: none; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-sans);
+    transition: background-color .25s ease, color .25s ease;
+    min-height: 100vh;
+  }
+
+  .settings-toggle {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 100;
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    border: 1px solid var(--border);
+    background: var(--surface-solid);
+    color: var(--text);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    box-shadow: var(--shadow);
+    transition: border-color .15s ease, transform .15s ease, background .15s ease;
+  }
+  .settings-toggle:hover { border-color: var(--accent); transform: translateY(-1px); }
+  .settings-toggle svg { width: 18px; height: 18px; }
+
+  .settings-panel {
+    position: fixed;
+    top: 70px;
+    right: 20px;
+    z-index: 100;
+    width: 224px;
+    background: var(--surface-solid);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  .settings-panel[hidden] { display: none; }
+
+  .settings-label {
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: var(--text-faint);
+    margin-bottom: 10px;
+  }
+
+  /* Deck info — a read-only summary, not a control, so it sits above the
+     Theme section with its own divider rather than looking like another
+     settings row. .deck-info-author:empty is what makes "author, if
+     stated" work with zero JS: the author placeholder fills in blank
+     whenever the source deck has no author, and an empty div collapses on
+     its own. (Not spelled out literally here — fillPlaceholder does a
+     whole-file string replace, so writing the actual token in this comment
+     would get clobbered by its own substitution.) */
+  .deck-info {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--border);
+  }
+  .deck-info-title {
+    font-family: var(--font-serif);
+    font-size: 14px;
+    font-weight: 700;
+    line-height: 1.3;
+    color: var(--text);
+  }
+  .deck-info-author,
+  .deck-info-count {
+    font-size: 11.5px;
+    color: var(--text-faint);
+  }
+  .deck-info-author:empty { display: none; }
+
+  /* Theme dropdown — replaces the old row of clickable colour dots. The
+     trigger's own text sits in var(--accent), so it re-colours for free
+     whenever data-theme changes (no JS needed for that part); the menu
+     stays a plain toggle+outside-click pattern, same as .settings-panel's
+     own open/close. */
+  .theme-select { position: relative; }
+  .theme-select-trigger {
+    display: flex; align-items: center; justify-content: space-between; gap: 6px;
+    width: 100%;
+    font-size: 13px; font-weight: 700;
+    padding: 9px 14px; border-radius: 10px;
+    border: 1px solid var(--border);
+    background: var(--surface-alt);
+    color: var(--accent);
+    cursor: pointer;
+    transition: background .15s ease, transform .1s ease, color .2s ease;
+  }
+  .theme-select-trigger:hover { background: var(--accent-soft); transform: translateY(-1px); }
+  .theme-select-trigger::after { content: "\25be"; font-size: 11px; opacity: .7; }
+  .theme-select-menu {
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 0;
+    right: 0;
+    z-index: 10;
+    background: var(--surface-solid);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    box-shadow: var(--shadow);
+    padding: 6px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .theme-select-menu[hidden] { display: none; }
+  .theme-select-option {
+    display: flex; align-items: center; gap: 8px;
+    width: 100%;
+    font-size: 13px; font-weight: 600;
+    padding: 7px 10px; border-radius: 8px;
+    border: none;
+    background: none;
+    color: var(--text);
+    text-align: left;
+    cursor: pointer;
+    transition: background .15s ease;
+  }
+  .theme-select-option:hover { background: var(--surface-alt); }
+  .theme-select-option.active { color: var(--accent); font-weight: 800; }
+  .theme-select-option::before { content: ""; width: 10px; height: 10px; border-radius: 50%; flex: none; }
+  .theme-select-option[data-t="blue"]::before   { background: #3a5fa8; }
+  .theme-select-option[data-t="green"]::before  { background: #1f8a5c; }
+  .theme-select-option[data-t="purple"]::before { background: #6b46c8; }
+  .theme-select-option[data-t="orange"]::before { background: #c2703a; }
+  .theme-select-option[data-t="pink"]::before   { background: #b5476f; }
+
+  .settings-panel button.tool-btn {
+    display: flex; align-items: center; justify-content: center; gap: 6px;
+    width: 100%;
+    font-size: 13px; font-weight: 600;
+    padding: 9px 14px; border-radius: 10px;
+    border: 1px solid var(--border);
+    background: var(--surface-alt);
+    color: var(--text);
+    cursor: pointer;
+    transition: background .15s ease, transform .1s ease;
+  }
+  .settings-panel button.tool-btn:hover { background: var(--accent-soft); transform: translateY(-1px); }
+  .settings-panel button.tool-btn.primary { background: var(--accent); color: #0a0c12; border-color: var(--accent); }
+  .settings-panel button.tool-btn.primary:hover { background: var(--accent-dark); }
+
+  /* PDF download disabled for now — kept in the DOM/wiring as-is, just
+     visually and functionally inert. */
+  #pdf-btn { opacity: 0.4; pointer-events: none; cursor: not-allowed; }
+
+  /* Dark/light switch — an iOS-style sliding pill instead of a plain text
+     button, so toggling reads as one continuous motion (thumb slides,
+     sun/moon cross-fade+rotate into each other) rather than an instant
+     swap. Label text keeps the original button's semantics: it names the
+     action a click performs, not the current state — aria-pressed carries
+     the actual state for assistive tech. */
+  .mode-toggle {
+    display: flex; align-items: center; justify-content: space-between; gap: 10px;
+    width: 100%;
+    font-size: 13px; font-weight: 600;
+    padding: 9px 14px; border-radius: 10px;
+    border: 1px solid var(--border);
+    background: var(--surface-alt);
+    color: var(--text);
+    cursor: pointer;
+    transition: background .15s ease, transform .1s ease;
+  }
+  .mode-toggle:hover { background: var(--accent-soft); transform: translateY(-1px); }
+  .mode-toggle-switch {
+    position: relative;
+    flex: none;
+    width: 38px; height: 22px;
+    border-radius: 999px;
+    background: var(--border);
+    transition: background .35s ease;
+  }
+  body[data-mode="dark"] .mode-toggle-switch { background: var(--accent-dark); }
+  .mode-toggle-thumb {
+    position: absolute;
+    top: 2px; left: 2px;
+    width: 18px; height: 18px;
+    border-radius: 50%;
+    background: var(--surface-solid);
+    box-shadow: 0 1px 3px rgba(0,0,0,.35);
+    display: flex; align-items: center; justify-content: center;
+    transition: transform .35s cubic-bezier(.34, 1.56, .64, 1);
+  }
+  body[data-mode="dark"] .mode-toggle-thumb { transform: translateX(16px); }
+  .mode-toggle-thumb svg {
+    position: absolute;
+    width: 12px; height: 12px;
+    transition: opacity .3s ease, transform .4s ease;
+  }
+  .mode-toggle-thumb .icon-sun { color: #e8a63c; opacity: 1; transform: rotate(0deg) scale(1); }
+  .mode-toggle-thumb .icon-moon { color: #7c93c9; opacity: 0; transform: rotate(-90deg) scale(.5); }
+  body[data-mode="dark"] .mode-toggle-thumb .icon-sun { opacity: 0; transform: rotate(90deg) scale(.5); }
+  body[data-mode="dark"] .mode-toggle-thumb .icon-moon { opacity: 1; transform: rotate(0deg) scale(1); }
+
+  /* Info affordance pinned immediately left of the settings cog — same
+     visual style/size as .settings-toggle and .toc-toggle (stroke-based
+     SVG glyph, not a text character, so all three corner buttons share one
+     consistent icon language). Opens a dismissible tooltip with the
+     interaction hint instead of permanent on-page text. */
+  .help-toggle {
+    position: fixed;
+    top: 20px;
+    right: 72px;
+    z-index: 100;
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    border: 1px solid var(--border);
+    background: var(--surface-solid);
+    color: var(--text);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    box-shadow: var(--shadow);
+    transition: border-color .15s ease, transform .15s ease, background .15s ease;
+  }
+  .help-toggle:hover { border-color: var(--accent); transform: translateY(-1px); }
+  .help-toggle svg { width: 18px; height: 18px; }
+  .help-tooltip {
+    position: fixed;
+    top: 70px;
+    right: 72px;
+    z-index: 100;
+    width: 208px;
+    background: var(--surface-solid);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 12px 14px;
+    font-size: 12.5px;
+    line-height: 1.45;
+    color: var(--text-soft);
+  }
+  .help-tooltip[hidden] { display: none; }
+
+  /* Contents rail, collapsed into an icon — mirrors .settings-toggle's own
+     circle/position/size exactly, just mirrored to the opposite (left)
+     corner, so it reads as a matching pair rather than a new UI language.
+     Collapsed rather than an always-visible side rail because the sidebar
+     would need permanent horizontal margin that the ≤760px stacked mobile
+     layout simply doesn't have; an icon+panel works at any width. */
+  .toc-toggle {
+    position: fixed;
+    top: 20px;
+    left: 20px;
+    z-index: 100;
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    border: 1px solid var(--border);
+    background: var(--surface-solid);
+    color: var(--text);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    box-shadow: var(--shadow);
+    transition: border-color .15s ease, transform .15s ease, background .15s ease;
+  }
+  .toc-toggle:hover { border-color: var(--accent); transform: translateY(-1px); }
+  .toc-toggle svg { width: 18px; height: 18px; }
+
+  /* max-height + scroll (not just letting it grow) — a deck with dozens of
+     nodes would otherwise push the panel off the bottom of the viewport.
+     Scrollbar is invisible per the page-wide scrollbar-hiding rule above;
+     scrolling itself still works. */
+  .toc-panel {
+    position: fixed;
+    top: 70px;
+    left: 20px;
+    z-index: 100;
+    width: 232px;
+    max-height: min(60vh, 420px);
+    overflow-y: auto;
+    background: var(--surface-solid);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .toc-panel[hidden] { display: none; }
+  .toc-item {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    width: 100%;
+    font-family: var(--font-sans);
+    font-size: 13px;
+    font-weight: 600;
+    padding: 8px 10px;
+    border-radius: 8px;
+    border: none;
+    background: none;
+    color: var(--text);
+    text-align: left;
+    cursor: pointer;
+    transition: background .15s ease, color .15s ease;
+  }
+  .toc-item:hover { background: var(--surface-alt); }
+  .toc-item.active { background: var(--accent-soft); color: var(--accent); }
+  .toc-item-index { font-family: var(--font-serif); font-size: 11px; color: var(--text-faint); flex: none; }
+  .toc-item.active .toc-item-index { color: var(--accent); }
+
+  /* The header is one small line — an eyebrow and a title, nothing else.
+     This is deliberate: this page's job is the interactive timeline, not a
+     title splash, so the header must never be able to grow past a couple
+     lines no matter how much text a field is filled with. */
+  #doc { max-width: 1180px; margin: 0 auto; padding: 32px 24px 56px; min-height: 100vh; }
+
+  .tl-header { text-align: center; margin-bottom: 40px; }
+  .tl-eyebrow {
+    display: block;
+    font-size: 10px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 6px;
+  }
+  .tl-title {
+    font-family: var(--font-serif);
+    font-size: clamp(20px, 2.6vw, 27px); font-weight: 700; margin: 0; line-height: 1.2;
+  }
+  .tl-meta { font-size: 11px; color: var(--text-faint); margin: 8px 0 0; }
+
+  /* The track is normal page flow — the browser's own scroll, freely,
+     nothing boxed or clipped. "Only ~2-3 nodes visible at a time" comes
+     purely from generous per-node vertical spacing (`.tl-node`'s padding),
+     not from constraining the track's height or giving it its own
+     `overflow-y`. A nested scrolling box was tried and explicitly
+     rejected — it read as a cramped widget, not a full-screen timeline. */
+  /* 1120px (not #doc's own 1180px) is the real width ceiling here — kept
+     narrower than #doc's max-width so this stays the binding constraint
+     regardless of #doc's own padding, rather than the two silently
+     fighting for which one actually caps the card's width. */
+  .tl-track { position: relative; max-width: 1120px; margin: 0 auto; }
+  .tl-track::before {
+    content: "";
+    position: absolute;
+    left: 50%; top: 0; bottom: 0;
+    width: 2px;
+    transform: translateX(-1px);
+    background: var(--border);
+  }
+
+  /* Ambient rail scanner — a 60px translucent band travels the rail's full
+     height on a loop. Implemented as a small fixed-size gradient
+     (background-size: 100% 60px) sliding via background-position rather
+     than an animated transform/top: a translateY-based approach would need
+     to know the track's height in px, which varies with node count.
+     background-position's percentage term instead always resolves against
+     THIS element's own rendered height, so the same -60px -> 100%+60px
+     keyframe pair works regardless of how tall the track ends up being for
+     a given deck — the band starts fully above (invisible) and finishes
+     fully below (invisible), so the loop has no visible jump/reset. */
+  .tl-track::after {
+    content: "";
+    position: absolute;
+    left: 50%; top: 0; bottom: 0;
+    width: 2px;
+    transform: translateX(-1px);
+    background-image: linear-gradient(to bottom, transparent 0%, var(--accent) 50%, transparent 100%);
+    background-size: 100% 60px;
+    background-repeat: no-repeat;
+    background-position: 0 -60px;
+    opacity: .7;
+    pointer-events: none;
+    animation: tl-rail-scan 3.5s ease-in-out infinite;
+  }
+  @keyframes tl-rail-scan {
+    from { background-position: 0 -60px; }
+    to   { background-position: 0 calc(100% + 60px); }
+  }
+
+  /* Three flex children per node: a side slot, the dot column, another
+     side slot — DOM order is always [slot][center][slot], and exactly one
+     slot holds the card (the other renders empty) depending on side (see
+     server/index.js's timelineNodeHtml). align-items: center is the ONLY
+     vertical-alignment mechanism here: it centres each flex child's own
+     box against the row's cross size (the open card's height, since the
+     card is always the tallest child) — no translateY, no manual offsets. */
+  .tl-node {
+    position: relative;
+    display: flex;
+    align-items: center;
+    column-gap: 36px;
+    padding: 62px 0;
+  }
+
+  .tl-node-slot { flex: 1 1 0; min-width: 0; display: flex; }
+  .tl-node-slot:first-child { justify-content: flex-end; }
+  .tl-node-slot:last-child { justify-content: flex-start; }
+
+  /* A fixed-footprint box the dot is centred inside. align-items: center
+     on .tl-node (above) centres this whole box against the row's cross
+     size — and because the dot is ALSO centred within this box (see
+     .tl-dot), centring the box is the same as centring the dot itself, on
+     both sides identically, with no per-side special-casing. min-height
+     reserves the same footprint the dot+index+label+stat stack always
+     occupied: the meta block now sits out of flow (see .tl-node-meta) so
+     it can't unbalance the dot's centring, but closed-node spacing must
+     stay what it was, hence reserving the space explicitly rather than
+     letting the box shrink to just the dot's own 22px. */
+  .tl-node-center {
+    flex: 0 0 210px;
+    width: 210px;
+    position: relative;
+    min-height: calc(22px + 3 * 6px + 14px + 2 * (19px * 1.3) + 14px);
+    z-index: 2;
+  }
+  .tl-dot {
+    all: unset;
+    box-sizing: border-box;
+    cursor: pointer;
+    position: absolute;
+    top: 50%; left: 50%;
+    /* Centres the dot within .tl-node-center via fixed margins, not a
+       percentage transform. This is safe precisely because it ISN'T the
+       card-height problem: the dot's own size (22px, border included)
+       never changes, so -11px is always correct — there's no dynamic
+       height to fight with. */
+    margin: -11px 0 0 -11px;
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    background: var(--surface-solid);
+    border: 2px solid var(--text-faint);
+    /* Above .tl-node-center::after (the active-state connector line, added
+       below): both are absolutely-positioned children of the same
+       position:relative box with no explicit z-index of their own, so
+       without this they'd stack in DOM/generated-content order — and
+       ::after paints last, which would draw the line's end over the dot's
+       circle right where they meet. */
+    z-index: 1;
+    transition: background .2s ease, border-color .2s ease, box-shadow .2s ease, transform .15s ease;
+    /* Ambient cascade pulse — see @keyframes tl-dot-pulse below. Duration
+       is the full 4s loop (not the ~1s the visible pulse itself takes);
+       animation-delay is set per-dot in JS from each node's DOM position
+       (~0.9s apart) so the pulse visibly sweeps top -> bottom, one node at
+       a time, rather than all dots pulsing in unison. */
+    animation: tl-dot-pulse 4s ease-in-out infinite;
+  }
+  /* box-shadow here is a static state (the "this node is open" ring), not
+     an animation — disable the ambient pulse on the active dot so the two
+     don't fight over the same box-shadow/transform properties (a running
+     CSS animation always wins that fight over a plain rule, regardless of
+     specificity), which would otherwise flicker the active ring. */
+  .tl-node.active .tl-dot { background: var(--accent); border-color: var(--accent); box-shadow: 0 0 0 5px var(--accent-soft); transform: scale(1.1); animation: none; }
+  .tl-node.highlight .tl-dot { border-color: var(--accent); }
+  /* Only border-color on hover (not box-shadow/transform) — those are the
+     properties @keyframes tl-dot-pulse animates on a running dot, and a
+     running animation always wins that fight over a plain hover rule,
+     which would otherwise make the hover state flicker in and out as the
+     ambient pulse loops. */
+  .tl-dot:hover { border-color: var(--accent); }
+  /* .tl-dot has `all: unset` above, which strips the browser's default
+     focus ring along with everything else it resets — without this, Tab
+     and the arrow-key navigation below land on a dot with zero visible
+     feedback. Offset past the active-state box-shadow ring's 5px spread
+     (see .tl-node.active .tl-dot) so the two rings don't visually merge
+     when a node is both focused and open at once, which is the common
+     case once arrow keys open the node they land on. */
+  .tl-dot:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
+  /* --accent-soft already carries a low, theme-derived alpha (see the
+     :root vars up top), which is exactly the "soft ring at low opacity"
+     this calls for — the ring's colour and translucency both just fall
+     out of interpolating box-shadow spread against that one token, no
+     separate opacity handling needed. */
+  @keyframes tl-dot-pulse {
+    0%, 25%, 100% { transform: scale(1); box-shadow: 0 0 0 0 var(--accent-soft); }
+    12.5% { transform: scale(1.3); box-shadow: 0 0 0 8px var(--accent-soft); }
+  }
+
+  /* Connector line from the dot to the open card, shown only while a node
+     is active. Length is a constant, not something measured in JS: the
+     card always sits flush against the near edge of its .tl-node-slot
+     (justify-content does that), and the gap between .tl-node-center and
+     that slot is always exactly the row's 36px column-gap — so the
+     distance from the dot's centre (this box's horizontal midpoint) to the
+     card's edge is always half this box's own 210px width, plus that 36px
+     gap: 105 + 36 = 141px, regardless of viewport width. */
+  .tl-node-center::after {
+    content: "";
+    display: none;
+    position: absolute;
+    top: 50%;
+    width: 141px;
+    height: 2px;
+    background: var(--accent);
+    transform: translateY(-50%);
+  }
+  .tl-node.side-left .tl-node-center::after { right: 50%; }
+  .tl-node.side-right .tl-node-center::after { left: 50%; }
+  .tl-node.active .tl-node-center::after { display: block; }
+
+  /* Out of flow so it can't affect .tl-node-center's box (and therefore
+     the dot's centring) — positioned relative to that same box, right
+     below wherever the dot ends up: 50% (the box's own centre, where the
+     dot sits) + the dot's own half-height + the original 6px dot-to-index
+     gap. */
+  .tl-node-meta {
+    position: absolute;
+    top: calc(50% + 11px + 6px);
+    left: 0; right: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .tl-node-index { font-family: var(--font-serif); font-size: 12px; color: var(--text-faint); }
+  .tl-node-label {
+    all: unset;
+    box-sizing: border-box;
+    cursor: pointer;
+    font-family: var(--font-serif);
+    font-size: 19px; font-weight: 600; line-height: 1.3;
+    color: var(--text);
+    text-align: center;
+    max-width: 190px;
+    transition: color .15s ease;
+  }
+  .tl-node.active .tl-node-label { color: var(--accent); }
+  .tl-node-label:hover { color: var(--accent); }
+  /* Same rationale as .tl-dot:focus-visible above — `all: unset` strips the
+     default focus ring here too. */
+  .tl-node-label:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 3px; }
+  .tl-node-stat { font-size: 12px; color: var(--text-faint); text-align: center; }
+
+  /* Ambient float — a slow, gentle sine bob. animation-delay is set per
+     card in JS from its node's DOM position, so cards never share the
+     same point in the cycle. Since the card is display:none until its
+     node is active, each reveal restarts the animation fresh from 0%
+     (translateY(0)) — display:none boxes don't have running animations —
+     so opening a node never shows the card mid-float/jumping in. */
+  .tl-node-detail {
+    display: none;
+    position: relative;
+    width: 100%;
+    /* Effective width is really set by .tl-node-slot (a function of
+       .tl-track's max-width, above) — this only needs to sit at or above
+       that so it never becomes the tighter constraint. Bumped from 360px
+       alongside the track widening: dense real-deck bullet content (6-8
+       items, several lines each) was reading as a cramped wall of text at
+       the old width. */
+    max-width: 440px;
+    padding: 24px 30px;
+    background: var(--surface-solid);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    overflow: hidden;
+    animation: tl-card-float 5s ease-in-out infinite;
+  }
+  /* Thin accent bar along the card's outer edge — same "accent used
+     sparingly, only on the open/active thing" language as the rest of the
+     page, just given a visible surface to sit on now that the card has
+     one. Mirrors the frontend's format-card top accent line. */
+  .tl-node-detail::before {
+    content: "";
+    position: absolute;
+    top: 0; bottom: 0;
+    width: 3px;
+    background: var(--accent);
+  }
+  /* Which side the card sits on is purely a matter of which .tl-node-slot
+     it's rendered into (server/index.js) plus that slot's justify-content
+     — the card itself carries no side-specific position/grid rules. Only
+     the accent bar (a cosmetic detail of the card, not a layout concern)
+     still needs to know which side it's on. */
+  .tl-node.side-left .tl-node-detail::before { right: 0; }
+  .tl-node.side-right .tl-node-detail::before { left: 0; }
+  .tl-node.active .tl-node-detail { display: block; }
+  @keyframes tl-card-float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-4px); }
+  }
+
+  .detail-stat {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .03em;
+    text-transform: uppercase;
+    color: var(--accent);
+    background: var(--accent-soft);
+    padding: 3px 10px;
+    border-radius: 999px;
+    margin-bottom: 10px;
+  }
+  .detail-heading { font-family: var(--font-serif); font-size: 21px; font-weight: 600; margin: 0 0 6px; line-height: 1.25; }
+  .detail-subheading { font-size: 14px; color: var(--accent); font-weight: 700; margin: 0 0 12px; }
+  .detail-body { font-size: 15.5px; line-height: 1.6; color: var(--text); margin: 0 0 12px; }
+  .detail-bullets { margin: 0; padding-left: 18px; }
+  .detail-bullets li { font-size: 15px; line-height: 1.55; color: var(--text); margin-bottom: 6px; }
+
+  /* Simple fade-up affordance, bottom-left — hidden below a scroll
+     threshold set in JS rather than always shown, since it's meaningless
+     at the top of the page. Opacity/transform, not display:none, so it can
+     transition in/out instead of popping. A labelled pill rather than a
+     bare icon button, since "back to top" reads faster as text than as an
+     arrow glyph at a glance. */
+  .tl-back-to-top {
+    position: fixed;
+    bottom: 24px;
+    left: 24px;
+    z-index: 90;
+    padding: 10px 18px;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    background: var(--surface-solid);
+    color: var(--text);
+    font-family: var(--font-sans);
+    font-size: 13px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    box-shadow: var(--shadow);
+    opacity: 0;
+    pointer-events: none;
+    transform: translateY(8px);
+    transition: opacity .25s ease, transform .25s ease, border-color .15s ease, color .15s ease;
+  }
+  .tl-back-to-top.visible { opacity: 1; pointer-events: auto; transform: translateY(0); }
+  .tl-back-to-top:hover { border-color: var(--accent); color: var(--accent); }
+
+  @media (max-width: 760px) {
+    #doc { padding: 24px 18px 48px; }
+    .tl-track::before { display: none; }
+    .tl-track::after { display: none; }
+    .tl-node {
+      flex-direction: column;
+      align-items: stretch;
+      padding: 14px 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .tl-node:last-child { border-bottom: none; }
+    /* Desktop's dot-centring only makes sense next to a floating card —
+       below 760px everything stacks in normal flow instead: centre row
+       first, then the card (whichever slot holds it; the other is
+       genuinely empty and collapses via :empty). */
+    .tl-node-slot { order: 2; display: block; }
+    .tl-node-slot:empty { display: none; }
+    .tl-node-center {
+      order: 1;
+      flex: none;
+      width: auto;
+      min-height: 0;
+      position: static;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    /* The 141px connector line is desktop-only geometry (see the rule's own
+       comment) — it assumes a fixed-width centred box with a floating card
+       beside it, neither of which holds once .tl-node-center goes static
+       and stacks with its card in normal flow. */
+    .tl-node-center::after { display: none !important; }
+    .tl-dot { position: static; margin: 0; }
+    .tl-node-meta { position: static; flex-direction: column; align-items: flex-start; gap: 2px; }
+    .tl-node-label { text-align: left; max-width: none; }
+    .tl-node-stat { text-align: left; }
+    .tl-node-detail { display: none; width: 100%; max-width: none; margin-top: 12px; }
+    .tl-node.active .tl-node-detail { display: block; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .tl-track::after { display: none; }
+    .tl-dot { animation: none; }
+    .tl-node-detail { animation: none; }
+  }
+
+  @media print {
+    .settings-toggle, .settings-panel, .help-toggle, .help-tooltip, .toc-toggle, .toc-panel { display: none; }
+    .tl-back-to-top { display: none; }
+    .tl-node-detail { display: block !important; }
+  }
+</style>
+</head>
+<body data-theme="blue" data-mode="light">
+
+  <button class="settings-toggle" id="settings-toggle" aria-label="Settings" aria-expanded="false">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <circle cx="12" cy="12" r="3"></circle>
+      <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z"></path>
+    </svg>
+  </button>
+
+  <button class="help-toggle" id="help-toggle" aria-label="Help" aria-expanded="false">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <circle cx="12" cy="12" r="10"></circle>
+      <line x1="12" y1="16" x2="12" y2="12"></line>
+      <line x1="12" y1="8" x2="12.01" y2="8"></line>
+    </svg>
+  </button>
+  <div class="help-tooltip" id="help-tooltip" hidden>Click a node's dot or label to expand its details — or use the arrow keys to move through them.</div>
+
+  <button class="toc-toggle" id="toc-toggle" aria-label="Contents" aria-haspopup="listbox" aria-expanded="false">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <line x1="8" y1="6" x2="21" y2="6"></line>
+      <line x1="8" y1="12" x2="21" y2="12"></line>
+      <line x1="8" y1="18" x2="21" y2="18"></line>
+      <line x1="3" y1="6" x2="3.01" y2="6"></line>
+      <line x1="3" y1="12" x2="3.01" y2="12"></line>
+      <line x1="3" y1="18" x2="3.01" y2="18"></line>
+    </svg>
+  </button>
+  <div class="toc-panel" id="toc-panel" hidden role="listbox" aria-label="Timeline contents"></div>
+
+  <div class="settings-panel" id="settings-panel" hidden>
+    <div class="deck-info">
+      <div class="deck-info-title">Company Timeline (sample)</div>
+      <div class="deck-info-author">Preview sample</div>
+      <div class="deck-info-count">5 slides</div>
+    </div>
+    <div class="theme-select" id="theme-select">
+      <div class="settings-label">Theme</div>
+      <button class="theme-select-trigger" id="theme-select-trigger" aria-haspopup="listbox" aria-expanded="false">Change Theme</button>
+      <div class="theme-select-menu" id="theme-select-menu" hidden role="listbox">
+        <button class="theme-select-option active" data-t="blue" role="option" aria-selected="true">Blue</button>
+        <button class="theme-select-option" data-t="green" role="option" aria-selected="false">Green</button>
+        <button class="theme-select-option" data-t="purple" role="option" aria-selected="false">Purple</button>
+        <button class="theme-select-option" data-t="orange" role="option" aria-selected="false">Orange</button>
+        <button class="theme-select-option" data-t="pink" role="option" aria-selected="false">Pink</button>
+      </div>
+    </div>
+    <button class="mode-toggle" id="mode-toggle" aria-pressed="false">
+      <span id="mode-toggle-label">Dark</span>
+      <span class="mode-toggle-switch" aria-hidden="true">
+        <span class="mode-toggle-thumb">
+          <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="5"></circle>
+            <line x1="12" y1="1" x2="12" y2="3"></line>
+            <line x1="12" y1="21" x2="12" y2="23"></line>
+            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+            <line x1="1" y1="12" x2="3" y2="12"></line>
+            <line x1="21" y1="12" x2="23" y2="12"></line>
+            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+          </svg>
+          <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+          </svg>
+        </span>
+      </span>
+    </button>
+    <button class="tool-btn primary" id="pdf-btn">⬇ Download PDF</button>
+  </div>
+
+  <button class="tl-back-to-top" id="tl-back-to-top">Back to top</button>
+
+  <div id="doc">
+
+    <div class="tl-header">
+      <span class="tl-eyebrow">Timeline</span>
+      <h1 class="tl-title">Company Timeline (sample)</h1>
+      <p class="tl-meta">Preview sample</p>
+    </div>
+
+    <div class="tl-track" id="tl-track">
+      <div class="tl-node side-left" data-index="1">
+        <div class="tl-node-slot"><div class="tl-node-detail">
+          <div class="detail-stat">2019</div>
+          <h2 class="detail-heading">Founding</h2>
+          <p class="detail-subheading">Three engineers, one whiteboard</p>
+          <p class="detail-body">Started as a weekend project to turn slide decks into something people would actually read.</p>
+        </div></div>
+        <div class="tl-node-center">
+          <button class="tl-dot" aria-label="Open node 1" aria-expanded="false"></button>
+          <div class="tl-node-meta">
+            <span class="tl-node-index">01</span>
+            <button class="tl-node-label">Founding</button>
+            <span class="tl-node-stat">2019</span>
+          </div>
+        </div>
+        <div class="tl-node-slot"></div>
+      </div>
+
+      <div class="tl-node side-right highlight" data-index="2">
+        <div class="tl-node-slot"></div>
+        <div class="tl-node-center">
+          <button class="tl-dot" aria-label="Open node 2" aria-expanded="false"></button>
+          <div class="tl-node-meta">
+            <span class="tl-node-index">02</span>
+            <button class="tl-node-label">First users</button>
+            <span class="tl-node-stat">1,000</span>
+          </div>
+        </div>
+        <div class="tl-node-slot"><div class="tl-node-detail">
+          <div class="detail-stat">1,000</div>
+          <h2 class="detail-heading">First 1,000 users</h2>
+          <p class="detail-body">Word of mouth carried the first cohort — mostly teams tired of PDF exports nobody opened.</p>
+          <ul class="detail-bullets">
+            <li>Zero marketing spend</li>
+            <li>Entirely inbound</li>
+            <li>40% weekly return rate</li>
+          </ul>
+        </div></div>
+      </div>
+
+      <div class="tl-node side-left" data-index="3">
+        <div class="tl-node-slot"><div class="tl-node-detail">
+          <div class="detail-stat">$8M</div>
+          <h2 class="detail-heading">Series A</h2>
+          <p class="detail-subheading">Led by a seed investor doubling down</p>
+          <p class="detail-body">Funding went straight into the rendering engine — the part users actually judge the product by.</p>
+        </div></div>
+        <div class="tl-node-center">
+          <button class="tl-dot" aria-label="Open node 3" aria-expanded="false"></button>
+          <div class="tl-node-meta">
+            <span class="tl-node-index">03</span>
+            <button class="tl-node-label">Series A</button>
+            <span class="tl-node-stat">$8M</span>
+          </div>
+        </div>
+        <div class="tl-node-slot"></div>
+      </div>
+
+      <div class="tl-node side-right" data-index="4">
+        <div class="tl-node-slot"></div>
+        <div class="tl-node-center">
+          <button class="tl-dot" aria-label="Open node 4" aria-expanded="false"></button>
+          <div class="tl-node-meta">
+            <span class="tl-node-index">04</span>
+            <button class="tl-node-label">Renderer rebuild</button>
+            <span class="tl-node-stat">v2</span>
+          </div>
+        </div>
+        <div class="tl-node-slot"><div class="tl-node-detail">
+          <div class="detail-stat">v2</div>
+          <h2 class="detail-heading">Rebuilt the renderer</h2>
+          <p class="detail-body">Rewrote the HTML generation pipeline to ship a single self-contained file, no build step, nothing to host.</p>
+        </div></div>
+      </div>
+
+      <div class="tl-node side-left highlight" data-index="5">
+        <div class="tl-node-slot"><div class="tl-node-detail">
+          <div class="detail-stat">50,000+</div>
+          <h2 class="detail-heading">Today</h2>
+          <p class="detail-subheading">Documents rendered and counting</p>
+          <p class="detail-body">Three formats, one upload flow, still no server required to view the output.</p>
+        </div></div>
+        <div class="tl-node-center">
+          <button class="tl-dot" aria-label="Open node 5" aria-expanded="false"></button>
+          <div class="tl-node-meta">
+            <span class="tl-node-index">05</span>
+            <button class="tl-node-label">Today</button>
+            <span class="tl-node-stat">50,000+</span>
+          </div>
+        </div>
+        <div class="tl-node-slot"></div>
+      </div>
+    </div>
+
+  </div>
+
+<script>
+  (function () {
+    var body = document.body;
+
+    var settingsToggle = document.getElementById('settings-toggle');
+    var settingsPanel = document.getElementById('settings-panel');
+    settingsToggle.addEventListener('click', function (e) {
+      e.stopPropagation();
+      var willOpen = settingsPanel.hidden;
+      settingsPanel.hidden = !willOpen;
+      settingsToggle.setAttribute('aria-expanded', String(willOpen));
+    });
+    document.addEventListener('click', function (e) {
+      if (!settingsPanel.hidden && !settingsPanel.contains(e.target) && !settingsToggle.contains(e.target)) {
+        settingsPanel.hidden = true;
+        settingsToggle.setAttribute('aria-expanded', 'false');
+      }
+    });
+
+    var helpToggle = document.getElementById('help-toggle');
+    var helpTooltip = document.getElementById('help-tooltip');
+    helpToggle.addEventListener('click', function (e) {
+      e.stopPropagation();
+      var willOpen = helpTooltip.hidden;
+      helpTooltip.hidden = !willOpen;
+      helpToggle.setAttribute('aria-expanded', String(willOpen));
+    });
+    document.addEventListener('click', function (e) {
+      if (!helpTooltip.hidden && !helpTooltip.contains(e.target) && !helpToggle.contains(e.target)) {
+        helpTooltip.hidden = true;
+        helpToggle.setAttribute('aria-expanded', 'false');
+      }
+    });
+
+    var themeTrigger = document.getElementById('theme-select-trigger');
+    var themeMenu = document.getElementById('theme-select-menu');
+    var themeOptions = document.querySelectorAll('.theme-select-option');
+    themeTrigger.addEventListener('click', function (e) {
+      e.stopPropagation();
+      var willOpen = themeMenu.hidden;
+      themeMenu.hidden = !willOpen;
+      themeTrigger.setAttribute('aria-expanded', String(willOpen));
+    });
+    document.addEventListener('click', function (e) {
+      if (!themeMenu.hidden && !themeMenu.contains(e.target) && !themeTrigger.contains(e.target)) {
+        themeMenu.hidden = true;
+        themeTrigger.setAttribute('aria-expanded', 'false');
+      }
+    });
+    themeOptions.forEach(function (opt) {
+      opt.addEventListener('click', function () {
+        body.setAttribute('data-theme', opt.getAttribute('data-t'));
+        themeOptions.forEach(function (o) {
+          o.classList.remove('active');
+          o.setAttribute('aria-selected', 'false');
+        });
+        opt.classList.add('active');
+        opt.setAttribute('aria-selected', 'true');
+        themeMenu.hidden = true;
+        themeTrigger.setAttribute('aria-expanded', 'false');
+      });
+    });
+
+    var modeBtn = document.getElementById('mode-toggle');
+    var modeLabel = document.getElementById('mode-toggle-label');
+    modeBtn.addEventListener('click', function () {
+      var isLight = body.getAttribute('data-mode') === 'light';
+      var newMode = isLight ? 'dark' : 'light';
+      body.setAttribute('data-mode', newMode);
+      modeBtn.setAttribute('aria-pressed', String(newMode === 'dark'));
+      modeLabel.textContent = isLight ? 'Light' : 'Dark';
+    });
+
+    var pdfBtn = document.getElementById('pdf-btn');
+    pdfBtn.addEventListener('click', function () {
+      var el = document.getElementById('doc');
+      var opt = {
+        margin: 0.4,
+        filename: 'Company Timeline (sample).pdf',
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 2, useCORS: true },
+        jsPDF: { unit: 'in', format: 'letter', orientation: 'landscape' }
+      };
+      html2pdf().set(opt).from(el).save();
+    });
+
+    var tlNodes = Array.prototype.slice.call(document.querySelectorAll('.tl-node'));
+    var activeIndex = null;
+
+    // Ambient animation staggering, derived purely from each node's DOM
+    // position (there's no build step here — nodes are just however many
+    // slides got duplicated into the template). Dot pulse uses a positive
+    // delay so the cascade visibly starts from the top node and sweeps
+    // down on load, like the ambient effect it's meant to be. Card float
+    // uses a negative delay instead — since a "reveal cascade" look isn't
+    // the goal there, a negative offset means the very first card shown
+    // is already mid-bob rather than motionless for up to several seconds
+    // waiting for its turn.
+    tlNodes.forEach(function (node, i) {
+      var dot = node.querySelector('.tl-dot');
+      if (dot) dot.style.animationDelay = (i * 0.9) + 's';
+      var detail = node.querySelector('.tl-node-detail');
+      if (detail) detail.style.animationDelay = (-(i * 0.7)) + 's';
+    });
+
+    function nodeFor(index) {
+      return tlNodes.filter(function (n) { return n.getAttribute('data-index') === index; })[0];
+    }
+
+    // Each node's detail block already lives inside that same node, correctly
+    // placed on its own side by CSS — this just toggles display, nothing is
+    // moved or cloned, so there's no path for one node's click to reveal a
+    // different node's content. Clicking an already-open node closes it.
+    function selectNode(index) {
+      var node = nodeFor(index);
+      if (!node) return;
+      var alreadyOpen = activeIndex === index;
+      tlNodes.forEach(function (n) {
+        var isActive = !alreadyOpen && n === node;
+        n.classList.toggle('active', isActive);
+        n.querySelector('.tl-dot').setAttribute('aria-expanded', String(isActive));
+      });
+      activeIndex = alreadyOpen ? null : index;
+      if (activeIndex) {
+        node.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+      // tocItems is built further down (after tlNodes), but this function
+      // is never actually called until well after the whole script has
+      // run — var hoisting means the name already exists in scope here
+      // regardless of definition order, so this is safe.
+      tocItems.forEach(function (item) {
+        item.classList.toggle('active', item.getAttribute('data-index') === activeIndex);
+      });
+    }
+
+    function closeActive() {
+      if (activeIndex !== null) selectNode(activeIndex);
+    }
+
+    // Where Up/Down navigation moves from next, and which control type
+    // (dot vs label) it lands on — tracked independently of DOM focus.
+    // lastIndex starts at -1 (before the first node) so the very first
+    // ArrowDown opens node 0 instead of skipping straight to node 1.
+    var lastIndex = -1;
+    var lastIsDot = true;
+
+    tlNodes.forEach(function (node, i) {
+      var dot = node.querySelector('.tl-dot');
+      var label = node.querySelector('.tl-node-label');
+      var trigger = function () { selectNode(node.getAttribute('data-index')); };
+      dot.addEventListener('click', trigger);
+      label.addEventListener('click', trigger);
+
+      // Tab (or a mouse click, which also focuses the button) updates the
+      // arrow-key starting point too, so keyboard nav always resumes from
+      // wherever the user actually last landed rather than silently
+      // drifting back to an earlier position.
+      dot.addEventListener('focus', function () { lastIndex = i; lastIsDot = true; });
+      label.addEventListener('focus', function () { lastIndex = i; lastIsDot = false; });
+    });
+
+    // A single document-level listener rather than one per dot/label: a
+    // per-control keydown handler only fires while that exact element
+    // still has focus, which breaks the moment focus leaves the timeline
+    // entirely — e.g. clicking the page background (see the click-outside
+    // listener below, which also blurs whatever was focused) used to send
+    // focus to <body>, silently handing Up/Down back to the browser's
+    // default page-scroll instead of continuing timeline navigation.
+    // Driving this off lastIndex/lastIsDot instead of document.activeElement
+    // means navigation keeps working regardless of where focus is.
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+        var next = lastIndex + (e.key === 'ArrowDown' ? 1 : -1);
+        var target = tlNodes[next];
+        // No preventDefault here: past either end of the timeline, there's
+        // nothing left to navigate to, so falling through to the browser's
+        // default page-scroll is the correct behaviour, not a bug to trap.
+        if (!target) return;
+        e.preventDefault();
+        lastIndex = next;
+        var control = target.querySelector(lastIsDot ? '.tl-dot' : '.tl-node-label');
+        if (control) control.focus();
+        selectNode(target.getAttribute('data-index'));
+      } else if (e.key === 'Escape') {
+        closeActive();
+      }
+    });
+
+    // Clicking anywhere outside every node — page background, header
+    // controls, back-to-top — closes whichever node is open. .closest
+    // also matches clicks inside an open card itself (the card is a
+    // descendant of .tl-node), so interacting with a card's own content
+    // never closes it.
+    document.addEventListener('click', function (e) {
+      if (!e.target.closest('.tl-node')) closeActive();
+    });
+
+    // Contents panel — built from tlNodes rather than templated server-side,
+    // since it's just a read-out of data already on the page (each node's
+    // own index + label).
+    var tocToggle = document.getElementById('toc-toggle');
+    var tocPanel = document.getElementById('toc-panel');
+    var tocItems = tlNodes.map(function (node, i) {
+      var index = node.getAttribute('data-index');
+      var item = document.createElement('button');
+      item.type = 'button';
+      item.className = 'toc-item';
+      item.setAttribute('role', 'option');
+      item.setAttribute('data-index', index);
+      var num = document.createElement('span');
+      num.className = 'toc-item-index';
+      num.textContent = node.querySelector('.tl-node-index').textContent;
+      var label = document.createElement('span');
+      label.textContent = node.querySelector('.tl-node-label').textContent;
+      item.appendChild(num);
+      item.appendChild(label);
+      // stopPropagation — without it this click would also bubble to the
+      // click-outside-closes-node listener above (a toc-item isn't inside
+      // .tl-node), which would immediately re-close the node selectNode
+      // just opened on the very same click.
+      item.addEventListener('click', function (e) {
+        e.stopPropagation();
+        tocPanel.hidden = true;
+        tocToggle.setAttribute('aria-expanded', 'false');
+        lastIndex = i;
+        lastIsDot = true;
+        var dot = node.querySelector('.tl-dot');
+        if (dot) dot.focus();
+        selectNode(index);
+      });
+      tocPanel.appendChild(item);
+      return item;
+    });
+    tocToggle.addEventListener('click', function (e) {
+      e.stopPropagation();
+      var willOpen = tocPanel.hidden;
+      tocPanel.hidden = !willOpen;
+      tocToggle.setAttribute('aria-expanded', String(willOpen));
+    });
+    document.addEventListener('click', function (e) {
+      if (!tocPanel.hidden && !tocPanel.contains(e.target) && !tocToggle.contains(e.target)) {
+        tocPanel.hidden = true;
+        tocToggle.setAttribute('aria-expanded', 'false');
+      }
+    });
+
+    var backToTop = document.getElementById('tl-back-to-top');
+    window.addEventListener('scroll', function () {
+      backToTop.classList.toggle('visible', window.scrollY > 400);
+    });
+    backToTop.addEventListener('click', function () {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+  })();
+</script>
+
+</body>
+</html>
