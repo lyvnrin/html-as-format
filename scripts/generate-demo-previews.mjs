@@ -32,10 +32,13 @@ function fillPlaceholder(html, token, value) {
   return html.split(token).join(value)
 }
 
-// Small solid-color SVG data URI, so demo "photos" are self-contained
-// (no network fetch) instead of needing real embedded images.
-function placeholderImage(hex, label) {
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="640" height="480"><rect width="640" height="480" fill="${hex}"/><text x="50%" y="50%" font-family="sans-serif" font-size="28" fill="rgba(255,255,255,0.85)" text-anchor="middle" dominant-baseline="middle">${escapeHtml(
+// Small solid-color SVG data URI, so demo "photos" are self-contained (no
+// network fetch) instead of needing real embedded images. Width/height vary
+// per slide below — the gallery template sizes .card-image at width:100%
+// with no fixed aspect-ratio, so it's the image's own intrinsic dimensions
+// that give the CSS-columns masonry grid its varied card heights.
+function placeholderImage(hex, label, width = 640, height = 480) {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}"><rect width="${width}" height="${height}" fill="${hex}"/><text x="50%" y="50%" font-family="sans-serif" font-size="28" fill="rgba(255,255,255,0.85)" text-anchor="middle" dominant-baseline="middle">${escapeHtml(
     label,
   )}</text></svg>`
   return `data:image/svg+xml;base64,${Buffer.from(svg).toString('base64')}`
@@ -280,17 +283,58 @@ function galleryImageCardHtml(slide, imageSrc, index, isPrimary) {
       </div>`
 }
 
+function gallerySolidCardHtml(slide, index) {
+  const heading = escapeHtml(slide.heading)
+  const bodyHtml = galleryBodyBlocksHtml(slide.body)
+
+  return `      <div class="card" data-index="${index}">
+        <div class="card-face card-solid">
+          <div class="card-heading-solid">${heading}</div>
+        </div>
+        <div class="card-detail" hidden>
+          <div class="panel-media"><div class="card-heading-solid">${heading}</div></div>
+          <div class="panel-content">
+            <h2>${heading}</h2>
+            ${bodyHtml}
+          </div>
+        </div>
+      </div>`
+}
+
+// Deliberately spans a wide range of image aspect ratios (and a couple of
+// image-less "solid" cards) so the CSS-columns masonry grid visibly packs
+// cards of different heights, rather than a uniform 4:3 grid.
 const GALLERY_SLIDES = [
   {
     heading: 'Basecamp',
     caption: 'Sunrise over the ridge from base camp, tents in the foreground.',
     color: '#3b6ea5',
+    width: 640,
+    height: 480,
     body: ['4,200m', 'Elevation', 'The first stretch is mostly flat — save your legs for what comes after.'],
+  },
+  {
+    heading: 'Gear check',
+    solid: true,
+    color: '#54607a',
+    body: [
+      '01',
+      'Layer up',
+      'Base, mid, and a hard shell — temperature swings fast above 3,000m.',
+      '02',
+      'Test your boots',
+      'Break them in on shorter hikes before the trip, not on day one.',
+      '03',
+      'Pack light',
+      'Everything you bring, you carry — for the whole ascent.',
+    ],
   },
   {
     heading: 'The switchbacks',
     caption: 'Zig-zag trail cut into the scree slope.',
     color: '#7a8b5a',
+    width: 640,
+    height: 800,
     body: [
       '01',
       'Warm up',
@@ -300,22 +344,64 @@ const GALLERY_SLIDES = [
     ],
   },
   {
+    heading: 'Wildlife spotted',
+    caption: 'A mountain goat watching the trail from a rocky outcrop.',
+    color: '#8a9a4f',
+    width: 640,
+    height: 360,
+  },
+  {
     heading: 'Ridge camp',
     caption: 'Camp perched on the exposed ridge line at dusk.',
     color: '#b5793b',
+    width: 480,
+    height: 640,
     body: ['Wind picks up fast above the treeline — the ridge camp is where most people put their shell on for good.'],
+  },
+  {
+    heading: 'Conditions',
+    solid: true,
+    color: '#3b6ea5',
+    // Stat values must match the app's detection pattern (digits, optionally
+    // with one trailing %/B/M/K letter) — units that don't fit go in the
+    // label instead, same convention the real Summit/Basecamp stats below use.
+    body: ['12', '°C overnight low', '40', 'km/h peak gust', '15%', 'Visibility'],
   },
   {
     heading: 'Summit',
     caption: 'First light hitting the summit marker.',
     color: '#a54a4a',
+    width: 640,
+    height: 640,
     body: ['5,895m', 'Summit', '8', 'Hours from ridge camp'],
+  },
+  {
+    heading: 'Descent',
+    caption: 'Looking back down the switchbacks at midday, clouds rolling in below.',
+    color: '#6a7d8f',
+    width: 800,
+    height: 450,
+    body: [
+      'The way down is harder on the knees than the way up was on the lungs — take it slower than feels necessary.',
+    ],
+  },
+  {
+    heading: 'Trail closures',
+    caption: 'Rockslide debris across the lower trail, roped off.',
+    color: '#9a6b3b',
+    width: 480,
+    height: 800,
+    body: [
+      'The lower trail closes seasonally after spring thaw loosens the scree above it — check conditions before you commit to the standard route.',
+    ],
   },
 ]
 
 function renderGalleryDemo(template) {
   const cardsHtml = GALLERY_SLIDES.map((slide, i) =>
-    galleryImageCardHtml(slide, placeholderImage(slide.color, slide.heading), i + 1, true),
+    slide.solid
+      ? gallerySolidCardHtml(slide, i + 1)
+      : galleryImageCardHtml(slide, placeholderImage(slide.color, slide.heading, slide.width, slide.height), i + 1, true),
   ).join('\n\n')
   let html = template
   html = fillPlaceholder(html, '{{GALLERY_TITLE}}', 'Trip Report (sample)')

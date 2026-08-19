@@ -9,37 +9,38 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,wght@0,400;0,600;0,700;1,400;1,600&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
 <style>
+  /* Palette mirrors the frontend generator app's own tokens (see
+     frontend/src/index.css) — paper/ink/rule/accent, not an independently
+     chosen scheme — so a generated page reads as the same product as the
+     tool that made it. */
   :root {
     --bg: #1c1a17;
-    --surface-solid: #242327;
-    --surface-alt: rgba(255,255,255,0.08);
-    --border: rgba(255,255,255,0.14);
-    --text: #eef1f8;
-    --text-soft: #aab2c5;
-    --text-faint: #6e7690;
-    --accent: #3a5fa8;
-    --accent-soft: rgba(58,95,168,0.16);
-    --accent-dark: #24427e;
+    --surface-solid: #26231f;
+    --surface-alt: #2f2c27;
+    --border: #3d3933;
+    --text: #ede9e0;
+    --text-soft: #c9c4b8;
+    --text-faint: #8f8a7e;
+    --accent: #7fa5c9;
+    --accent-soft: rgba(127,165,201,0.15);
+    --accent-dark: #5c85ac;
     --radius: 14px;
     --shadow: 0 8px 32px rgba(0,0,0,0.45);
     --font-serif: 'Source Serif 4', Georgia, 'Iowan Old Style', 'Palatino Linotype', 'Times New Roman', serif;
     --font-sans: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
   }
 
-  [data-theme="blue"]   { --accent: #3a5fa8; --accent-soft: rgba(58,95,168,0.16); --accent-dark: #24427e; }
-  [data-theme="green"]  { --accent: #1f8a5c; --accent-soft: rgba(31,138,92,0.16); --accent-dark: #146341; }
-  [data-theme="purple"] { --accent: #6b46c8; --accent-soft: rgba(107,70,200,0.16); --accent-dark: #4c2f94; }
-  [data-theme="orange"] { --accent: #c2703a; --accent-soft: rgba(194,112,58,0.16); --accent-dark: #8f4f24; }
-  [data-theme="pink"]   { --accent: #b5476f; --accent-soft: rgba(181,71,111,0.16); --accent-dark: #7d2f4d; }
-
   body[data-mode="light"] {
     --bg: #fafaf6;
-    --surface-solid: #ffffff;
-    --surface-alt: rgba(20,23,31,0.04);
-    --border: rgba(20,23,31,0.12);
-    --text: #21201c;
-    --text-soft: #5b5750;
-    --text-faint: #8c877d;
+    --surface-solid: #f3f2ed;
+    --surface-alt: #e8e6df;
+    --border: #d4d1cb;
+    --text: #2f2f2d;
+    --text-soft: #43423f;
+    --text-faint: #8a8780;
+    --accent: #2e6db4;
+    --accent-soft: rgba(46,109,180,0.1);
+    --accent-dark: #1e5a96;
     --shadow: 0 8px 28px rgba(20,30,60,0.1);
   }
 
@@ -97,23 +98,14 @@
   }
   .settings-panel[hidden] { display: none; }
 
-  .settings-label {
-    font-size: 11px;
-    font-weight: 800;
-    letter-spacing: .08em;
-    text-transform: uppercase;
-    color: var(--text-faint);
-    margin-bottom: 10px;
-  }
-
-  /* Deck info — a read-only summary, not a control, so it sits above the
-     Theme section with its own divider rather than looking like another
-     settings row. .deck-info-author:empty is what makes "author, if
-     stated" work with zero JS: the author placeholder fills in blank
-     whenever the source deck has no author, and an empty div collapses on
-     its own. (Not spelled out literally here — fillPlaceholder does a
-     whole-file string replace, so writing the actual token in this comment
-     would get clobbered by its own substitution.) */
+  /* Deck info — a read-only summary, not a control, so it gets its own
+     divider rather than looking like another settings row.
+     .deck-info-author:empty is what makes "author, if stated" work with
+     zero JS: the author placeholder fills in blank whenever the source deck
+     has no author, and an empty div collapses on its own. (Not spelled out
+     literally here — fillPlaceholder does a whole-file string replace, so
+     writing the actual token in this comment would get clobbered by its own
+     substitution.) */
   .deck-info {
     display: flex;
     flex-direction: column;
@@ -134,62 +126,6 @@
     color: var(--text-faint);
   }
   .deck-info-author:empty { display: none; }
-
-  /* Theme dropdown — replaces the old row of clickable colour dots. The
-     trigger's own text sits in var(--accent), so it re-colours for free
-     whenever data-theme changes (no JS needed for that part); the menu
-     stays a plain toggle+outside-click pattern, same as .settings-panel's
-     own open/close. */
-  .theme-select { position: relative; }
-  .theme-select-trigger {
-    display: flex; align-items: center; justify-content: space-between; gap: 6px;
-    width: 100%;
-    font-size: 13px; font-weight: 700;
-    padding: 9px 14px; border-radius: 10px;
-    border: 1px solid var(--border);
-    background: var(--surface-alt);
-    color: var(--accent);
-    cursor: pointer;
-    transition: background .15s ease, transform .1s ease, color .2s ease;
-  }
-  .theme-select-trigger:hover { background: var(--accent-soft); transform: translateY(-1px); }
-  .theme-select-trigger::after { content: "\25be"; font-size: 11px; opacity: .7; }
-  .theme-select-menu {
-    position: absolute;
-    top: calc(100% + 6px);
-    left: 0;
-    right: 0;
-    z-index: 10;
-    background: var(--surface-solid);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    box-shadow: var(--shadow);
-    padding: 6px;
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-  }
-  .theme-select-menu[hidden] { display: none; }
-  .theme-select-option {
-    display: flex; align-items: center; gap: 8px;
-    width: 100%;
-    font-size: 13px; font-weight: 600;
-    padding: 7px 10px; border-radius: 8px;
-    border: none;
-    background: none;
-    color: var(--text);
-    text-align: left;
-    cursor: pointer;
-    transition: background .15s ease;
-  }
-  .theme-select-option:hover { background: var(--surface-alt); }
-  .theme-select-option.active { color: var(--accent); font-weight: 800; }
-  .theme-select-option::before { content: ""; width: 10px; height: 10px; border-radius: 50%; flex: none; }
-  .theme-select-option[data-t="blue"]::before   { background: #3a5fa8; }
-  .theme-select-option[data-t="green"]::before  { background: #1f8a5c; }
-  .theme-select-option[data-t="purple"]::before { background: #6b46c8; }
-  .theme-select-option[data-t="orange"]::before { background: #c2703a; }
-  .theme-select-option[data-t="pink"]::before   { background: #b5476f; }
 
   .settings-panel button.tool-btn {
     display: flex; align-items: center; justify-content: center; gap: 6px;
@@ -745,7 +681,7 @@
   }
 </style>
 </head>
-<body data-theme="blue" data-mode="light">
+<body data-mode="light">
 
   <button class="settings-toggle" id="settings-toggle" aria-label="Settings" aria-expanded="false">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -780,17 +716,6 @@
       <div class="deck-info-title">{{TIMELINE_TITLE}}</div>
       <div class="deck-info-author">{{AUTHOR}}</div>
       <div class="deck-info-count">{{TIMELINE_SUBTITLE}}</div>
-    </div>
-    <div class="theme-select" id="theme-select">
-      <div class="settings-label">Theme</div>
-      <button class="theme-select-trigger" id="theme-select-trigger" aria-haspopup="listbox" aria-expanded="false">Change Theme</button>
-      <div class="theme-select-menu" id="theme-select-menu" hidden role="listbox">
-        <button class="theme-select-option active" data-t="blue" role="option" aria-selected="true">Blue</button>
-        <button class="theme-select-option" data-t="green" role="option" aria-selected="false">Green</button>
-        <button class="theme-select-option" data-t="purple" role="option" aria-selected="false">Purple</button>
-        <button class="theme-select-option" data-t="orange" role="option" aria-selected="false">Orange</button>
-        <button class="theme-select-option" data-t="pink" role="option" aria-selected="false">Pink</button>
-      </div>
     </div>
     <button class="mode-toggle" id="mode-toggle" aria-pressed="false">
       <span id="mode-toggle-label">Dark</span>
@@ -864,35 +789,6 @@
         helpTooltip.hidden = true;
         helpToggle.setAttribute('aria-expanded', 'false');
       }
-    });
-
-    var themeTrigger = document.getElementById('theme-select-trigger');
-    var themeMenu = document.getElementById('theme-select-menu');
-    var themeOptions = document.querySelectorAll('.theme-select-option');
-    themeTrigger.addEventListener('click', function (e) {
-      e.stopPropagation();
-      var willOpen = themeMenu.hidden;
-      themeMenu.hidden = !willOpen;
-      themeTrigger.setAttribute('aria-expanded', String(willOpen));
-    });
-    document.addEventListener('click', function (e) {
-      if (!themeMenu.hidden && !themeMenu.contains(e.target) && !themeTrigger.contains(e.target)) {
-        themeMenu.hidden = true;
-        themeTrigger.setAttribute('aria-expanded', 'false');
-      }
-    });
-    themeOptions.forEach(function (opt) {
-      opt.addEventListener('click', function () {
-        body.setAttribute('data-theme', opt.getAttribute('data-t'));
-        themeOptions.forEach(function (o) {
-          o.classList.remove('active');
-          o.setAttribute('aria-selected', 'false');
-        });
-        opt.classList.add('active');
-        opt.setAttribute('aria-selected', 'true');
-        themeMenu.hidden = true;
-        themeTrigger.setAttribute('aria-expanded', 'false');
-      });
     });
 
     var modeBtn = document.getElementById('mode-toggle');
