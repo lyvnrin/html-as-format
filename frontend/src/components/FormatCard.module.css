@@ -1,18 +1,21 @@
+/* Mouse-tracked 3D tilt: --card-tilt-x/-y are set directly on this element by
+   FormatCard.jsx's mousemove handler (same pattern the page's glass content
+   panel used to use — see App.module.css). perspective() is embedded in the
+   transform chain itself so the card tilts self-contained, without pulling
+   its parent grid into a 3D stacking context. Composed with --card-scale
+   (the selection morph) in the same transform since a single element can
+   only own one `transform` property. */
 .card {
-  /* Selection scale and hover lift compose into one `transform` via custom
-     properties — two independent sources can't each own the `transform`
-     property directly without stomping each other. No tilt here — the
-     mouse-tracked 3D tilt lives on the page's glass content panel
-     (App.module.css .contentPanel) instead, not on individual cards. */
   --card-scale: 1;
-  --card-lift: 0px;
+  --card-tilt-x: 0deg;
+  --card-tilt-y: 0deg;
   display: block;
   width: 100%;
   position: relative;
   background: color-mix(in srgb, var(--paper) 92%, transparent);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
-  border: 0.5px solid var(--glass-border);
+  border: 1px solid var(--rule);
   border-radius: 3px;
   padding: 0;
   overflow: hidden;
@@ -20,13 +23,19 @@
   cursor: pointer;
   font-family: inherit;
   opacity: 1;
-  transform: scale(var(--card-scale)) translateY(var(--card-lift));
+  transform-style: preserve-3d;
+  transform: perspective(700px) rotateX(var(--card-tilt-x)) rotateY(var(--card-tilt-y)) scale(var(--card-scale));
   transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease,
     transform 0.3s ease-out;
 }
 
+@media (prefers-reduced-motion: reduce) {
+  .card {
+    transform: scale(var(--card-scale));
+  }
+}
+
 .card:hover:not(.disabled) {
-  --card-lift: -3px;
   background: color-mix(in srgb, var(--paper) 97%, transparent);
   border-color: var(--accent);
   box-shadow: 0 8px 20px rgba(46, 109, 180, 0.14);
@@ -34,7 +43,6 @@
 
 :global(body[data-theme='dark']) .card {
   background: rgba(250, 250, 246, 0.06);
-  border-color: rgba(250, 250, 246, 0.15);
 }
 
 :global(body[data-theme='dark']) .card:hover:not(.disabled) {

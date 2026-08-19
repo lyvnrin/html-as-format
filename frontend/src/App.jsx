@@ -6,7 +6,6 @@ import PastEditions from './components/PastEditions'
 import styles from './App.module.css'
 
 const LOGO_TEXT = 'HTML as a Format'
-const MAX_CONTAINER_TILT_DEG = 1.5
 // Mirrors the server's own multer limit (server/index.js) — checked here
 // too so an oversized file is rejected immediately on selection instead of
 // only after a wasted upload.
@@ -38,7 +37,6 @@ export default function App() {
   const [theme, setTheme] = useState(getInitialTheme)
   const [activeTab, setActiveTab] = useState('generation')
   const abortControllerRef = useRef(null)
-  const contentPanelRef = useRef(null)
 
   const canGenerate = Boolean(file) && Boolean(selectedFormat) && !isGenerating
 
@@ -50,29 +48,6 @@ export default function App() {
       return
     }
     setFile(picked)
-  }
-
-  function handleContentPanelMouseMove(e) {
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
-    const panel = contentPanelRef.current
-    if (!panel) return
-
-    const rect = e.currentTarget.getBoundingClientRect()
-    const normalizedX = (e.clientX - rect.left - rect.width / 2) / (rect.width / 2)
-    const normalizedY = (e.clientY - rect.top - rect.height / 2) / (rect.height / 2)
-
-    panel.style.transitionDuration = '0.2s'
-    panel.style.setProperty('--tilt-x', `${(-normalizedY * MAX_CONTAINER_TILT_DEG).toFixed(2)}deg`)
-    panel.style.setProperty('--tilt-y', `${(normalizedX * MAX_CONTAINER_TILT_DEG).toFixed(2)}deg`)
-  }
-
-  function handleContentPanelMouseLeave() {
-    const panel = contentPanelRef.current
-    if (!panel) return
-
-    panel.style.transitionDuration = '0.5s'
-    panel.style.setProperty('--tilt-x', '0deg')
-    panel.style.setProperty('--tilt-y', '0deg')
   }
 
   useEffect(() => {
@@ -184,12 +159,7 @@ export default function App() {
         )}
       </button>
 
-      <div
-        className={styles.contentPanel}
-        ref={contentPanelRef}
-        onMouseMove={handleContentPanelMouseMove}
-        onMouseLeave={handleContentPanelMouseLeave}
-      >
+      <div className={styles.contentPanel}>
         <header className={styles.header}>
           <div className={styles.logo}>{LOGO_TEXT}</div>
           <div className={styles.tagline}>
@@ -223,6 +193,8 @@ export default function App() {
             Past Editions
           </button>
         </div>
+
+        <hr className={styles.divider} />
 
         {activeTab === 'generation' ? (
           <>

@@ -12,14 +12,9 @@
 
 /* Frosted glass panel around the header + main content so it stays legible
    over the fixed Grainient background. Sits above Grainient's z-index: 0 via
-   .page's own stacking context (z-index: 1).
-
-   Mouse-tracked tilt: --tilt-x/--tilt-y are set on this element by
-   App.jsx's mousemove handler (same pattern as FormatCard's per-card tilt,
-   but capped much gentler at 1.5deg since this is a large surface, not a
-   small card). perspective() is embedded directly in the transform chain
-   (rather than set on the parent) so the panel tilts self-contained,
-   without pulling .page or Grainient into a 3D stacking context. */
+   .page's own stacking context (z-index: 1). Plain and static — the
+   mouse-tracked 3D tilt effect lives on each FormatCard cover instead
+   (FormatCard.module.css), not here. */
 .contentPanel {
   background: rgba(255, 255, 255, 0.88);
   backdrop-filter: blur(20px);
@@ -30,17 +25,6 @@
   margin: 0 auto 12px auto;
   position: relative;
   z-index: 1;
-  --tilt-x: 0deg;
-  --tilt-y: 0deg;
-  transform-style: preserve-3d;
-  transform: perspective(1200px) rotateX(var(--tilt-x)) rotateY(var(--tilt-y));
-  transition: transform 0.2s ease-out;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .contentPanel {
-    transform: none;
-  }
 }
 
 :global(body[data-theme='dark']) .contentPanel {
@@ -116,12 +100,9 @@
   text-align: justify;
 }
 
-.taglineMain {
-  font-size: 14px;
-}
-
+.taglineMain,
 .taglineSub {
-  font-size: 13px;
+  font-size: 14px;
 }
 
 :global(body[data-theme='dark']) .taglineMain,
@@ -174,6 +155,16 @@
 :global(body[data-theme='dark']) .tabActive,
 :global(body[data-theme='dark']) .tabActive:hover {
   color: #fafaf6;
+}
+
+.divider {
+  border: none;
+  border-top: 1px solid var(--rule);
+  margin: 0 0 18px;
+}
+
+:global(body[data-theme='dark']) .divider {
+  border-top-color: rgba(250, 250, 246, 0.12);
 }
 
 .main {

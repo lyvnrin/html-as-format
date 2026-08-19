@@ -28,7 +28,6 @@
      cleanly onto the solid paper/rule scale. */
   --glass-bg: rgba(255, 255, 255, 0.6);
   --glass-bg-hover: rgba(255, 255, 255, 0.8);
-  --glass-border: rgba(255, 255, 255, 0.5);
 
   color-scheme: light;
 }
@@ -54,7 +53,6 @@ body[data-theme='dark'] {
 
   --glass-bg: rgba(38, 35, 31, 0.55);
   --glass-bg-hover: rgba(38, 35, 31, 0.75);
-  --glass-border: rgba(255, 255, 255, 0.08);
 
   color-scheme: dark;
 }
