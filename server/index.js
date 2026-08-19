@@ -595,7 +595,11 @@ function abortSignalForRequest(req, res) {
   return controller.signal
 }
 
-const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 25 * 1024 * 1024 } })
+// 25MB was too tight for real company slide decks (PPTX with embedded
+// images routinely lands well above that) — bumped to a limit generous
+// enough for those while still bounding memoryStorage's in-process buffer.
+const MAX_UPLOAD_BYTES = 75 * 1024 * 1024
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: MAX_UPLOAD_BYTES } })
 
 const app = express()
 app.use(cors())
@@ -732,6 +736,24 @@ app.delete('/api/editions/:id', (req, res) => {
 app.delete('/api/editions', (req, res) => {
   deleteAllGenerationLogs()
   res.status(204).end()
+})
+
+// multer throws MulterError synchronously inside the upload.single(...)
+// middleware, before any route handler's own try/catch runs — without
+// this, Express's default error handler sent a raw HTML 500 page, which
+// the frontend's response.json() couldn't parse, surfacing only a bare
+// "Generation failed (500)" with the real reason visible solely in the
+// server's own console log.
+app.use((err, req, res, next) => {
+  if (err instanceof multer.MulterError) {
+    if (err.code === 'LIMIT_FILE_SIZE') {
+      return res.status(413).json({
+        error: `File is too large — the limit is ${MAX_UPLOAD_BYTES / (1024 * 1024)}MB.`,
+      })
+    }
+    return res.status(400).json({ error: err.message })
+  }
+  next(err)
 })
 
 const PORT = process.env.PORT || 3001

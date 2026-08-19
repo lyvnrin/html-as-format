@@ -7,6 +7,10 @@ import styles from './App.module.css'
 
 const LOGO_TEXT = 'HTML as a Format'
 const MAX_CONTAINER_TILT_DEG = 1.5
+// Mirrors the server's own multer limit (server/index.js) — checked here
+// too so an oversized file is rejected immediately on selection instead of
+// only after a wasted upload.
+const MAX_UPLOAD_BYTES = 75 * 1024 * 1024
 
 function downloadHtml(html, filename) {
   const blob = new Blob([html], { type: 'text/html' })
@@ -37,6 +41,16 @@ export default function App() {
   const contentPanelRef = useRef(null)
 
   const canGenerate = Boolean(file) && Boolean(selectedFormat) && !isGenerating
+
+  function handleFileSelect(picked) {
+    setError(null)
+    if (picked && picked.size > MAX_UPLOAD_BYTES) {
+      setError(`File is too large — the limit is ${MAX_UPLOAD_BYTES / (1024 * 1024)}MB.`)
+      setFile(null)
+      return
+    }
+    setFile(picked)
+  }
 
   function handleContentPanelMouseMove(e) {
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
@@ -219,7 +233,7 @@ export default function App() {
                   <span className={styles.stepLine} aria-hidden="true" />
                 </div>
                 <div className={styles.stepContent}>
-                  <DropZone file={file} onFileSelect={setFile} />
+                  <DropZone file={file} onFileSelect={handleFileSelect} />
                 </div>
               </div>
 
