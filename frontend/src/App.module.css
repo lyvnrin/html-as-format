@@ -86,46 +86,18 @@
 .header {
   margin-bottom: 10px;
   padding-bottom: 6px;
-  border-bottom: 1px solid var(--rule);
-}
-
-:global(body[data-theme='dark']) .header {
-  border-bottom-color: rgba(250, 250, 246, 0.12);
+  text-align: center;
 }
 
 .logo {
   font-family: var(--font-serif);
-  font-size: 22px;
+  font-size: 32px;
   font-weight: 700;
   color: var(--ink);
 }
 
 :global(body[data-theme='dark']) .logo {
   color: #fafaf6;
-}
-
-.logoCharWrap {
-  display: inline-block;
-  overflow: hidden;
-  vertical-align: bottom;
-}
-
-.logoChar {
-  display: inline-block;
-}
-
-@media (prefers-reduced-motion: no-preference) {
-  .logoChar {
-    transform: translateY(100%);
-    animation: logoCharIn 0.35s cubic-bezier(0.16, 1, 0.3, 1) both;
-    animation-delay: calc(var(--char-index) * 30ms);
-  }
-}
-
-@keyframes logoCharIn {
-  to {
-    transform: translateY(0);
-  }
 }
 
 .tagline {
@@ -159,51 +131,49 @@
 
 .tabs {
   display: flex;
-  gap: 20px;
-  margin-bottom: 14px;
-  border-bottom: 1px solid var(--rule);
-}
-
-:global(body[data-theme='dark']) .tabs {
-  border-bottom-color: rgba(250, 250, 246, 0.12);
+  justify-content: center;
+  gap: 8px;
+  margin-bottom: 18px;
 }
 
 .tab {
   font-family: var(--font-sans);
-  font-size: 13.5px;
+  font-size: 13px;
   font-weight: 500;
   color: var(--muted);
   background: transparent;
-  border: none;
-  border-bottom: 2px solid transparent;
-  margin-bottom: -1px;
-  padding: 0 2px 8px;
+  border: 1.5px solid var(--rule);
+  border-radius: 8px;
+  padding: 6px 16px;
   cursor: pointer;
-  transition: color 0.15s ease, border-color 0.15s ease;
+  transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
 }
 
 .tab:hover {
+  border-color: var(--muted);
   color: var(--ink);
 }
 
 :global(body[data-theme='dark']) .tab {
   color: rgba(250, 250, 246, 0.55);
+  border-color: rgba(250, 250, 246, 0.15);
 }
 
 :global(body[data-theme='dark']) .tab:hover {
+  border-color: rgba(250, 250, 246, 0.35);
   color: #fafaf6;
 }
 
 .tabActive,
 .tabActive:hover {
-  color: var(--accent);
-  border-bottom-color: var(--accent);
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  color: var(--ink);
 }
 
 :global(body[data-theme='dark']) .tabActive,
 :global(body[data-theme='dark']) .tabActive:hover {
-  color: #a8cbe8;
-  border-bottom-color: #a8cbe8;
+  color: #fafaf6;
 }
 
 .main {

@@ -177,15 +177,7 @@ export default function App() {
         onMouseLeave={handleContentPanelMouseLeave}
       >
         <header className={styles.header}>
-          <div className={styles.logo} aria-label={LOGO_TEXT}>
-            {LOGO_TEXT.split('').map((char, i) => (
-              <span key={i} className={styles.logoCharWrap} aria-hidden="true">
-                <span className={styles.logoChar} style={{ '--char-index': i }}>
-                  {char === ' ' ? ' ' : char}
-                </span>
-              </span>
-            ))}
-          </div>
+          <div className={styles.logo}>{LOGO_TEXT}</div>
           <div className={styles.tagline}>
             <p className={styles.taglineMain}>
               This internal tool turns your source documents into shareable HTML pages.
