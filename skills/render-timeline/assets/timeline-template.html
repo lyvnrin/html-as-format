@@ -270,6 +270,77 @@
   }
   .help-tooltip[hidden] { display: none; }
 
+  /* Contents rail, collapsed into an icon — mirrors .settings-toggle's own
+     circle/position/size exactly, just mirrored to the opposite (left)
+     corner, so it reads as a matching pair rather than a new UI language.
+     Collapsed rather than an always-visible side rail because the sidebar
+     would need permanent horizontal margin that the ≤760px stacked mobile
+     layout simply doesn't have; an icon+panel works at any width. */
+  .toc-toggle {
+    position: fixed;
+    top: 20px;
+    left: 20px;
+    z-index: 100;
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    border: 1px solid var(--border);
+    background: var(--surface-solid);
+    color: var(--text);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    box-shadow: var(--shadow);
+    transition: border-color .15s ease, transform .15s ease, background .15s ease;
+  }
+  .toc-toggle:hover { border-color: var(--accent); transform: translateY(-1px); }
+  .toc-toggle svg { width: 18px; height: 18px; }
+
+  /* max-height + scroll (not just letting it grow) — a deck with dozens of
+     nodes would otherwise push the panel off the bottom of the viewport.
+     Scrollbar is invisible per the page-wide scrollbar-hiding rule above;
+     scrolling itself still works. */
+  .toc-panel {
+    position: fixed;
+    top: 70px;
+    left: 20px;
+    z-index: 100;
+    width: 232px;
+    max-height: min(60vh, 420px);
+    overflow-y: auto;
+    background: var(--surface-solid);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .toc-panel[hidden] { display: none; }
+  .toc-item {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    width: 100%;
+    font-family: var(--font-sans);
+    font-size: 13px;
+    font-weight: 600;
+    padding: 8px 10px;
+    border-radius: 8px;
+    border: none;
+    background: none;
+    color: var(--text);
+    text-align: left;
+    cursor: pointer;
+    transition: background .15s ease, color .15s ease;
+  }
+  .toc-item:hover { background: var(--surface-alt); }
+  .toc-item.active { background: var(--accent-soft); color: var(--accent); }
+  .toc-item-index { font-family: var(--font-serif); font-size: 11px; color: var(--text-faint); flex: none; }
+  .toc-item.active .toc-item-index { color: var(--accent); }
+
   /* The header is one small line — an eyebrow and a title, nothing else.
      This is deliberate: this page's job is the interactive timeline, not a
      title splash, so the header must never be able to grow past a couple
@@ -628,7 +699,7 @@
   }
 
   @media print {
-    .settings-toggle, .settings-panel, .help-toggle, .help-tooltip { display: none; }
+    .settings-toggle, .settings-panel, .help-toggle, .help-tooltip, .toc-toggle, .toc-panel { display: none; }
     .tl-back-to-top { display: none; }
     .tl-node-detail { display: block !important; }
   }
@@ -645,6 +716,18 @@
 
   <button class="help-toggle" id="help-toggle" aria-label="Help" aria-expanded="false">?</button>
   <div class="help-tooltip" id="help-tooltip" hidden>click a node's dot or label to expand its details</div>
+
+  <button class="toc-toggle" id="toc-toggle" aria-label="Contents" aria-haspopup="listbox" aria-expanded="false">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <line x1="8" y1="6" x2="21" y2="6"></line>
+      <line x1="8" y1="12" x2="21" y2="12"></line>
+      <line x1="8" y1="18" x2="21" y2="18"></line>
+      <line x1="3" y1="6" x2="3.01" y2="6"></line>
+      <line x1="3" y1="12" x2="3.01" y2="12"></line>
+      <line x1="3" y1="18" x2="3.01" y2="18"></line>
+    </svg>
+  </button>
+  <div class="toc-panel" id="toc-panel" hidden role="listbox" aria-label="Timeline contents"></div>
 
   <div class="settings-panel" id="settings-panel" hidden>
     <div class="theme-select" id="theme-select">
@@ -824,6 +907,13 @@
       if (activeIndex) {
         node.scrollIntoView({ behavior: 'smooth', block: 'center' });
       }
+      // tocItems is built further down (after tlNodes), but this function
+      // is never actually called until well after the whole script has
+      // run — var hoisting means the name already exists in scope here
+      // regardless of definition order, so this is safe.
+      tocItems.forEach(function (item) {
+        item.classList.toggle('active', item.getAttribute('data-index') === activeIndex);
+      });
     }
 
     function closeActive() {
@@ -886,6 +976,55 @@
     // never closes it.
     document.addEventListener('click', function (e) {
       if (!e.target.closest('.tl-node')) closeActive();
+    });
+
+    // Contents panel — built from tlNodes rather than templated server-side,
+    // since it's just a read-out of data already on the page (each node's
+    // own index + label).
+    var tocToggle = document.getElementById('toc-toggle');
+    var tocPanel = document.getElementById('toc-panel');
+    var tocItems = tlNodes.map(function (node, i) {
+      var index = node.getAttribute('data-index');
+      var item = document.createElement('button');
+      item.type = 'button';
+      item.className = 'toc-item';
+      item.setAttribute('role', 'option');
+      item.setAttribute('data-index', index);
+      var num = document.createElement('span');
+      num.className = 'toc-item-index';
+      num.textContent = node.querySelector('.tl-node-index').textContent;
+      var label = document.createElement('span');
+      label.textContent = node.querySelector('.tl-node-label').textContent;
+      item.appendChild(num);
+      item.appendChild(label);
+      // stopPropagation — without it this click would also bubble to the
+      // click-outside-closes-node listener above (a toc-item isn't inside
+      // .tl-node), which would immediately re-close the node selectNode
+      // just opened on the very same click.
+      item.addEventListener('click', function (e) {
+        e.stopPropagation();
+        tocPanel.hidden = true;
+        tocToggle.setAttribute('aria-expanded', 'false');
+        lastIndex = i;
+        lastIsDot = true;
+        var dot = node.querySelector('.tl-dot');
+        if (dot) dot.focus();
+        selectNode(index);
+      });
+      tocPanel.appendChild(item);
+      return item;
+    });
+    tocToggle.addEventListener('click', function (e) {
+      e.stopPropagation();
+      var willOpen = tocPanel.hidden;
+      tocPanel.hidden = !willOpen;
+      tocToggle.setAttribute('aria-expanded', String(willOpen));
+    });
+    document.addEventListener('click', function (e) {
+      if (!tocPanel.hidden && !tocPanel.contains(e.target) && !tocToggle.contains(e.target)) {
+        tocPanel.hidden = true;
+        tocToggle.setAttribute('aria-expanded', 'false');
+      }
     });
 
     var backToTop = document.getElementById('tl-back-to-top');
