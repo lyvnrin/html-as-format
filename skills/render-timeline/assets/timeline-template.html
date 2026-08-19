@@ -366,7 +366,11 @@
      not from constraining the track's height or giving it its own
      `overflow-y`. A nested scrolling box was tried and explicitly
      rejected — it read as a cramped widget, not a full-screen timeline. */
-  .tl-track { position: relative; max-width: 980px; margin: 0 auto; }
+  /* 1120px (not #doc's own 1180px) is the real width ceiling here — kept
+     narrower than #doc's max-width so this stays the binding constraint
+     regardless of #doc's own padding, rather than the two silently
+     fighting for which one actually caps the card's width. */
+  .tl-track { position: relative; max-width: 1120px; margin: 0 auto; }
   .tl-track::before {
     content: "";
     position: absolute;
@@ -569,8 +573,14 @@
     display: none;
     position: relative;
     width: 100%;
-    max-width: 360px;
-    padding: 22px 26px;
+    /* Effective width is really set by .tl-node-slot (a function of
+       .tl-track's max-width, above) — this only needs to sit at or above
+       that so it never becomes the tighter constraint. Bumped from 360px
+       alongside the track widening: dense real-deck bullet content (6-8
+       items, several lines each) was reading as a cramped wall of text at
+       the old width. */
+    max-width: 440px;
+    padding: 24px 30px;
     background: var(--surface-solid);
     border: 1px solid var(--border);
     border-radius: var(--radius);
