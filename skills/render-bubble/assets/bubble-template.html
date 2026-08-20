@@ -408,6 +408,23 @@
     0%, 100% { transform: translate(-50%, -50%) scale(1); }
     50% { transform: translate(-50%, -50%) scale(1.03); }
   }
+  /* Fired once, per bubble, when a drag hits the header boundary and gets
+     bounced back (see bounceBackIfPastHeader() in the script) — a quick
+     squash-and-stretch "sloshing" reaction, distinct from the slow ambient
+     bubble-breathe wave above. .bubble.jiggle's two-class selector
+     outweighs plain .bubble's one-class `animation` shorthand, so it fully
+     overrides breathing for the ~0.5s it's applied; the JS removes the
+     class afterward so breathing simply resumes underneath, unpaused. */
+  @keyframes bubble-jiggle {
+    0% { transform: translate(-50%, -50%) scale(1); }
+    25% { transform: translate(-50%, calc(-50% - 8px)) scale(1.03, 0.97); }
+    50% { transform: translate(-50%, calc(-50% + 4px)) scale(0.98, 1.02); }
+    75% { transform: translate(-50%, calc(-50% - 2px)) scale(1.01, 0.99); }
+    100% { transform: translate(-50%, -50%) scale(1); }
+  }
+  .bubble.jiggle {
+    animation: bubble-jiggle 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+  }
   /* Set on <body> for the duration of a canvas pan-drag (see enableDragPan
      in the script) — the only "drag" interaction this renderer has, since
      individual bubbles aren't draggable. Pausing (not stopping) means it
@@ -1173,38 +1190,14 @@
     // ---- Ambient animations (bubble breathing + idle spotlight) --------------
     // Both are purely decorative — neither reads nor writes any layout,
     // packing, or interaction state (allSlideEls entries are only read
-    // here, never mutated). See BUBBLE_BREATHE_PERIOD_MS for the breathing
-    // wave itself (CSS-driven, see @keyframes bubble-breathe); everything
-    // below is the idle spotlight, which is JS-driven since it has to walk
-    // between different bubbles over time rather than repeat one fixed
-    // motion in place.
+    // here, never mutated). Breathing itself is entirely CSS-driven (see
+    // @keyframes bubble-breathe) and identical for every bubble — no
+    // per-bubble animation-delay is set, so the whole cluster breathes in
+    // lockstep rather than as a staggered wave. Everything below is the
+    // idle spotlight, which is JS-driven since it has to walk between
+    // different bubbles over time rather than repeat one fixed motion in
+    // place.
     var prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    // Matches the `3.6s` in .bubble's `animation` shorthand (CSS) — used
-    // only to derive each bubble's phase offset here in JS, not to drive
-    // the animation itself (that's the browser's job once animation-delay
-    // is set once at creation).
-    var BUBBLE_BREATHE_PERIOD_S = 3.6;
-    // Golden-angle stepping (in the same units as the CSS animation-delay,
-    // i.e. seconds within one period) — an irrational fraction of the
-    // period, so no two bubbles' phases collide or fall into a small
-    // repeating pattern the way a simple index/N spacing could for
-    // specific bubble counts. Deterministic (pure function of index), not
-    // random — see seededRandom()'s own header comment for why this
-    // template never uses Math.random().
-    var BREATHE_PHASE_STEP_S = BUBBLE_BREATHE_PERIOD_S * 0.6180339887;
-
-    function breathePhaseSeconds(index) {
-      return (index * BREATHE_PHASE_STEP_S) % BUBBLE_BREATHE_PERIOD_S;
-    }
-
-    // A negative animation-delay starts the animation that many seconds
-    // into its cycle immediately, rather than waiting — this is what
-    // actually staggers the phase; every bubble otherwise runs the exact
-    // same `bubble-breathe` animation (see CSS).
-    function applyBreathePhase(node, index) {
-      if (prefersReducedMotion) return;
-      node.style.animationDelay = (-breathePhaseSeconds(index)).toFixed(3) + 's';
-    }
 
     var IDLE_TIMEOUT_MS = 4000;
     var HALO_FADE_MS = 600;
@@ -1298,6 +1291,15 @@
     // them, which is what makes panning actually free.
     var panX = 0, panY = 0;
 
+    // The pan values zoomToOverview() last centered the map at — captured
+    // there (see below) so enableDragPan()'s mouseup handler still has a
+    // "home" position to spring back to after a drag, even though panX/
+    // panY themselves keep changing throughout the drag. Only panY is
+    // ever compared against its rest value (see the bounce-back logic) —
+    // restPanX is tracked for symmetry/completeness but there is no
+    // horizontal wall to bounce off of, so it's unused otherwise.
+    var restPanX = 0, restPanY = 0;
+
     // Cluster fills ~70-75% of the smaller viewport dimension at rest (not
     // edge-to-edge) — see restScale's computation in layoutBubbles(). Gesture
     // zoom (wheel/pinch) is clamped to the same [ZOOM_MIN, ZOOM_MAX] range.
@@ -1368,6 +1370,7 @@
       applyScale(restScale);
       panX = (wrapEl.clientWidth - mapCanvasW * restScale) / 2;
       panY = (wrapEl.clientHeight - mapCanvasH * restScale) / 2 + HEADER_RESERVE;
+      restPanX = panX; restPanY = panY;
       applyTransform();
     }
 
@@ -1633,11 +1636,6 @@
           var cd = child.r * 2;
           var dotEl = el('div', 'bubble image-dot');
           setGeometry(dotEl, child.x, child.y, cd);
-          // Shares its parent's exact phase (see applyBreathePhase()) rather
-          // than computing its own — "child bubbles breathe at the same
-          // rate ... can share the same phase" (no requirement they vary
-          // independently, unlike parents).
-          dotEl.style.animationDelay = slide.bubbleEl.style.animationDelay;
           dotEl.innerHTML = '<img src="' + child.image.src + '" alt="">';
           childCluster.appendChild(dotEl);
 
@@ -1826,7 +1824,6 @@
         var bubbleEl = el('div', 'bubble slide-bubble');
         bubbleEl.title = slideData.heading || '';
         setGeometry(bubbleEl, item.x, item.y, d);
-        applyBreathePhase(bubbleEl, slideIdx);
         bubbleEl.innerHTML = '<div class="slide-label">' + escapeHtml(shortLabel) + '</div>';
         canvas.appendChild(bubbleEl);
 
@@ -1942,33 +1939,67 @@
         }
         if (dragging) {
           e.preventDefault();
+          // No clamp here — the map should follow the cursor 1:1 even past
+          // the header boundary while the drag is live, however far up
+          // that goes. The boundary is enforced on release instead (see
+          // the bounce-back in mouseup below), not during the drag itself.
           panX = startPanX + dx;
           panY = startPanY + dy;
-          // Stop the drag itself at the header boundary, rather than
-          // letting the user keep pulling bubbles up into space that
-          // #canvas-wrap's own top: 110px + overflow: hidden (see CSS)
-          // already clips away. Without this, dragging up past that point
-          // still "works" but produces zero visible change — which reads
-          // as broken/unresponsive, not as hitting a wall.
-          //
-          // Direction check: panY more negative moves the canvas UP on
-          // screen (screenY = contentY * scale + panY), so dragging up is
-          // panY decreasing — the thing to clamp is panY's lower bound,
-          // not an upper one. The topmost bubble's edge sits at content-y
-          // = CANVAS_MARGIN by construction (layoutBubbles() shifts the
-          // whole packed cluster by offsetY = CANVAS_MARGIN - minY, so the
-          // highest bubble edge always lands exactly at CANVAS_MARGIN).
-          // Its on-screen position within #canvas-wrap's own local
-          // coordinate space is therefore CANVAS_MARGIN * scale + panY —
-          // clamping panY so that never drops below 0 keeps the topmost
-          // bubble from rising above #canvas-wrap's own top edge (which is
-          // where the header zone begins). Only a lower bound: downward,
-          // left, and right dragging stay completely free.
-          var minPanY = -CANVAS_MARGIN * scale;
-          if (panY < minPanY) panY = minPanY;
           applyTransform();
         }
       });
+
+      // Springs the map back to its last zoomToOverview() position
+      // (restPanX/restPanY) with an overshoot-and-settle bounce, rather
+      // than a hard clamp during the drag — matches the "let it go past,
+      // then pull it back" rubber-band feel other pan/zoom UIs use.
+      // Direction check: screenY = contentY * scale + panY (see
+      // applyTransform), so dragging UP moves panY DOWN, below its rest
+      // value — that's what "dragged past the header boundary" means
+      // here, not panY exceeding restPanY.
+      var bounceTimer = null;
+      function bounceBackIfPastHeader() {
+        if (panY >= restPanY) return;
+        clearTimeout(bounceTimer);
+        mapEl.style.transition = 'transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1)';
+        panY = restPanY;
+        applyTransform();
+        bounceTimer = setTimeout(function () { mapEl.style.transition = ''; }, 500);
+        triggerBubbleJiggle();
+      }
+
+      // Momentum-y "slosh forward then settle" reaction on every bubble,
+      // staggered 30ms apart so it ripples through the cluster instead of
+      // firing everywhere at once — fired once per bounce, from
+      // bounceBackIfPastHeader() above. void b.offsetWidth forces a reflow
+      // between removing and re-adding .jiggle, which is what lets the
+      // animation restart from frame 0 on back-to-back bounces instead of
+      // the browser no-op'ing a class re-add mid-animation.
+      //
+      // Each bubble's animationDelay is saved before being overwritten and
+      // restored afterward, rather than just cleared to '' — animationDelay
+      // is otherwise untouched (breathing runs identically, in sync, on
+      // every bubble with no per-bubble offset), so today this simply
+      // restores it to empty either way. Kept as save/restore rather than
+      // a bare clear so this stays correct on its own even if a future
+      // change gives bubbles individual delays again.
+      function triggerBubbleJiggle() {
+        var bubbles = document.querySelectorAll('.bubble');
+        var savedDelays = [];
+        bubbles.forEach(function (b, i) {
+          savedDelays[i] = b.style.animationDelay;
+          b.classList.remove('jiggle');
+          void b.offsetWidth;
+          b.style.animationDelay = (i * 30) + 'ms';
+          b.classList.add('jiggle');
+        });
+        setTimeout(function () {
+          bubbles.forEach(function (b, i) {
+            b.classList.remove('jiggle');
+            b.style.animationDelay = savedDelays[i];
+          });
+        }, 800);
+      }
 
       window.addEventListener('mouseup', function () {
         isDown = false;
@@ -1977,6 +2008,7 @@
         connectorsPausedByDrag = false;
         refreshConnectorsPaused();
         document.body.classList.remove('is-panning');
+        bounceBackIfPastHeader();
       });
 
       document.addEventListener('click', function (e) {
