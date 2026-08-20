@@ -194,12 +194,10 @@
   /* Plain centred text floating directly on the page background — same
      look as the Timeline template's .tl-header: no card, no bar, no
      background/border/box-shadow, no width constraint of its own. Bubbles
-     start out clear of it purely because zoomToOverview() (see script,
-     HEADER_RESERVE) biases the rest-state cluster down by this much —
-     there's no visual divider/border/gap element in the DOM, and nothing
-     stops a drag or zoom from later moving bubbles up past it; that's a
-     deliberate tradeoff for panning that's actually free in every
-     direction, not a constrained camera. */
+     stay clear of it because #canvas-wrap's own box starts below this
+     header (see its top: 110px + overflow: hidden), not because of
+     anything drawn here — there's no visual divider/border/gap element in
+     the DOM at all. */
   .doc-header {
     position: absolute;
     top: 20px;
@@ -1306,19 +1304,6 @@
     var TARGET_FILL = 1.7;
     var ZOOM_MIN = 0.4, ZOOM_MAX = 3;
 
-    // The .doc-header text (see CSS) floats over the top of the canvas,
-    // with no background/border of its own — so nothing in the DOM marks
-    // where it ends. This only shifts where zoomToOverview() starts the
-    // rest-state camera (down by this much, so the cluster begins clear
-    // of the text) — it is NOT a clamp or limit on panning: a drag or
-    // zoom-out can still move the canvas anywhere afterward, including
-    // back up past this line. Sized to clear the header's own text
-    // (eyebrow + title + subtitle + meta lines) plus a little natural
-    // breathing room below it — not a big empty band, just enough that the
-    // cluster starts reading as "below the header" rather than jammed
-    // against it.
-    var HEADER_RESERVE = 100;
-
     // Max pointerdown->pointerup displacement (px) still counted as a tap
     // rather than a drag — see the bubble pointerdown/pointerup handlers
     // in layoutBubbles() below.
@@ -1354,9 +1339,7 @@
     // simple coordinate system setGeometry()'s raw --cx/--cy math already
     // assumes: content point (x, y) always lands on screen at
     // (x * scale + panX, y * scale + panY). No clamping of any kind here —
-    // panX/panY are free to be anything; HEADER_RESERVE below only shapes
-    // where zoomToOverview() starts the camera, it does not restrict where
-    // a drag or zoom can subsequently take it.
+    // panX/panY are free to be anything.
     function applyTransform() {
       mapEl.style.transform = 'translate(' + panX + 'px,' + panY + 'px) scale(' + scale + ')';
       mapEl.style.transformOrigin = '0 0';
@@ -1365,11 +1348,17 @@
     // The two discrete camera states: overview (whole map, fit to
     // TARGET_FILL) and zoomed-in-on-one-slide (full natural scale, so that
     // slide's child bubbles render at the size their own content-based
-    // sizing assumed).
+    // sizing assumed). Both center within wrapEl's own box, not the full
+    // browser viewport — #canvas-wrap already starts below the header (see
+    // its top: 110px in the CSS), so wrapEl.clientWidth/clientHeight are
+    // exactly the area actually available for the map: no separate header
+    // offset needed here, adding one would just double-count that space
+    // and push the cluster off-center (and, once it's tall enough, off the
+    // bottom of the viewport).
     function zoomToOverview() {
       applyScale(restScale);
       panX = (wrapEl.clientWidth - mapCanvasW * restScale) / 2;
-      panY = (wrapEl.clientHeight - mapCanvasH * restScale) / 2 + HEADER_RESERVE;
+      panY = (wrapEl.clientHeight - mapCanvasH * restScale) / 2;
       restPanX = panX; restPanY = panY;
       applyTransform();
     }
