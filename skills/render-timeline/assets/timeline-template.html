@@ -311,9 +311,26 @@
      This is deliberate: this page's job is the interactive timeline, not a
      title splash, so the header must never be able to grow past a couple
      lines no matter how much text a field is filled with. */
-  #doc { max-width: 1180px; margin: 0 auto; padding: 32px 24px 56px; min-height: 100vh; }
+  #doc { position: relative; max-width: 1180px; margin: 0 auto; padding: 32px 24px 56px; min-height: 100vh; }
 
-  .tl-header { text-align: center; margin-bottom: 40px; }
+  /* Plain centred text floating directly on the page background — same
+     "invisible header" treatment as the Bubble Map template's .doc-header:
+     no card, no bar, no background/border/box-shadow, taken out of flow
+     entirely (position: absolute, pointer-events: none) rather than
+     pushing the track down by its own rendered height. top: 32px matches
+     #doc's own padding-top exactly, so the header lands in the same spot
+     it would have in normal flow. .tl-track below is given a fixed
+     margin-top instead to clear it — see that rule for why this isn't
+     measured dynamically. */
+  .tl-header {
+    position: absolute;
+    top: 32px;
+    left: 0;
+    right: 0;
+    z-index: 5;
+    text-align: center;
+    pointer-events: none;
+  }
   .tl-eyebrow {
     display: block;
     font-size: 10px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase;
@@ -336,7 +353,13 @@
      narrower than #doc's max-width so this stays the binding constraint
      regardless of #doc's own padding, rather than the two silently
      fighting for which one actually caps the card's width. */
-  .tl-track { position: relative; max-width: 1120px; margin: 0 auto; }
+  /* margin-top replaces the old .tl-header margin-bottom now that the
+     header is out of flow (see .tl-header above) — 112px reproduces the
+     header's own rendered height (eyebrow + title + meta) plus the same
+     ~40px gap it used to leave below itself, a fixed estimate rather than
+     a measured one, same tradeoff the Bubble Map template's hardcoded
+     canvas-wrap top: 110px already makes. */
+  .tl-track { position: relative; max-width: 1120px; margin: 112px auto 0; }
   .tl-track::before {
     content: "";
     position: absolute;
@@ -630,6 +653,7 @@
 
   @media (max-width: 760px) {
     #doc { padding: 24px 18px 48px; }
+    .tl-header { top: 24px; }
     .tl-track::before { display: none; }
     .tl-track::after { display: none; }
     .tl-node {

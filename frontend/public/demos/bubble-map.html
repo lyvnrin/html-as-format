@@ -118,6 +118,36 @@
   }
   .settings-panel[hidden] { display: none; }
 
+  /* Deck info — a read-only summary, not a control, so it gets its own
+     divider rather than looking like another settings row. Same pattern
+     as the Timeline template's .deck-info.
+     .deck-info-author:empty is what makes "author, if stated" work with
+     zero JS: the author placeholder fills in blank whenever the source deck
+     has no author, and an empty div collapses on its own. (Not spelled out
+     literally here — fillPlaceholder does a whole-file string replace, so
+     writing the actual token in this comment would get clobbered by its own
+     substitution.) */
+  .deck-info {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--border);
+  }
+  .deck-info-title {
+    font-family: var(--font-serif);
+    font-size: 14px;
+    font-weight: 700;
+    line-height: 1.3;
+    color: var(--text);
+  }
+  .deck-info-author,
+  .deck-info-count {
+    font-size: 11.5px;
+    color: var(--text-faint);
+  }
+  .deck-info-author:empty { display: none; }
+
   .settings-panel button.tool-btn {
     display: flex; align-items: center; justify-content: center; gap: 6px;
     width: 100%;
@@ -188,6 +218,52 @@
   .mode-toggle-thumb .icon-moon { color: #7c93c9; opacity: 0; transform: rotate(-90deg) scale(.5); }
   body[data-mode="dark"] .mode-toggle-thumb .icon-sun { opacity: 0; transform: rotate(90deg) scale(.5); }
   body[data-mode="dark"] .mode-toggle-thumb .icon-moon { opacity: 1; transform: rotate(0deg) scale(1); }
+
+  /* Connections toggle — same iOS-style sliding pill as .mode-toggle above,
+     just keyed off the button's own aria-pressed instead of a page-level
+     body[data-mode] attribute, since "connections on/off" is this one
+     control's state, not a global mode. .settings-row is the label+switch
+     row (mirrors .mode-toggle's own flex/padding/border/background), and
+     .toggle-btn is only the pill itself — unlike .mode-toggle, where the
+     whole row was the clickable button, here the label is plain text and
+     only the switch responds to clicks (matches the click handler, which
+     is bound to #connections-toggle alone). */
+  .settings-row {
+    display: flex; align-items: center; justify-content: space-between; gap: 10px;
+    width: 100%;
+    font-size: 13px; font-weight: 600;
+    padding: 9px 14px; border-radius: 10px;
+    border: 1px solid var(--border);
+    background: var(--surface-alt);
+    color: var(--text);
+  }
+  .settings-label { color: var(--text); }
+  .toggle-btn {
+    flex: none;
+    padding: 0;
+    border: none;
+    background: none;
+    cursor: pointer;
+  }
+  .toggle-track {
+    position: relative;
+    display: block;
+    width: 38px; height: 22px;
+    border-radius: 999px;
+    background: var(--border);
+    transition: background .35s ease;
+  }
+  .toggle-btn[aria-pressed="true"] .toggle-track { background: var(--accent-dark); }
+  .toggle-thumb {
+    position: absolute;
+    top: 2px; left: 2px;
+    width: 18px; height: 18px;
+    border-radius: 50%;
+    background: var(--surface-solid);
+    box-shadow: 0 1px 3px rgba(0,0,0,.35);
+    transition: transform .35s var(--spring-ease, ease);
+  }
+  .toggle-btn[aria-pressed="true"] .toggle-thumb { transform: translateX(16px); }
 
   #doc { position: relative; height: 100vh; overflow: hidden; }
 
@@ -719,6 +795,11 @@
   <div class="help-tooltip" id="help-tooltip" hidden>Drag to explore · Click a bubble to expand · Scroll or pinch to zoom.</div>
 
   <div class="settings-panel" id="settings-panel" hidden>
+    <div class="deck-info">
+      <div class="deck-info-title">Pitch Deck (sample)</div>
+      <div class="deck-info-author">Preview sample</div>
+      <div class="deck-info-count">7 slides</div>
+    </div>
     <button class="mode-toggle" id="mode-toggle" aria-pressed="false">
       <span id="mode-toggle-label">Dark</span>
       <span class="mode-toggle-switch" aria-hidden="true">
@@ -740,6 +821,12 @@
         </span>
       </span>
     </button>
+    <div class="settings-row">
+      <span class="settings-label">Connections</span>
+      <button class="toggle-btn" id="connections-toggle" aria-pressed="true">
+        <span class="toggle-track"><span class="toggle-thumb"></span></span>
+      </button>
+    </div>
     <button class="tool-btn primary" id="pdf-btn">⬇ Download PDF</button>
   </div>
 
@@ -815,6 +902,15 @@
       body.setAttribute('data-mode', newMode);
       modeBtn.setAttribute('aria-pressed', String(newMode === 'dark'));
       modeLabel.textContent = isLight ? 'Light' : 'Dark';
+    });
+
+    var connectionsToggle = document.getElementById('connections-toggle');
+    connectionsToggle.addEventListener('click', function () {
+      var svgEl = document.getElementById('connectors');
+      if (!svgEl) return;
+      var isOn = connectionsToggle.getAttribute('aria-pressed') === 'true';
+      connectionsToggle.setAttribute('aria-pressed', String(!isOn));
+      svgEl.style.display = isOn ? 'none' : '';
     });
 
     var pdfBtn = document.getElementById('pdf-btn');

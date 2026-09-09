@@ -103,6 +103,36 @@
   }
   .settings-panel[hidden] { display: none; }
 
+  /* Deck info — a read-only summary, not a control, so it gets its own
+     divider rather than looking like another settings row. Same pattern
+     as the Timeline template's .deck-info.
+     .deck-info-author:empty is what makes "author, if stated" work with
+     zero JS: the author placeholder fills in blank whenever the source deck
+     has no author, and an empty div collapses on its own. (Not spelled out
+     literally here — fillPlaceholder does a whole-file string replace, so
+     writing the actual token in this comment would get clobbered by its own
+     substitution.) */
+  .deck-info {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--border);
+  }
+  .deck-info-title {
+    font-family: var(--font-serif);
+    font-size: 14px;
+    font-weight: 700;
+    line-height: 1.3;
+    color: var(--text);
+  }
+  .deck-info-author,
+  .deck-info-count {
+    font-size: 11.5px;
+    color: var(--text-faint);
+  }
+  .deck-info-author:empty { display: none; }
+
   .settings-panel button.tool-btn {
     display: flex; align-items: center; justify-content: center; gap: 6px;
     width: 100%;
@@ -216,32 +246,51 @@
   .help-tooltip[hidden] { display: none; }
 
   #doc {
+    position: relative;
     max-width: 1400px;
     margin: 0 auto;
     padding: 40px 24px 100px;
   }
 
-  .doc-header { margin-bottom: 28px; text-align: left; }
+  /* Plain centred text floating directly on the page background — same
+     "invisible header" treatment as the Bubble Map template's .doc-header:
+     no card, no bar, no background/border/box-shadow, taken out of flow
+     entirely (position: absolute, pointer-events: none) rather than
+     pushing the grid down by its own rendered height. top: 40px matches
+     #doc's own padding-top exactly, so the header lands in the same spot
+     it would have in normal flow. #grid below is given a fixed margin-top
+     instead to clear it — see that rule for why this isn't measured
+     dynamically. */
+  .doc-header {
+    position: absolute;
+    top: 40px;
+    left: 0;
+    right: 0;
+    z-index: 5;
+    text-align: center;
+    pointer-events: none;
+  }
   .doc-eyebrow {
-    display: inline-block;
-    font-size: 11px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase;
+    display: block;
+    font-size: 10px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase;
     color: var(--accent);
-    background: var(--accent-soft);
-    border: 1px solid var(--accent-glow);
-    padding: 5px 14px;
-    border-radius: 999px;
-    margin-bottom: 14px;
+    margin-bottom: 6px;
   }
   .doc-title {
     font-family: var(--font-serif);
-    font-size: clamp(28px, 4vw, 42px); font-weight: 800; margin: 0 0 10px; line-height: 1.15;
-    letter-spacing: -.01em;
+    font-size: clamp(20px, 2.6vw, 27px); font-weight: 700; margin: 0; line-height: 1.2;
   }
-  .doc-subtitle { font-size: 16px; color: var(--text-soft); margin: 0; line-height: 1.5; max-width: 640px; }
-  .doc-meta { font-size: 12px; color: var(--text-faint); margin: 10px 0 0; }
+  .doc-meta { font-size: 11px; color: var(--text-faint); margin: 8px 0 0; }
 
-  /* Masonry grid — CSS columns, not CSS grid. Varied card heights are the point. */
+  /* Masonry grid — CSS columns, not CSS grid. Varied card heights are the
+     point. margin-top replaces the old .doc-header margin-bottom now that
+     the header is out of flow (see .doc-header above) — 112px reproduces
+     the header's own rendered height (eyebrow + title + meta) plus the
+     same ~40px gap it used to leave below itself, a fixed estimate rather
+     than a measured one, same tradeoff the Bubble Map template's
+     hardcoded canvas-wrap top: 110px already makes. */
   #grid {
+    margin-top: 112px;
     column-count: 4;
     column-gap: 18px;
   }
@@ -263,29 +312,25 @@
     border: 1px solid var(--border);
     transition: transform .2s ease, border-color .2s ease;
     /* Ambient "breathing" so the grid feels alive even before anyone
-       touches it — animation-delay is set per-card in JS from each card's
-       DOM position (see the script below), negative so the very first
-       cards on screen are already mid-breath on load rather than sitting
-       motionless for up to a full cycle. Only border-color animates here,
-       never transform — .card:hover already owns transform (the lift) and
-       a running CSS animation always wins that fight over a plain hover
-       rule, which would otherwise make the hover lift flicker against the
-       ambient loop. A large blurred box-shadow glow was tried here first
-       and cut — too loud, especially with several cards mid-breath at once
-       across a packed masonry grid; a crisp border-colour shift reads as
-       "alive" without the haze. */
-    animation: card-breathe 6s ease-in-out infinite;
+       touches it — a slow, gentle vertical bob on the card itself (image,
+       title, and all), not the border-colour fade this used to be.
+       animation-delay is staggered per-card in JS (see the script below),
+       negative so the very first cards on screen are already mid-bob on
+       load rather than sitting motionless for up to a full cycle.
+       transform is the only property animated here, same property
+       .card:hover's own lift uses — a running CSS animation always wins
+       that fight over a plain transition on the same property, so hover
+       turns the animation off outright below rather than letting the two
+       fight over transform. */
+    animation: card-bob 6s ease-in-out infinite;
   }
-  @keyframes card-breathe {
-    0%, 100% { border-color: var(--border); }
-    50% { border-color: var(--accent); }
+  @keyframes card-bob {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-4px); }
   }
-  /* -4px (was a flat -2px) — the lift needed more presence to actually
-     read as "this card is reacting to you" rather than a faint wobble.
-     animation: none here for the same reason the ambient loop only
-     touches border-color above: hover needs its own border-color to
-     actually win instead of fighting the running animation for the same
-     property. */
+  /* animation: none — see .card's own comment above: hover needs its own
+     transform to win outright instead of fighting the running animation
+     for the same property. */
   .card:hover {
     animation: none;
     transform: translateY(-4px);
@@ -500,6 +545,11 @@
   <div class="help-tooltip" id="help-tooltip" hidden>Click a card to view details.</div>
 
   <div class="settings-panel" id="settings-panel" hidden>
+    <div class="deck-info">
+      <div class="deck-info-title">Trip Report (sample)</div>
+      <div class="deck-info-author">Preview sample</div>
+      <div class="deck-info-count">9 slides</div>
+    </div>
     <button class="mode-toggle" id="mode-toggle" aria-pressed="false">
       <span id="mode-toggle-label">Dark</span>
       <span class="mode-toggle-switch" aria-hidden="true">
@@ -531,7 +581,6 @@
     <div class="doc-header">
       <div class="doc-eyebrow">Gallery</div>
       <h1 class="doc-title">Trip Report (sample)</h1>
-      <p class="doc-subtitle">9 slides</p>
       <p class="doc-meta">Preview sample</p>
     </div>
 
@@ -833,7 +882,7 @@
     var panel = document.getElementById('panel');
     var cards = Array.prototype.slice.call(document.querySelectorAll('.card'));
 
-    // Negative delay (not positive) — see the card-breathe animation's own
+    // Negative delay (not positive) — see the card-bob animation's own
     // comment in <style>: this puts each card at a different point in the
     // cycle immediately, rather than a reveal-cascade that sweeps in on load.
     cards.forEach(function (card, i) {
