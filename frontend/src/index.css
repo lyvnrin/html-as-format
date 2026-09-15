@@ -15,7 +15,7 @@
   --gold: #b86e3a;
   --gold-light: #e8c4a0;
   --gold-dark: #7a4420;
-  --font-serif: 'Source Serif 4', Georgia, serif;
+  --font-serif: 'PT Serif', Georgia, serif;
   --font-sans: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 
   /* -rgb companion lets rgba()/color-mix-free code build translucent
