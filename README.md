@@ -53,13 +53,26 @@ You need Node.js and an Anthropic API key.
 
 ```bash
 # from the repo root
-echo "ANTHROPIC_API_KEY=sk-ant-..." > .env
+cat <<EOF > .env
+ANTHROPIC_API_KEY=sk-ant-...
+APP_SECRET=$(node -e "console.log(require('crypto').randomBytes(32).toString('hex'))")
+ALLOWED_ORIGIN=http://localhost:5173
+EOF
+
+echo "VITE_APP_TOKEN=$(grep APP_SECRET .env | cut -d= -f2)" > frontend/.env.local
 
 npm install
 npm run dev
 ```
 
 This starts the Express server on `localhost:3001` and the Vite dev server on `localhost:5173`. Open the frontend, upload a `.pptx`, `.pdf`, or `.txt` file, pick a format, and it comes back as a rendered HTML page.
+
+Env vars, all set on the server side except the last:
+- `ANTHROPIC_API_KEY` — required, all model calls use it.
+- `APP_SECRET` — required; every `/api/*` request must send it as the `x-app-token` header. The server refuses to start without it.
+- `ALLOWED_ORIGIN` — comma-separated list of origins allowed by CORS. Defaults to `http://localhost:5173`; set it to your deployed frontend's origin(s) if you host this beyond localhost.
+- `HOST` — interface the server binds to. Defaults to `127.0.0.1` (loopback only); only widen this if you deliberately need it reachable from outside the host.
+- `VITE_APP_TOKEN` (in `frontend/.env.local`) — must match `APP_SECRET`; this is what the frontend sends as `x-app-token`.
 
 ## Adding a new format
 

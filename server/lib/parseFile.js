@@ -2,6 +2,13 @@ import JSZip from 'jszip'
 import path from 'node:path'
 import { extractPdf } from './extractPdf.js'
 
+// Guards against zip bombs: a small uploaded .pptx whose entries decompress
+// to far more than the multer upload cap could otherwise exhaust server
+// memory. JSZip.loadAsync only parses zip headers (compressed/uncompressed
+// size are stored there), so this total is available before any entry is
+// actually decompressed.
+const MAX_DECOMPRESSED_BYTES = 500 * 1024 * 1024
+
 const IMAGE_MIME_TYPES = {
   png: 'image/png',
   jpg: 'image/jpeg',
@@ -120,6 +127,15 @@ async function extractImages(xml, zip, slidePath) {
 
 async function parsePptx(buffer) {
   const zip = await JSZip.loadAsync(buffer)
+
+  const totalUncompressedBytes = Object.values(zip.files).reduce(
+    (sum, entry) => sum + (entry._data?.uncompressedSize || 0),
+    0,
+  )
+  if (totalUncompressedBytes > MAX_DECOMPRESSED_BYTES) {
+    throw new Error('File rejected: archive contents are too large when decompressed.')
+  }
+
   const slidePaths = Object.keys(zip.files)
     .filter((filePath) => /^ppt\/slides\/slide\d+\.xml$/.test(filePath))
     .sort((a, b) => slideNumber(a) - slideNumber(b))

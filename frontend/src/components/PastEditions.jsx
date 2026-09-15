@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { formats } from '../formats'
+import { authHeaders } from '../apiHeaders'
 import styles from './PastEditions.module.css'
 
 const FORMAT_LABELS = Object.fromEntries(formats.map((format) => [format.id, format.label]))
@@ -32,7 +33,7 @@ export default function PastEditions() {
 
   useEffect(() => {
     let cancelled = false
-    fetch('/api/editions')
+    fetch('/api/editions', { headers: authHeaders() })
       .then((res) => {
         if (!res.ok) throw new Error('Failed to load past editions.')
         return res.json()
@@ -63,7 +64,7 @@ export default function PastEditions() {
     setError(null)
     setDownloadingId(edition.id)
     try {
-      const res = await fetch(`/api/editions/${edition.id}`)
+      const res = await fetch(`/api/editions/${edition.id}`, { headers: authHeaders() })
       if (!res.ok) throw new Error('Failed to load this edition.')
       const { html } = await res.json()
       downloadHtml(html, `${edition.format}.html`)
@@ -78,7 +79,7 @@ export default function PastEditions() {
     setError(null)
     setDeletingId(edition.id)
     try {
-      const res = await fetch(`/api/editions/${edition.id}`, { method: 'DELETE' })
+      const res = await fetch(`/api/editions/${edition.id}`, { method: 'DELETE', headers: authHeaders() })
       if (!res.ok) throw new Error('Failed to delete this edition.')
       setEditions((current) => current.filter((e) => e.id !== edition.id))
     } catch (err) {
@@ -92,7 +93,7 @@ export default function PastEditions() {
     if (!window.confirm('Delete all past editions? This cannot be undone.')) return
     setError(null)
     try {
-      const res = await fetch('/api/editions', { method: 'DELETE' })
+      const res = await fetch('/api/editions', { method: 'DELETE', headers: authHeaders() })
       if (!res.ok) throw new Error('Failed to delete past editions.')
       setEditions([])
     } catch (err) {

@@ -112,3 +112,5 @@ No tool use or file access on Claude's end. The server does all the reading; the
 Every async step in the pipeline (captioning, extraction, rendering) receives an `AbortSignal` created from the HTTP request. If the client disconnects or cancels, the signal fires and each step bails out at its next checkpoint rather than running to completion. This matters because a full pipeline run (caption 6 images + render) can take 30-60 seconds of API calls, and there's no reason to finish if nobody's waiting for the result.
 
 API key loaded from a root-level `.env` (gitignored, never committed). All model calls use `claude-sonnet-4-6`.
+
+Every `/api/*` route requires an `x-app-token` header matching `APP_SECRET` (checked with a timing-safe comparison), CORS is restricted to `ALLOWED_ORIGIN`, the generation routes are rate-limited, and the server binds to `127.0.0.1` by default — see the README's env var list before deploying anywhere beyond localhost.

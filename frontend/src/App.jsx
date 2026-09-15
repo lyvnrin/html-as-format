@@ -3,6 +3,7 @@ import DropZone from './components/DropZone'
 import FormatPicker from './components/FormatPicker'
 import Grainient from './components/Grainient'
 import PastEditions from './components/PastEditions'
+import { authHeaders } from './apiHeaders'
 import styles from './App.module.css'
 
 const LOGO_TEXT = 'HTML as a Format'
@@ -85,6 +86,7 @@ export default function App() {
       const response = await fetch(endpoint, {
         method: 'POST',
         body: formData,
+        headers: authHeaders(),
         signal: controller.signal,
       })
 

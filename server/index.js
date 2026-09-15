@@ -3,8 +3,11 @@ import cors from 'cors'
 import dotenv from 'dotenv'
 import fs from 'fs'
 import path from 'path'
+import crypto from 'crypto'
 import { fileURLToPath } from 'url'
 import multer from 'multer'
+import helmet from 'helmet'
+import { rateLimit } from 'express-rate-limit'
 import Anthropic from '@anthropic-ai/sdk'
 import { parseFile } from './lib/parseFile.js'
 import { captionImages } from './lib/captionImages.js'
@@ -21,6 +24,11 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const ROOT = path.resolve(__dirname, '..')
 
 dotenv.config({ path: path.join(ROOT, '.env') })
+
+if (!process.env.APP_SECRET) {
+  console.error('APP_SECRET is not set. Refusing to start — set it in .env (see README).')
+  process.exit(1)
+}
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
@@ -603,10 +611,51 @@ function abortSignalForRequest(req, res) {
 const MAX_UPLOAD_BYTES = 75 * 1024 * 1024
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: MAX_UPLOAD_BYTES } })
 
-const app = express()
-app.use(cors())
+const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGIN || 'http://localhost:5173')
+  .split(',')
+  .map((origin) => origin.trim())
+  .filter(Boolean)
 
-app.post('/api/generate', upload.single('file'), async (req, res) => {
+const app = express()
+app.use(helmet())
+app.use(
+  cors({
+    origin: ALLOWED_ORIGINS,
+  }),
+)
+
+// Constant-time comparison so response timing can't be used to guess the
+// token byte-by-byte. Buffers must be equal length for timingSafeEqual, so
+// a length mismatch is rejected up front (which itself leaks nothing beyond
+// "wrong token", same as the value mismatch case).
+function requireAppToken(req, res, next) {
+  const provided = Buffer.from(req.get('x-app-token') || '')
+  const expected = Buffer.from(process.env.APP_SECRET)
+  if (provided.length !== expected.length || !crypto.timingSafeEqual(provided, expected)) {
+    return res.status(401).json({ error: 'Unauthorized' })
+  }
+  next()
+}
+app.use('/api', requireAppToken)
+
+// Generation endpoints call the Anthropic API and are the most expensive to
+// abuse (cost + compute); the editions list/read/delete endpoints are local
+// SQLite reads/writes and get the lighter general limit further down.
+const generateLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+})
+const generalLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 300,
+  standardHeaders: true,
+  legacyHeaders: false,
+})
+app.use('/api', generalLimiter)
+
+app.post('/api/generate', generateLimiter, upload.single('file'), async (req, res) => {
   const { file } = req
   const { format } = req.body || {}
 
@@ -649,7 +698,7 @@ app.post('/api/generate', upload.single('file'), async (req, res) => {
   }
 })
 
-app.post('/api/render-gallery', upload.single('file'), async (req, res) => {
+app.post('/api/render-gallery', generateLimiter, upload.single('file'), async (req, res) => {
   const { file } = req
 
   if (!file) {
@@ -683,7 +732,7 @@ app.post('/api/render-gallery', upload.single('file'), async (req, res) => {
   }
 })
 
-app.post('/api/render-bubble', upload.single('file'), async (req, res) => {
+app.post('/api/render-bubble', generateLimiter, upload.single('file'), async (req, res) => {
   const { file } = req
 
   if (!file) {
@@ -759,6 +808,7 @@ app.use((err, req, res, next) => {
 })
 
 const PORT = process.env.PORT || 3001
-app.listen(PORT, () => {
-  console.log(`Server listening on http://localhost:${PORT}`)
+const HOST = process.env.HOST || '127.0.0.1'
+app.listen(PORT, HOST, () => {
+  console.log(`Server listening on http://${HOST}:${PORT}`)
 })
