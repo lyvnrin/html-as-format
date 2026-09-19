@@ -4,12 +4,6 @@
 
 HaF is a two-part app: a React frontend and an Express backend. A user uploads a file and picks an output format in the frontend; the backend extracts structured content from the file, optionally captions any embedded images, then produces a self-contained HTML page through one of three renderers. Each renderer is its own self-contained "skill" folder, so the set of available formats is discovered at server startup rather than hardcoded.
 
-## Architecture diagram
-
-![HaF architecture diagram](assets/architecture-diagram.png)
-
-Full system map, extraction schema, renderer comparison, and skill anatomy.
-
 ## Pipeline stages
 
 ### Frontend (React 19 + Vite)
