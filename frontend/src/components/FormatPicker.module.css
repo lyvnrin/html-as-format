@@ -67,6 +67,12 @@
   color: #ffffff;
 }
 
+.error {
+  font-size: 13px;
+  color: #b3261e;
+  margin-bottom: 10px;
+}
+
 .grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);

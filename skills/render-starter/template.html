@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{{STARTER_TITLE}}</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=PT+Serif:ital,wght@0,400;0,700;1,400&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
+<style>
+  /* Palette mirrors the frontend generator app's own tokens (see
+     frontend/src/index.css) — paper/ink/accent, not an independently
+     chosen scheme — so a generated page reads as the same product as the
+     tool that made it. Copied verbatim from the other render-* templates;
+     see skills/render-gallery/assets/gallery-template.html for the reference. */
+  :root {
+    --font-serif: 'PT Serif', Georgia, 'Iowan Old Style', 'Palatino Linotype', 'Times New Roman', serif;
+    --font-sans: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    --bg: #1c1a17;
+    --surface-solid: #26231f;
+    --surface-alt: #2f2c27;
+    --border: #3d3933;
+    --text: #ede9e0;
+    --text-soft: #c9c4b8;
+    --text-faint: #8f8a7e;
+    --accent: #7fa5c9;
+    --accent-soft: rgba(127,165,201,0.15);
+    --accent-glow: rgba(127,165,201,0.55);
+    --accent-dark: #5c85ac;
+    --radius: 16px;
+    --shadow: 0 8px 32px rgba(0,0,0,0.45);
+  }
+
+  body[data-mode="light"] {
+    --bg: #fafaf6;
+    --surface-solid: #f3f2ed;
+    --surface-alt: #e8e6df;
+    --border: #d4d1cb;
+    --text: #2f2f2d;
+    --text-soft: #43423f;
+    --text-faint: #8a8780;
+    --accent: #2e6db4;
+    --accent-soft: rgba(46,109,180,0.1);
+    --accent-glow: rgba(46,109,180,0.55);
+    --accent-dark: #1e5a96;
+    --shadow: 0 8px 28px rgba(20,30,60,0.12);
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+
+  /* Hide scrollbars everywhere — scrolling still works, just no visible
+     track/thumb. Part of the shared chrome; keep this block in every
+     template. */
+  * { scrollbar-width: none; -ms-overflow-style: none; }
+  *::-webkit-scrollbar { display: none; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-sans);
+    transition: background-color .25s ease, color .25s ease;
+    min-height: 100vh;
+  }
+
+  .settings-toggle {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 100;
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    border: 1px solid var(--border);
+    background: var(--surface-solid);
+    color: var(--text);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    box-shadow: var(--shadow);
+    transition: border-color .15s ease, transform .15s ease, background .15s ease;
+  }
+  .settings-toggle:hover { border-color: var(--accent-glow); transform: translateY(-1px); }
+  .settings-toggle svg { width: 18px; height: 18px; }
+
+  .settings-panel {
+    position: fixed;
+    top: 70px;
+    right: 20px;
+    z-index: 100;
+    width: 224px;
+    background: var(--surface-solid);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  .settings-panel[hidden] { display: none; }
+
+  /* Deck info — a read-only summary, not a control, so it gets its own
+     divider rather than looking like another settings row. */
+  .deck-info {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--border);
+  }
+  .deck-info-title {
+    font-family: var(--font-serif);
+    font-size: 14px;
+    font-weight: 700;
+    line-height: 1.3;
+    color: var(--text);
+  }
+  .deck-info-author,
+  .deck-info-count {
+    font-size: 11.5px;
+    color: var(--text-faint);
+  }
+  .deck-info-author:empty { display: none; }
+
+  .settings-panel button.tool-btn {
+    display: flex; align-items: center; justify-content: center; gap: 6px;
+    width: 100%;
+    font-size: 13px; font-weight: 600;
+    padding: 9px 14px; border-radius: 10px;
+    border: 1px solid var(--border);
+    background: var(--surface-alt);
+    color: var(--text);
+    cursor: pointer;
+    transition: background .15s ease, transform .1s ease;
+  }
+  .settings-panel button.tool-btn:hover { background: var(--accent-soft); transform: translateY(-1px); }
+  .settings-panel button.tool-btn.primary {
+    background: var(--accent); color: #0a0c12; border-color: var(--accent);
+    box-shadow: 0 0 18px var(--accent-glow);
+  }
+  .settings-panel button.tool-btn.primary:hover { background: var(--accent-dark); }
+
+  /* PDF download disabled for now — kept in the DOM/wiring as-is, just
+     visually and functionally inert. Same across every renderer; don't
+     re-enable here without re-enabling it everywhere else too. */
+  #pdf-btn { opacity: 0.4; pointer-events: none; cursor: not-allowed; }
+
+  /* Dark/light switch — an iOS-style sliding pill. */
+  .mode-toggle {
+    display: flex; align-items: center; justify-content: space-between; gap: 10px;
+    width: 100%;
+    font-size: 13px; font-weight: 600;
+    padding: 9px 14px; border-radius: 10px;
+    border: 1px solid var(--border);
+    background: var(--surface-alt);
+    color: var(--text);
+    cursor: pointer;
+    transition: background .15s ease, transform .1s ease;
+  }
+  .mode-toggle:hover { background: var(--accent-soft); transform: translateY(-1px); }
+  .mode-toggle-switch {
+    position: relative;
+    flex: none;
+    width: 38px; height: 22px;
+    border-radius: 999px;
+    background: var(--border);
+    transition: background .35s ease;
+  }
+  body[data-mode="dark"] .mode-toggle-switch { background: var(--accent-dark); }
+  .mode-toggle-thumb {
+    position: absolute;
+    top: 2px; left: 2px;
+    width: 18px; height: 18px;
+    border-radius: 50%;
+    background: var(--surface-solid);
+    box-shadow: 0 1px 3px rgba(0,0,0,.35);
+    display: flex; align-items: center; justify-content: center;
+    transition: transform .35s cubic-bezier(.34, 1.56, .64, 1);
+  }
+  body[data-mode="dark"] .mode-toggle-thumb { transform: translateX(16px); }
+  .mode-toggle-thumb svg {
+    position: absolute;
+    width: 12px; height: 12px;
+    transition: opacity .3s ease, transform .4s ease;
+  }
+  .mode-toggle-thumb .icon-sun { color: #e8a63c; opacity: 1; transform: rotate(0deg) scale(1); }
+  .mode-toggle-thumb .icon-moon { color: #7c93c9; opacity: 0; transform: rotate(-90deg) scale(.5); }
+  body[data-mode="dark"] .mode-toggle-thumb .icon-sun { opacity: 0; transform: rotate(90deg) scale(.5); }
+  body[data-mode="dark"] .mode-toggle-thumb .icon-moon { opacity: 1; transform: rotate(0deg) scale(1); }
+
+  #doc {
+    position: relative;
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 40px 24px 100px;
+  }
+
+  .doc-header {
+    position: absolute;
+    top: 40px;
+    left: 0;
+    right: 0;
+    z-index: 5;
+    text-align: center;
+    pointer-events: none;
+  }
+  .doc-eyebrow {
+    display: block;
+    font-size: 10px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 6px;
+  }
+  .doc-title {
+    font-family: var(--font-serif);
+    font-size: clamp(20px, 2.6vw, 27px); font-weight: 700; margin: 0; line-height: 1.2;
+  }
+  .doc-meta { font-size: 11px; color: var(--text-faint); margin: 8px 0 0; }
+
+  /* Single generic content container — replace this with the renderer's
+     actual layout (a grid, a track, a canvas, whatever it needs). Nothing
+     downstream of #doc-header depends on #content's internal structure. */
+  #content {
+    margin-top: 112px;
+  }
+
+  @media print {
+    .settings-toggle, .settings-panel { display: none; }
+  }
+</style>
+</head>
+<body data-mode="light">
+
+  <button class="settings-toggle" id="settings-toggle" aria-label="Settings" aria-expanded="false">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <circle cx="12" cy="12" r="3"></circle>
+      <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z"></path>
+    </svg>
+  </button>
+
+  <div class="settings-panel" id="settings-panel" hidden>
+    <div class="deck-info">
+      <div class="deck-info-title">{{STARTER_TITLE}}</div>
+      <div class="deck-info-author">{{AUTHOR}}</div>
+      <div class="deck-info-count">{{STARTER_SUBTITLE}}</div>
+    </div>
+    <button class="mode-toggle" id="mode-toggle" aria-pressed="false">
+      <span id="mode-toggle-label">Dark</span>
+      <span class="mode-toggle-switch" aria-hidden="true">
+        <span class="mode-toggle-thumb">
+          <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="5"></circle>
+            <line x1="12" y1="1" x2="12" y2="3"></line>
+            <line x1="12" y1="21" x2="12" y2="23"></line>
+            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+            <line x1="1" y1="12" x2="3" y2="12"></line>
+            <line x1="21" y1="12" x2="23" y2="12"></line>
+            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+          </svg>
+          <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+          </svg>
+        </span>
+      </span>
+    </button>
+    <button class="tool-btn primary" id="pdf-btn">⬇ Download PDF</button>
+  </div>
+
+  <div id="doc">
+
+    <div class="doc-header">
+      <div class="doc-eyebrow">Starter</div>
+      <h1 class="doc-title">{{STARTER_TITLE}}</h1>
+      <p class="doc-meta">{{AUTHOR}}</p>
+    </div>
+
+    <div id="content">
+{{STARTER_CONTENT}}
+    </div>
+
+  </div>
+
+<script>
+  (function () {
+    var body = document.body;
+
+    var settingsToggle = document.getElementById('settings-toggle');
+    var settingsPanel = document.getElementById('settings-panel');
+    settingsToggle.addEventListener('click', function (e) {
+      e.stopPropagation();
+      var willOpen = settingsPanel.hidden;
+      settingsPanel.hidden = !willOpen;
+      settingsToggle.setAttribute('aria-expanded', String(willOpen));
+    });
+    document.addEventListener('click', function (e) {
+      if (!settingsPanel.hidden && !settingsPanel.contains(e.target) && !settingsToggle.contains(e.target)) {
+        settingsPanel.hidden = true;
+        settingsToggle.setAttribute('aria-expanded', 'false');
+      }
+    });
+
+    var modeBtn = document.getElementById('mode-toggle');
+    var modeLabel = document.getElementById('mode-toggle-label');
+    modeBtn.addEventListener('click', function () {
+      var isLight = body.getAttribute('data-mode') === 'light';
+      var newMode = isLight ? 'dark' : 'light';
+      body.setAttribute('data-mode', newMode);
+      modeBtn.setAttribute('aria-pressed', String(newMode === 'dark'));
+      modeLabel.textContent = isLight ? 'Light' : 'Dark';
+    });
+
+    var pdfBtn = document.getElementById('pdf-btn');
+    pdfBtn.addEventListener('click', function () {
+      var el = document.getElementById('content');
+      var opt = {
+        margin: 0.4,
+        filename: '{{STARTER_TITLE}}.pdf',
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 2, useCORS: true },
+        jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' }
+      };
+      html2pdf().set(opt).from(el).save();
+    });
+  })();
+</script>
+
+</body>
+</html>

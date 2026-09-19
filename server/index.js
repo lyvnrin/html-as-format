@@ -32,6 +32,41 @@ if (!process.env.APP_SECRET) {
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
+// --- Renderer format discovery ---
+// Scans skills/ for render-* folders so new renderers can be dropped in
+// without touching this file. A folder only needs a SKILL.md plus a template
+// file (named "template.html" anywhere inside it — the existing renderers
+// keep theirs under assets/{format}-template.html rather than a flat
+// template.html, so the check matches by suffix, not exact name) to be
+// registered. render-starter is a scaffold for contributors, not a live
+// renderer, so it's filtered out by name regardless of its contents.
+const SKILLS_DIR = path.join(ROOT, 'skills')
+
+function hasTemplateFile(dir) {
+  return fs.readdirSync(dir, { withFileTypes: true }).some((entry) => {
+    const entryPath = path.join(dir, entry.name)
+    if (entry.isDirectory()) return hasTemplateFile(entryPath)
+    return entry.isFile() && entry.name.endsWith('template.html')
+  })
+}
+
+function discoverRenderFormats() {
+  if (!fs.existsSync(SKILLS_DIR)) return []
+  return fs
+    .readdirSync(SKILLS_DIR, { withFileTypes: true })
+    .filter((entry) => entry.isDirectory() && entry.name.startsWith('render-'))
+    .map((entry) => entry.name)
+    .filter((name) => name !== 'render-starter')
+    .filter((name) => {
+      const dir = path.join(SKILLS_DIR, name)
+      return fs.existsSync(path.join(dir, 'SKILL.md')) && hasTemplateFile(dir)
+    })
+    .map((name) => name.slice('render-'.length))
+}
+
+const AVAILABLE_FORMATS = discoverRenderFormats()
+console.log('Discovered renderer formats:', AVAILABLE_FORMATS)
+
 const TIMELINE_TEMPLATE = fs.readFileSync(
   path.join(ROOT, 'skills/render-timeline/assets/timeline-template.html'),
   'utf-8',
@@ -765,6 +800,10 @@ app.post('/api/render-bubble', generateLimiter, upload.single('file'), async (re
     finishGenerationLog(log, 'failed')
     res.status(500).json({ error: err.message || 'Bubble render failed.' })
   }
+})
+
+app.get('/api/formats', (req, res) => {
+  res.json(AVAILABLE_FORMATS)
 })
 
 app.get('/api/editions', (req, res) => {
