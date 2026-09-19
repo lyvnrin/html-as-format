@@ -5,7 +5,7 @@ HaF is an internal tool that converts PowerPoints, PDFs, and meeting transcripts
 ## Features
 
 - Three renderer formats: Timeline, Gallery, and Bubble Map, each suited to a different kind of source content.
-- Shared interactive chrome across generated pages: dark/light mode and PDF export.
+- Shared interactive chrome across generated pages: dark/light mode.
 - Skills-based architecture: each renderer lives in its own drop-in `skills/render-<name>/` folder (template plus design rationale), so adding a format doesn't touch the core app.
 - VLM image captioning: extracted images are captioned via the Anthropic API and fed back into generation as context.
 
@@ -14,7 +14,6 @@ HaF is an internal tool that converts PowerPoints, PDFs, and meeting transcripts
 - React 19 + Vite
 - Express
 - Anthropic API (claude-sonnet-4-6)
-- html2pdf.js
 
 ## Getting Started
 

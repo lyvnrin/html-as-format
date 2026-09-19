@@ -44,7 +44,6 @@ List every `{{PLACEHOLDER}}` token this renderer's `renderX` function stamps int
 Copy the shared chrome verbatim from an existing template (`skills/render-gallery/assets/gallery-template.html` is a good reference) — don't rewrite it:
 - deck-info panel (title / author / count) inside the settings panel
 - dark/light mode toggle
-- Download PDF button (currently wired but visually/functionally disabled — `opacity: 0.4; pointer-events: none` — across every renderer; keep it that way unless asked otherwise)
 - the global hide-scrollbar rule (`* { scrollbar-width: none; ... }`)
 
 This starter's own `template.html` already has this chrome in place, wired to a single generic `#content` container — replace that container with this renderer's actual layout.

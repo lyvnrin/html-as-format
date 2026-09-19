@@ -1,6 +1,6 @@
 ---
 name: render-gallery
-description: Renders the enriched slide JSON produced by the pptx image-extraction + captioning pipeline (parseFile → captionImages) as a Pinterest-style masonry image grid. Each slide becomes a card — an image-led card with a bold heading overlay and a small caption label, or a solid accent-coloured tile with a white heading if the slide has no image. Clicking a card opens a full-detail overlay with the image and complete text side-by-side. Shares the same interactive chrome as all other renderers: 5-colour theme picker, dark mode toggle, Download PDF button. Use this skill when the user asks for a gallery layout, a photo/image grid, a Pinterest-style board, or a visual/scannable alternative to a slide-by-slide format.
+description: Renders the enriched slide JSON produced by the pptx image-extraction + captioning pipeline (parseFile → captionImages) as a Pinterest-style masonry image grid. Each slide becomes a card — an image-led card with a bold heading overlay and a small caption label, or a solid accent-coloured tile with a white heading if the slide has no image. Clicking a card opens a full-detail overlay with the image and complete text side-by-side. Shares the same interactive chrome as all other renderers: 5-colour theme picker, dark mode toggle. Use this skill when the user asks for a gallery layout, a photo/image grid, a Pinterest-style board, or a visual/scannable alternative to a slide-by-slide format.
 ---
 
 # render-gallery
@@ -44,7 +44,7 @@ Takes the enriched slide array produced by the pptx image pipeline (`parseFile` 
 
 ## Step 4: Chrome
 
-Copy the toolbar HTML/CSS/JS verbatim from the existing templates (`timeline-template.html` or `bubble-template.html`) — do not rewrite it. 5-colour theme picker (blue, green, purple, orange, **red** — blue is the default; note this format uses red instead of the pink used elsewhere, that's intentional). Dark mode toggle. Download PDF button targets `#grid`, not the whole page (the toolbar shouldn't appear in the exported PDF).
+Copy the toolbar HTML/CSS/JS verbatim from the existing templates (`timeline-template.html` or `bubble-template.html`) — do not rewrite it. 5-colour theme picker (blue, green, purple, orange, **red** — blue is the default; note this format uses red instead of the pink used elsewhere, that's intentional). Dark mode toggle.
 
 Scrollbars are hidden everywhere on every renderer (the global `* { scrollbar-width: none; ... } *::-webkit-scrollbar { display: none; }` rule right after the box-sizing reset) — scrolling still works, there's just no visible track/thumb. Keep this rule intact.
 

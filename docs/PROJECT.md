@@ -20,7 +20,7 @@ A format picker in the app highlights the recommended renderer for whatever file
 
 ## Shared chrome
 
-All three output formats share the same interactive chrome: a dark/light mode toggle, and a Download PDF button built on html2pdf.js. The PDF button is currently wired up but disabled in the UI (kept in place for when that feature is turned back on). Each template ships one fixed accent colour that mirrors the generator app's own palette; there is no runtime colour picker in the generated output.
+All three output formats share the same interactive chrome: a dark/light mode toggle. Each template ships one fixed accent colour that mirrors the generator app's own palette; there is no runtime colour picker in the generated output.
 
 ## Target audience and surfaces
 
@@ -35,3 +35,9 @@ I built HaF during a summer 2026 internship on TCS's AI & Smart Technology team 
 - A consultant receives a 40-slide strategy deck the night before a client call and needs the highlights fast, without reading the whole thing slide by slide.
 - A team lead wants a meeting's notes formatted and shareable with the wider team, rather than forwarding a raw transcript.
 - A researcher is exploring cross-cutting themes in an image-heavy report and wants to move between related ideas non-linearly rather than page by page.
+
+## Tools to develop in the future
+
+- **PDF export**: a working Download PDF button on generated pages. It was previously wired up via html2pdf.js but has since been removed; re-adding it properly (page breaks, print-friendly layout per renderer) is future work.
+- **OCR for scanned PDFs**: image-only PDFs with no text layer are currently rejected outright at extraction time. Supporting them would need an OCR step ahead of the existing text-structuring call.
+- **A real accent colour picker**: each generated page currently ships one fixed accent colour baked into its template at generation time, with no way to change it after the fact. A genuine runtime colour picker in the output pages is not yet implemented.

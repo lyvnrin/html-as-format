@@ -82,7 +82,7 @@ New renderer formats are auto-discovered; no backend code changes are needed.
 1. Create a new folder under `skills/` named `render-{your-format-name}/`.
 2. Add two files inside it:
    - `SKILL.md`: layout rules, card types, and interaction behaviour for your format. This documents the design decisions behind your template for whoever edits it next.
-   - A template file whose name ends in `template.html` (for example `assets/{your-format-name}-template.html`, matching the pattern the existing renderers use). This is the HTML scaffold, including the shared chrome (dark/light mode toggle and the PDF export button).
+   - A template file whose name ends in `template.html` (for example `assets/{your-format-name}-template.html`, matching the pattern the existing renderers use). This is the HTML scaffold, including the shared chrome (dark/light mode toggle).
 3. Restart the server. It scans `skills/` on startup for folders named `render-*` that contain both a `SKILL.md` and a `*template.html` file; a folder missing either file is skipped. Your new format then appears in the frontend's format picker automatically, via `GET /api/formats`.
 
 The extraction JSON schema (documented in `ARCHITECTURE.md`) is the same regardless of format, so a new renderer receives the same slide data as the existing ones.

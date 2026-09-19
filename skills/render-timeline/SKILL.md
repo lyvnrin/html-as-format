@@ -19,7 +19,7 @@ The centre column is `210px`, not a token width like `60px` — the always-visib
 
 **The header must stay tiny.** It is an eyebrow label and a title, nothing else — no subtitle paragraph, no meta row. This is deliberate: the interactive timeline is what this skill is for, and a header block that can balloon with a long subtitle/summary paragraph was flagged explicitly as eating space that belongs to the timeline. Do not let the header grow past roughly two lines regardless of how long the title text is (the title's `font-size` is already modest — `clamp(20px, 2.6vw, 27px)` — don't enlarge it into a splash headline).
 
-Shares the same interactive chrome as all other renderers: 5-colour theme picker, dark mode toggle, Download PDF button.
+Shares the same interactive chrome as all other renderers: 5-colour theme picker, dark mode toggle.
 
 ## Step 1: Extraction
 
@@ -74,11 +74,11 @@ The template ships light by default (`data-mode="light"` on `<body>`) — keep i
 
 ## Step 3: Chrome
 
-Copy the toolbar HTML and JS verbatim from the existing templates — do not rewrite it. The toolbar includes the theme picker, dark mode toggle, and PDF export button. It must behave identically to the other renderers.
+Copy the toolbar HTML and JS verbatim from the existing templates — do not rewrite it. The toolbar includes the theme picker and dark mode toggle. It must behave identically to the other renderers.
 
 Scrollbars are hidden everywhere on every renderer (the global `* { scrollbar-width: none; ... } *::-webkit-scrollbar { display: none; }` rule right after the box-sizing reset) — scrolling still works, there's just no visible track/thumb. Keep this rule intact. This template has no internal scrolling region of its own — the whole page is the scroll surface — so there is no scrollbar exception to carve out here; a visible custom scrollbar on a boxed track was tried and explicitly rejected alongside the boxed-scroll approach itself. Don't add one back.
 
-The PDF export targets `#doc` (the whole document). The `@media print` rule forces every `.tl-node-detail` to `display: block !important` regardless of open/closed state, so a PDF export captures every node's full content.
+The `@media print` rule forces every `.tl-node-detail` to `display: block !important` regardless of open/closed state, so printing the page via the browser's own print dialog still captures every node's full content.
 
 ## Step 4: Writing the content
 
