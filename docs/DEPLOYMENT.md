@@ -1,6 +1,6 @@
 # HaF: Deployment Guide
 
-This guide takes you from a clean machine to a running local instance.
+This guide takes you from a clean machine to a running local instance. It covers local development only. Provisioning and deploying to any hosting environment (Azure or otherwise) is intentionally out of scope here and is left to whoever takes this to production.
 
 ## Prerequisites
 
@@ -73,7 +73,7 @@ The frontend has a build step:
 npm run build --prefix frontend
 ```
 
-This produces a static bundle in `frontend/dist`. The backend does not currently serve this bundle; it only exposes the `/api/*` routes. There is no production build step for the backend itself; run it with `node server/index.js` (or `npm start --prefix server`). For a production deployment, put a static file server or reverse proxy in front of `frontend/dist` and point it at the Express server for `/api/*`. Until that's set up, the dev server (`npm run dev`) is the primary way to run this project.
+This produces a static bundle in `frontend/dist`. The backend does not currently serve this bundle; it only exposes the `/api/*` routes. There is no production build step for the backend itself; run it with `node server/index.js` (or `npm start --prefix server`). For a production deployment, put a static file server or reverse proxy in front of `frontend/dist` and point it at the Express server for `/api/*`. Until that's set up, the dev server (`npm run dev`) is the primary way to run this project. Choosing and configuring the actual hosting environment (Azure or otherwise), secrets management, HTTPS, and process supervision are not covered here.
 
 ## Adding a custom renderer format
 
