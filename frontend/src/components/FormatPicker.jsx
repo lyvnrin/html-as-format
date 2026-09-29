@@ -19,7 +19,9 @@ function capitalize(name) {
 // folder name with "render-" stripped. Anything with curated metadata in
 // formats.js (matched by backendName) renders as before; a newly dropped
 // render-<name>/ folder with no curated entry yet still shows up, just with
-// a generic cover/description instead of one hand-authored for it.
+// a generic cover/description instead of one hand-authored for it. If the
+// backend isn't reachable (e.g. a static frontend-only deploy), fall back to
+// the curated list so the covers and previews can still be browsed.
 function toDisplayFormat(backendName) {
   const known = knownFormats.find((format) => format.backendName === backendName)
   if (known) return known
@@ -38,20 +40,20 @@ function toDisplayFormat(backendName) {
 export default function FormatPicker({ selectedFormat, onSelect }) {
   const [contentType, setContentType] = useState(null)
   const [backendNames, setBackendNames] = useState(null)
-  const [error, setError] = useState(null)
+  const [backendFailed, setBackendFailed] = useState(false)
 
   useEffect(() => {
     let cancelled = false
     fetch('/api/formats', { headers: authHeaders() })
       .then((res) => {
-        if (!res.ok) throw new Error('Failed to load available formats.')
+        if (!res.ok) throw new Error(`GET /api/formats failed: ${res.status}`)
         return res.json()
       })
       .then((data) => {
         if (!cancelled) setBackendNames(data)
       })
-      .catch((err) => {
-        if (!cancelled) setError(err.message)
+      .catch(() => {
+        if (!cancelled) setBackendFailed(true)
       })
     return () => {
       cancelled = true
@@ -62,7 +64,7 @@ export default function FormatPicker({ selectedFormat, onSelect }) {
     setContentType((current) => (current === id ? null : id))
   }
 
-  const formats = (backendNames || []).map(toDisplayFormat)
+  const formats = backendFailed ? knownFormats : (backendNames || []).map(toDisplayFormat)
 
   return (
     <section>
@@ -84,8 +86,6 @@ export default function FormatPicker({ selectedFormat, onSelect }) {
           ))}
         </div>
       </div>
-
-      {error && <div className={styles.error}>{error}</div>}
 
       <div className={styles.grid}>
         {formats.map((format, index) => (
